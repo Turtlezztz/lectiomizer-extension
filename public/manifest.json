@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lectiomizer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A compact new Lectio interface with sidebar navigation, readable schedules and a consistent design system.",
   "browser_specific_settings": {
     "gecko": {
