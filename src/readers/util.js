@@ -50,7 +50,8 @@ export function readLesson(link) {
   const people = prefix => Array.from(content.querySelectorAll('[data-lectiocontextcard]')).filter(el => el.dataset.lectiocontextcard.startsWith(prefix)).map(el => text(el));
   const loose = Array.from(content.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
   const when = (loose[0] || '').replace(/\s*-\s*$/, '');
-  const [, date = when, module = ''] = when.match(/^(\S+\s+\d+\/\d+)\s*(.*)$/) || [];
+  // Forside lessons start at the module ("1. modul - …") and carry no date.
+  const [, date = /modul/i.test(when) ? '' : when, module = /modul/i.test(when) ? when : ''] = when.match(/^(\S+\s+\d+\/\d+)\s*(.*)$/) || [];
   const room = loose.slice(1).map(s => s.replace(/^•\s*/, '').replace(/\s*-\s*$/, '').trim()).filter(s => s && s !== '•').pop() || '';
   const status = link.classList.contains('s2cancelled') ? 'cancelled' : link.classList.contains('s2changed') ? 'changed' : 'normal';
   return {

@@ -1,7 +1,7 @@
 // Authored synthetic records in the native structures observed on Lectio.
 // No account content is captured here.
 import {gradesPage} from './grades-fixture.mjs';
-import {activityPage,assignmentsPage,assignmentPage,absencePage,messagesPage} from './views-fixtures.mjs';
+import {activityPage,assignmentsPage,assignmentPage,absencePage,messagesPage,homePage} from './views-fixtures.mjs';
 const base='/lectio/123/';
 const link=(title,path)=>'<a href="'+base+path+'">'+title+'</a>';
 const panel=(name,body,id)=>'<section class="lf-island defaultBlock ls-island-filled"><div class="islandHeaderContainer"><h3 class="islandHeader">'+name+'</h3></div><div class="islandContent" id="s_m_Content_Content_'+id+'_pa">'+body+'</div></section>';
@@ -9,6 +9,7 @@ const table=(id,heads,rows,cls='ls-table-layout2 lf-grid')=>'<table id="s_m_Cont
 const assignments=[['Dansk','Skriftlig aflevering — analyse af en novelle','Fre 9/10 · 23.59','Ikke afleveret'],['Matematik','Opgavesæt 3 — differentialregning','Man 12/10 · 12.00','I gang'],['Engelsk','Essay — technology and society','Ons 14/10 · 23.59','Ikke afleveret'],['Fysik','Rapport — energi og bevægelse','Fre 16/10 · 16.00','Afleveret']];
 const messageData=[['Lene Madsen','Praktisk information om ekskursion','6/10'],['Thomas Nielsen','Opgavevejledning i matematik','5/10'],['Mette Sørensen','Retningslinjer for skriftlig aflevering','4/10'],['Administration','Ny lokation på fredag','2/10']];
 export function pageFixture(p){
+ if(p.endsWith('forside.aspx'))return homePage();
  if(p.includes('elevaflevering'))return assignmentPage();
  if(p.includes('opgaverelev'))return assignmentsPage();
  if(p.includes('beskeder'))return messagesPage();

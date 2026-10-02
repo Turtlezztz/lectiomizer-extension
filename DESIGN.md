@@ -42,6 +42,11 @@ colors:
   timetable-rule: "#e8eaed"
   lesson-hover: "#e8ebed"
   drawer-scrim: "#171c255c"
+  lesson-muted: "#3c4450"
+  status-open-ink: "#2b4a72"
+  status-done-bg: "#eef2ee"
+  status-done-ink: "#2f5a35"
+  note-bg: "#fff8e8"
 typography:
   headline:
     fontFamily: "Source Sans 3, sans-serif"
@@ -108,6 +113,28 @@ typography:
   metadata:
     fontFamily: "Source Sans 3, sans-serif"
     fontSize: "12px"
+  list-meta:
+    fontFamily: "Source Sans 3, sans-serif"
+    fontSize: "13px"
+    lineHeight: 1.35
+  lesson-time:
+    fontFamily: "Source Sans 3, sans-serif"
+    fontSize: "16px"
+    fontWeight: 650
+  subject:
+    fontFamily: "Source Sans 3, sans-serif"
+    fontSize: "17px"
+    fontWeight: 600
+    lineHeight: 1.3
+  rich-heading:
+    fontFamily: "Source Sans 3, sans-serif"
+    fontSize: "18px"
+    fontWeight: 650
+  stat:
+    fontFamily: "Source Sans 3, sans-serif"
+    fontSize: "36px"
+    fontWeight: 700
+    lineHeight: 1.1
   brand:
     fontFamily: "Source Sans 3, sans-serif"
     fontSize: "26px"
@@ -119,6 +146,7 @@ rounded:
   panel: "12px"
   table: "10px"
   avatar: "50%"
+  pill: "999px"
 spacing:
   control-y: "8px"
   control-x: "12px"
@@ -312,7 +340,7 @@ Responsive behavior follows the built CSS cascade:
 
 The weekly timetable retains a 980px minimum width in a horizontal scroll region. Preserve Lectio's relative-em positions, collision handling and event heights. Dense generic tables and the 900px study comparison are placed in contained scroll regions. A selected study course removes the comparison minimum width and retains week, month and student-time context; mobile initially selects the first course at 640px and below, while comparison remains available.
 
-The rebuilt homepage uses `minmax(0,1.55fr) minmax(280px,1fr)` columns, changing to `minmax(0,1.3fr) minmax(240px,1fr)` at 1100px. A 24px row gap separates original sections. Today leads in a quiet surface with 24px padding (20px at 720px); tasks follow, then homework, messages and administrative sections in DOM reading order. Unknown original blocks remain after known ones. This weighting belongs to the homepage.
+The rebuilt homepage (Forside) uses `minmax(0,1fr) 340px` columns with a 40px gap (`290px`/28px at 1100px). The main column leads with the next-lesson panel: the lesson's subject fill, a 28px subject (23px at 720px), an inline "Nu"/"Næste" pill, the time range at 16px/650 with time left, teacher and room, and a 4px utility-red elapsed line while the lesson runs. Below it, "Brug for dig" groups missing absence causes, assignments and homework into Kræver handling, Overskredet, I dag, I morgen, Inden for en uge and Senere; then the latest messages with the unread count, school notices in full (important ones on Soft Red), and the remaining dashboard blocks as compact columns under a 2px ink rule. The side column is a sticky quiet surface with today's lessons on a time column (the running lesson outlined in red, finished ones faded), the coming days, and class/group chips. At 900px and below the page becomes one column ordered panel, schedule, list, messages, notices, other, so today stays first. This weighting belongs to the homepage.
 
 **The Task Hierarchy Rule.** Structure each workspace around its primary student task. Reuse the shared type, colors and record rhythm without forcing every route into the same panel grid. Detailed route composition remains in `.impeccable/page-layouts.md`.
 
@@ -378,7 +406,7 @@ At 720px the two-column arrangement gives titles full width and keeps selection 
 
 ### Rebuilt Views
 
-Karakterer, Aktivitet, Opgaver, Opgaveaflevering, Fraværsårsager and the Beskeder list are rendered from data instead of reflowed. A reader in `src/readers/` extracts the page into plain data and a React view in `src/views/` renders it in a `.lx-view` container at the top of `#contenttable`; Lectio's original nodes remain in the form, hidden with `.lx-view-active`. A **Lectios visning** button reveals the original page (print, export, language) and a soft-red bar returns to the view. Readers throw on unexpected markup and the page then falls back to native presentation. Optional sections that fail render a quiet notice with a link to the original.
+Forside, Karakterer, Aktivitet, Opgaver, Opgaveaflevering, Fraværsårsager and the Beskeder list are rendered from data instead of reflowed. A reader in `src/readers/` extracts the page into plain data and a React view in `src/views/` renders it in a `.lx-view` container at the top of `#contenttable`; Lectio's original nodes remain in the form, hidden with `.lx-view-active`. A **Lectios visning** button reveals the original page (print, export, language) and a soft-red bar returns to the view. Readers throw on unexpected markup and the page then falls back to native presentation. Optional sections that fail render a quiet notice with a link to the original.
 
 The grades view uses the record vocabulary: a quiet-surface summary of exam averages (36px/700 values, 12px labels); one row per subject with 17px/600 subject names and per-form progressions of grade steps (12px type label, 19px/650 value, 23px at 720px); final grades marked by Lectio carry a 1.5px ink outline on white instead of colour, so no grade reads as good or bad. Diploma lines use the data-table frame; protocol lines sit in a closed disclosure grouped by term. Other rebuilt views share one vocabulary: secondary chip buttons and a red primary button, status pills (soft red for missing, quiet blue for upcoming, quiet green for delivered), 10px-padded compact rows on fine rules instead of reflowed tables, a quiet-surface sidebar for folders and outlines, and rich text (lesson content, entries) at 15px/1.7 with a 76ch measure. Teacher-authored HTML passes through an allowlist renderer: no scripts, styles, forms or attributes besides safe links and images. Actions are buttons that click Lectio's own hidden controls, so postbacks, dialogs and uploads behave as before.
 

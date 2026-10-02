@@ -11,12 +11,14 @@ import { readAssignments } from '../readers/assignments.js';
 import { readAssignment } from '../readers/assignment.js';
 import { readAbsence } from '../readers/absence.js';
 import { readMessages } from '../readers/messages.js';
+import { readHome } from '../readers/home.js';
 import { GradesView } from './GradesView.jsx';
 import { ActivityView } from './ActivityView.jsx';
 import { AssignmentsView } from './AssignmentsView.jsx';
 import { AssignmentView } from './AssignmentView.jsx';
 import { AbsenceView } from './AbsenceView.jsx';
 import { MessagesView } from './MessagesView.jsx';
+import { HomeView } from './HomeView.jsx';
 
 const views = {
   grades: { read: readGrades, View: GradesView },
@@ -25,6 +27,7 @@ const views = {
   assignment: { read: readAssignment, View: AssignmentView },
   absence: { read: readAbsence, View: AbsenceView },
   messages: { read: readMessages, View: MessagesView },
+  home: { read: readHome, View: HomeView },
 };
 
 let mounted = null;
@@ -58,6 +61,7 @@ export function mountView(content, kind) {
     host.className = 'lx-view';
     host.dataset.lxView = kind;
     content.prepend(host);
+    if (view.View.contract) host.before(content.ownerDocument.createComment(view.View.contract));
     mounted = { content, kind, host, root: createRoot(host) };
   }
   mounted.root.render(<ViewFrame content={content} View={view.View} data={data} />);
@@ -69,6 +73,7 @@ export function unmountView() {
   const { root, host, content } = mounted;
   mounted = null;
   root.unmount();
+  if (host.previousSibling?.nodeType === 8) host.previousSibling.remove();
   host.remove();
   content.classList.remove('lx-view-active');
 }

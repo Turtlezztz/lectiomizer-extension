@@ -1,13 +1,16 @@
-import test from 'node:test';
+import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import {readFile} from 'node:fs/promises';
 import {fixture} from '../demo/fixtures.mjs';
 import {readModel} from '../src/model.js';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const opened=new Set();
+after(()=>{for(const dom of opened)dom.window.close();});
 async function mount(path,before=()=>{},mobile=false){
  const dom=new JSDOM(fixture(path,false),{url:'https://www.lectio.dk'+path,runScripts:'outside-only',pretendToBeVisual:true});
  dom.window.matchMedia=()=>({matches:mobile,addEventListener(){},removeEventListener(){}});
+ opened.add(dom);
  dom.window.scrollTo=()=>{};
  before(dom.window.document);
  dom.window.eval(await readFile('dist/content.js','utf8'));
@@ -51,15 +54,6 @@ test('all 13 student routes produce a model and remain in the same school',async
 
 async function close(dom){dom.window.dispatchEvent(new dom.window.Event('pagehide'));await delay(10);dom.window.close();}
 async function disable(dom){const doc=dom.window.document;doc.querySelector('[aria-label="Lectiomizer indstillinger"]').click();await delay(10);Array.from(doc.querySelectorAll('button')).find(b=>b.textContent.includes('oprindelige design')).click();await delay(30);}
-
-test('home moves entire original islands in task order and restores their exact positions',async()=>{
- let native,parent,next;
- const dom=await mount('/lectio/123/forside.aspx',doc=>{native=doc.querySelector('[id$="skemaIsland_pa"]').closest('section');parent=native.parentNode;next=native.nextSibling;});
- const doc=dom.window.document;
- assert.equal(doc.querySelector('.lx-home-workspace').firstElementChild,native);
- assert.deepEqual(Array.from(doc.querySelectorAll('.lx-home-workspace>section')).slice(0,4).map(n=>n.dataset.lxSection),['today','tasks','homework','messages']);
- await disable(dom);assert.equal(native.parentNode,parent);assert.equal(native.nextSibling,next);assert.equal(doc.querySelector('.lx-home-workspace'),null);await close(dom);
-});
 
 test('study course focus keeps selected content and original filter values',async()=>{
  let table,filter;
@@ -106,8 +100,8 @@ test('new document UpdatePanel content receives the folder and record adapters',
 });
 
 test('pages keep task adapters or render rebuilt views, and reports disclose secondary sections',async()=>{
- for(const [path,kind] of [['forside.aspx','home'],['subnav/fravaerelev.aspx','absence'],['studieplan.aspx','study'],['DokumentOversigt.aspx','documents'],['BD/UserReservations.aspx','books']]){const dom=await mount('/lectio/123/'+path);assert.equal(dom.window.document.querySelector('#contenttable').dataset.lxWorkspace,kind,path);await close(dom);}
- for(const [path,kind] of [['grades/grade_report.aspx','grades'],['aktivitet/aktivitetforside2.aspx','activity'],['OpgaverElev.aspx','assignments'],['ElevAflevering.aspx','assignment'],['subnav/fravaerelev_fravaersaarsager.aspx','absence'],['beskeder2.aspx','messages']]){const dom=await mount('/lectio/123/'+path);const doc=dom.window.document;assert.ok(doc.querySelector(`.lx-view[data-lx-view="${kind}"]`),path);assert.ok(doc.querySelector('#contenttable').classList.contains('lx-view-active'),path);assert.equal(doc.querySelector('#contenttable').dataset.lxWorkspace,undefined,path);await close(dom);}
+ for(const [path,kind] of [['subnav/fravaerelev.aspx','absence'],['studieplan.aspx','study'],['DokumentOversigt.aspx','documents'],['BD/UserReservations.aspx','books']]){const dom=await mount('/lectio/123/'+path);assert.equal(dom.window.document.querySelector('#contenttable').dataset.lxWorkspace,kind,path);await close(dom);}
+ for(const [path,kind] of [['forside.aspx','home'],['grades/grade_report.aspx','grades'],['aktivitet/aktivitetforside2.aspx','activity'],['OpgaverElev.aspx','assignments'],['ElevAflevering.aspx','assignment'],['subnav/fravaerelev_fravaersaarsager.aspx','absence'],['beskeder2.aspx','messages']]){const dom=await mount('/lectio/123/'+path);const doc=dom.window.document;assert.ok(doc.querySelector(`.lx-view[data-lx-view="${kind}"]`),path);assert.ok(doc.querySelector('#contenttable').classList.contains('lx-view-active'),path);assert.equal(doc.querySelector('#contenttable').dataset.lxWorkspace,undefined,path);await close(dom);}
 });
 
 test('activity renders the lesson, sanitised content and drives native navigation',async()=>{
@@ -168,4 +162,23 @@ test('messages render a compact list and act through native controls',async()=>{
 test('an open message thread keeps the restyled native page',async()=>{
  const dom=await mount('/lectio/123/beskeder2.aspx',doc=>{doc.querySelector('.lectiofilepicker-foldercontent-col').innerHTML='<div id="s_m_Content_Content_ViewThreadPagePanel"><p>Hej</p></div>';});const doc=dom.window.document;
  assert.equal(doc.querySelector('.lx-view'),null);assert.ok(doc.querySelector('.lx-browser-workspace'));await close(dom);
+});
+
+test('home leads with the running lesson, ranks what needs you and keeps today beside it',async()=>{
+ const dom=await mount('/lectio/123/forside.aspx');const doc=dom.window.document;const view=doc.querySelector('.lx-view[data-lx-view="home"]');
+ assert.ok(view.previousSibling?.nodeType===8&&/THESIS:/.test(view.previousSibling.data));
+ const now=view.querySelector('.lx-now');assert.equal(now.querySelector('h2').textContent,'3a Da');assert.equal(now.querySelector('.lx-now-state').textContent,'Nu');assert.ok(now.querySelector('[role="progressbar"]'));
+ assert.match(now.querySelector('.lx-now-meta').textContent,/lm · lokale A12/);
+ const groups=Array.from(view.querySelectorAll('.lx-needs-group h3')).map(h=>h.firstChild.textContent.trim());
+ assert.deepEqual(groups,['Kræver handling','I dag','I morgen','Inden for en uge','Senere']);
+ assert.equal(view.querySelector('.lx-needs-group:nth-of-type(1) .lx-need-main a').textContent,'Manglende fraværsårsager');
+ assert.ok(view.querySelector('.lx-need-urgent a[href*="exerciseid=1"]'));
+ assert.equal(view.querySelectorAll('.lx-need').length,6);
+ assert.match(view.querySelector('.lx-need-main a[href*="absid=11"]').textContent,/^Læs side 40-52 i Fysik B og løs opgave 2\.3$/);
+ assert.equal(view.querySelector('.lx-home-messages .lx-pill').textContent,'2 ulæste');assert.equal(view.querySelectorAll('.lx-home-list li').length,3);
+ assert.equal(view.querySelector('.lx-notice-important .lx-pill').textContent,'Vigtigt');assert.equal(view.querySelector('.lx-notices a[href="https://example.org/aabent-hus"]').target,'_blank');
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-other-block h3')).map(h=>h.textContent),['Konsultationer','Spørgeskemaer']);
+ const side=view.querySelector('.lx-home-side');assert.equal(side.querySelectorAll('.lx-day-row').length,5);assert.equal(side.querySelectorAll('.lx-day-past').length,0);assert.equal(side.querySelectorAll('.lx-day-live').length,1);
+ assert.ok(side.querySelector('.lx-day-changed'));assert.equal(side.querySelectorAll('.lx-groups a').length,4);
+ await disable(dom);assert.equal(doc.querySelector('.lx-view'),null);assert.equal(Array.from(doc.querySelector('#contenttable').childNodes).some(n=>n.nodeType===8&&/THESIS:/.test(n.data)),false);await close(dom);
 });

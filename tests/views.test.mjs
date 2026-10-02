@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {activityPage,assignmentsPage,assignmentPage,absencePage,messagesPage} from '../demo/views-fixtures.mjs';
+import {activityPage,assignmentsPage,assignmentPage,absencePage,messagesPage,homePage} from '../demo/views-fixtures.mjs';
+import {readHome,parseLessonTime,parseAssignmentTitle} from '../src/readers/home.js';
 import {readActivity} from '../src/readers/activity.js';
 import {readAssignments} from '../src/readers/assignments.js';
 import {readAssignment} from '../src/readers/assignment.js';
@@ -64,4 +65,23 @@ test('messages read folders, the current folder and thread rows; an open thread 
  assert.deepEqual(data.messages.map(m=>[m.subject,m.unread,m.attachment]),[['Ekskursion fredag',true,true],['Opgavevejledning i matematik',false,false],['Introfest – information',true,false]]);
  assert.equal(data.messages[1].sender,'Thomas Nielsen (tn)');assert.equal(data.bulkOptions.length,5);
  assert.throws(()=>readMessages(page(messagesPage({thread:true}))),ReaderError);
+});
+
+test('home reads the schedule with times, the dashboard blocks and unknown islands',()=>{
+ const now=new Date(2026,9,5,10,30);
+ const data=readHome(page(homePage(now),'https://www.lectio.dk/lectio/123/forside.aspx'));
+ assert.deepEqual(data.days.map(d=>[d.label,d.lessons.length]),[['Mandag 5/10',3],['Tirsdag 6/10',2]]);
+ const first=data.days[0].lessons[0];
+ assert.deepEqual([first.module,first.holds,first.teachers,first.room,first.date,first.homework],['1. modul',['3a Da'],['lm'],'A12','',true]);
+ assert.deepEqual(first.time,{start:new Date(2026,9,5,10,0),end:new Date(2026,9,5,11,30)});
+ assert.deepEqual([data.assignments.info,data.assignments.rows.length,data.assignments.rows[0].urgent],['3 næste',3,true]);
+ assert.deepEqual(parseAssignmentTitle(data.assignments.rows[1].rowTitle),{hold:'3a Ma',title:'Opgavesæt 3'});
+ assert.equal(data.homework.rows[0].detail,'3a Fy: - Læs side 40-52 i Fysik B og løs opgave 2.3');
+ assert.deepEqual([data.messages.info,data.messages.rows[0].sender],['2 ulæste','Lene Madsen (lm)']);
+ assert.deepEqual(data.notices.rows.map(r=>r.important),[true,false]);
+ assert.equal(data.registrations.rows[0].due,null);
+ assert.deepEqual(data.other.map(b=>[b.title,b.info]),[['Konsultationer',''],['Spørgeskemaer','1 ubesvaret, 2 frigivne']]);
+ assert.equal(data.groups.length,4);assert.equal(data.scheduleHref,'https://www.lectio.dk/lectio/123/SkemaNy.aspx');
+ assert.equal(parseLessonTime('nope'),null);
+ assert.throws(()=>readHome(page('<div class="ls-dashboard"></div>')),ReaderError);
 });
