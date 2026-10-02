@@ -1,10 +1,10 @@
 import React,{useState,useEffect} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Search,ChevronDown,CalendarDays} from 'lucide-react';
+import {Search,ChevronDown} from 'lucide-react';
 import {tableModel,text} from './page-data.js';
 
 const states=new Map();
-const pageCopy={assignments:['Dine afleveringer','Find opgaven, se fristen og følg status.'],messages:['Din indbakke','Mapper og beskeder samlet i én arbejdsflade.'],absence:['Dit fravær','Fraværsårsager først. Registreringer samlet nedenfor.'],study:['Din undervisning','Følg ét hold ad gangen, eller sammenlign alle hold.'],documents:['Dine dokumenter','Find en mappe, søg efter en fil og brug de originale filhandlinger.'],books:['Dine boglån','Se bøger og afleveringsfrister samlet.'],activity:['Lektion og materialer','Aktivitetens indhold, lektier og handlinger samlet.']};
+const pageCopy={assignments:['Dine afleveringer','Find opgaven, se fristen og følg status.'],messages:['Din indbakke','Mapper og beskeder samlet i én arbejdsflade.'],absence:['Dit fravær','Fraværsårsager først. Registreringer samlet nedenfor.'],study:['Din undervisning','Følg ét hold ad gangen, eller sammenlign alle hold.'],documents:['Dine dokumenter','Find en mappe, søg efter en fil og brug de originale filhandlinger.'],books:['Dine boglån','Se bøger og afleveringsfrister samlet.']};
 function owned(state,tag,cls){const el=document.createElement(tag);el.className=cls;el.dataset.lxOwned='';state.owned.push(el);return el;}
 function addClass(state,el,name){if(!el||el.classList.contains(name))return;el.classList.add(name);state.classes.push([el,name]);}
 function attr(state,el,name,value){if(el.getAttribute(name)===String(value))return;state.attrs.push([el,name,el.getAttribute(name)]);el.setAttribute(name,value);}
@@ -94,27 +94,16 @@ function sections(state,content,kind){
  }
  for(const panel of panels)addClass(state,panel,'lx-native-section');
 }
-function activity(state,content){
- const area=content.querySelector('#PrintAktivititetArea');if(!area){for(const panel of content.querySelectorAll('.islandContent'))addClass(state,panel,'lx-lesson-reading');return;}
- addClass(state,area,'lx-activity-workspace');const editor=area.querySelector('.ls-texteditor-container');if(editor)addClass(state,editor,'lx-activity-editor');
- const toc=area.querySelector('.ls-tocContainer-outer');if(toc){const detail=fold(state,toc,'Indhold i lektionen',!window.matchMedia('(max-width:720px)').matches);addClass(state,detail,'lx-activity-toc');}
- const paper=area.querySelector('.ls-tocContent-outer');if(paper)addClass(state,paper,'lx-lesson-reading');
- const header=area.querySelector('[id$="actHeader"]');if(header){addClass(state,header,'lx-activity-context');const icon=owned(state,'span','lx-activity-icon');icon.setAttribute('aria-hidden','true');header.prepend(icon);mount(state,icon,<CalendarDays size={22}/>);}
- const actions=owned(state,'div','lx-activity-actions');content.querySelector('.lx-page-intro')?.after(actions);
- const toolbars=Array.from(content.querySelectorAll('.ls-std-toolbar-filled,.lectioTabToolbar,.ls-texteditor-toolbarOuterContainer')).filter(el=>!el.parentElement.closest('.ls-std-toolbar-filled,.lectioTabToolbar,.ls-texteditor-toolbarOuterContainer'));
- for(const toolbar of toolbars){addClass(state,toolbar,'lx-native-actions');move(state,toolbar,actions);}
-}
 export function preparePages(content,kind){
- if(!['home','assignments','messages','absence','study','documents','books','activity'].includes(kind))return;
+ if(!['home','assignments','messages','absence','study','documents','books'].includes(kind))return;
  let state=states.get(content);
- if(!state){state={content,kind,moves:[],owned:[],classes:[],attrs:[],roots:[],cleanups:[]};states.set(content,state);attr(state,content,'data-lx-workspace',kind);addClass(state,content,'lx-page-workspace');pageIntro(state,content,kind);if(kind==='home')dashboard(state,content);if(kind==='documents'||kind==='messages')fileBrowser(state,content,kind);if(kind==='absence')sections(state,content,kind);if(kind==='activity')activity(state,content);}
+ if(!state){state={content,kind,moves:[],owned:[],classes:[],attrs:[],roots:[],cleanups:[]};states.set(content,state);attr(state,content,'data-lx-workspace',kind);addClass(state,content,'lx-page-workspace');pageIntro(state,content,kind);if(kind==='home')dashboard(state,content);if(kind==='documents'||kind==='messages')fileBrowser(state,content,kind);if(kind==='absence')sections(state,content,kind);}
  // Lectio may replace an UpdatePanel without replacing the outer content node.
  if(pageCopy[kind]&&!content.querySelector('.lx-page-intro'))pageIntro(state,content,kind);
  if(kind==='home')dashboard(state,content);
  if((kind==='messages'||kind==='documents')&&content.querySelector('.ls-lectiofilepicker-container:not(.lx-browser-workspace)'))fileBrowser(state,content,kind);
  if(kind==='absence'&&content.querySelector('section.lf-island:not(.lx-native-section)'))sections(state,content,kind);
- if(kind==='activity'&&content.querySelector('#PrintAktivititetArea:not(.lx-activity-workspace)'))activity(state,content);
- if(kind!=='home'&&kind!=='activity')for(const table of content.querySelectorAll('table.lf-grid,table.yeartable,table.ls-table-layout2'))prepareTable(state,table,kind);
+ if(kind!=='home')for(const table of content.querySelectorAll('table.lf-grid,table.yeartable,table.ls-table-layout2'))prepareTable(state,table,kind);
 }
 export function restorePages(){
  for(const state of states.values()){

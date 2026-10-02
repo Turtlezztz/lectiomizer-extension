@@ -6,10 +6,25 @@ import React, { useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowLeft } from 'lucide-react';
 import { readGrades } from '../readers/grades.js';
+import { readActivity } from '../readers/activity.js';
+import { readAssignments } from '../readers/assignments.js';
+import { readAssignment } from '../readers/assignment.js';
+import { readAbsence } from '../readers/absence.js';
+import { readMessages } from '../readers/messages.js';
 import { GradesView } from './GradesView.jsx';
+import { ActivityView } from './ActivityView.jsx';
+import { AssignmentsView } from './AssignmentsView.jsx';
+import { AssignmentView } from './AssignmentView.jsx';
+import { AbsenceView } from './AbsenceView.jsx';
+import { MessagesView } from './MessagesView.jsx';
 
 const views = {
   grades: { read: readGrades, View: GradesView },
+  activity: { read: readActivity, View: ActivityView },
+  assignments: { read: readAssignments, View: AssignmentsView },
+  assignment: { read: readAssignment, View: AssignmentView },
+  absence: { read: readAbsence, View: AbsenceView },
+  messages: { read: readMessages, View: MessagesView },
 };
 
 let mounted = null;

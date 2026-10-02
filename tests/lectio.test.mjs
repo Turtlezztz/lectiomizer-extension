@@ -18,5 +18,6 @@ test('route matching ignores record ids but preserves main menu destinations', (
 test('student ids are never hardcoded and school roots are detected', () => {
  assert.equal(schoolBase('https://www.lectio.dk/lectio/123/grades/grade_report.aspx'), '/lectio/123/');
  assert.equal(schoolBase('https://www.lectio.dk/'), null);
- assert.equal(pageKind('https://www.lectio.dk/lectio/123/ElevAflevering.aspx?exerciseid=1'), 'assignments');
+ assert.equal(pageKind('https://www.lectio.dk/lectio/123/ElevAflevering.aspx?exerciseid=1'), 'assignment');
+ assert.equal(pageKind('https://www.lectio.dk/lectio/123/OpgaverElev.aspx'), 'assignments');
 });

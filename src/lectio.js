@@ -53,7 +53,8 @@ export function pageKind(url) {
   if (/userreservations/.test(path)) return 'books';
   if (/skemany|skemauge/.test(path)) return 'schedule';
   if (/forside\.aspx$/.test(path)) return 'home';
-  if (/opgaverelev|elevaflevering/.test(path)) return 'assignments';
+  if (/elevaflevering/.test(path)) return 'assignment';
+  if (/opgaverelev/.test(path)) return 'assignments';
   if (/beskeder/.test(path)) return 'messages';
   if (/fravaer/.test(path)) return 'absence';
   if (/\/grades\//.test(path)) return 'grades';
