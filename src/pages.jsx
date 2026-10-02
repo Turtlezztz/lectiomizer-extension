@@ -4,7 +4,7 @@ import {Search,ChevronDown,CalendarDays} from 'lucide-react';
 import {tableModel,text} from './page-data.js';
 
 const states=new Map();
-const pageCopy={assignments:['Dine afleveringer','Find opgaven, se fristen og følg status.'],messages:['Din indbakke','Mapper og beskeder samlet i én arbejdsflade.'],absence:['Dit fravær','Fraværsårsager først. Registreringer samlet nedenfor.'],grades:['Dine resultater','Fag og karakterer først. Noter og bevisdata i egne afsnit.'],study:['Din undervisning','Følg ét hold ad gangen, eller sammenlign alle hold.'],documents:['Dine dokumenter','Find en mappe, søg efter en fil og brug de originale filhandlinger.'],books:['Dine boglån','Se bøger og afleveringsfrister samlet.'],activity:['Lektion og materialer','Aktivitetens indhold, lektier og handlinger samlet.']};
+const pageCopy={assignments:['Dine afleveringer','Find opgaven, se fristen og følg status.'],messages:['Din indbakke','Mapper og beskeder samlet i én arbejdsflade.'],absence:['Dit fravær','Fraværsårsager først. Registreringer samlet nedenfor.'],study:['Din undervisning','Følg ét hold ad gangen, eller sammenlign alle hold.'],documents:['Dine dokumenter','Find en mappe, søg efter en fil og brug de originale filhandlinger.'],books:['Dine boglån','Se bøger og afleveringsfrister samlet.'],activity:['Lektion og materialer','Aktivitetens indhold, lektier og handlinger samlet.']};
 function owned(state,tag,cls){const el=document.createElement(tag);el.className=cls;el.dataset.lxOwned='';state.owned.push(el);return el;}
 function addClass(state,el,name){if(!el||el.classList.contains(name))return;el.classList.add(name);state.classes.push([el,name]);}
 function attr(state,el,name,value){if(el.getAttribute(name)===String(value))return;state.attrs.push([el,name,el.getAttribute(name)]);el.setAttribute(name,value);}
@@ -85,17 +85,12 @@ function fileBrowser(state,content,kind){
  if(kind==='messages'){const detail=content.querySelector('[id$="ThreadPanel"],[id$="MessagePanel"],.message-detail');if(detail)addClass(state,detail,'lx-message-reading');}
 }
 function sections(state,content,kind){
- const scope=kind==='grades'?(content.querySelector('#printallarea')||content):content;
- const panels=Array.from(scope.querySelectorAll('section.lf-island,section.ls-island2,.ls-island3')).filter(el=>!el.parentElement.closest('section.lf-island,section.ls-island2'));
+ const panels=Array.from(content.querySelectorAll('section.lf-island,section.ls-island2,.ls-island3')).filter(el=>!el.parentElement.closest('section.lf-island,section.ls-island2'));
  if(!panels.length)return;
  if(kind==='absence'){
    const cause=panels.find(el=>el.querySelector('[id$="FatabMissingAarsagerGV"]'));const history=panels.find(el=>el.querySelector('[id$="FatabAbsenceFravaerGV"]'));
    if(cause){addClass(state,cause,'lx-absence-priority');const container=cause.parentElement;const first=Array.from(container.children).find(el=>el.tagName==='SECTION');if(first&&first!==cause){const holder=owned(state,'div','lx-absence-first');first.before(holder);move(state,cause,holder);}}
    if(history)fold(state,history,'Fraværsregistreringer');
- }else if(kind==='grades'){
-   const notes=panels.filter(el=>/noter|bemærkninger|protokol|bevistype/i.test(text(el.querySelector('.islandHeader,h2,h3'))) || el.querySelector('[id$="KarakterNoterGrid"],[id$="remarks_grid_remarks_grid"],[id$="ProtokolLinierGrid"]'));
-   for(const panel of notes){const label=text(panel.querySelector('.islandHeader,h2,h3'))||'Supplerende oplysninger';fold(state,panel,label);}
-   addClass(state,scope,'lx-grades-workspace');
  }
  for(const panel of panels)addClass(state,panel,'lx-native-section');
 }
@@ -110,14 +105,14 @@ function activity(state,content){
  for(const toolbar of toolbars){addClass(state,toolbar,'lx-native-actions');move(state,toolbar,actions);}
 }
 export function preparePages(content,kind){
- if(!['home','assignments','messages','absence','grades','study','documents','books','activity'].includes(kind))return;
+ if(!['home','assignments','messages','absence','study','documents','books','activity'].includes(kind))return;
  let state=states.get(content);
- if(!state){state={content,kind,moves:[],owned:[],classes:[],attrs:[],roots:[],cleanups:[]};states.set(content,state);attr(state,content,'data-lx-workspace',kind);addClass(state,content,'lx-page-workspace');pageIntro(state,content,kind);if(kind==='home')dashboard(state,content);if(kind==='documents'||kind==='messages')fileBrowser(state,content,kind);if(kind==='absence'||kind==='grades')sections(state,content,kind);if(kind==='activity')activity(state,content);}
+ if(!state){state={content,kind,moves:[],owned:[],classes:[],attrs:[],roots:[],cleanups:[]};states.set(content,state);attr(state,content,'data-lx-workspace',kind);addClass(state,content,'lx-page-workspace');pageIntro(state,content,kind);if(kind==='home')dashboard(state,content);if(kind==='documents'||kind==='messages')fileBrowser(state,content,kind);if(kind==='absence')sections(state,content,kind);if(kind==='activity')activity(state,content);}
  // Lectio may replace an UpdatePanel without replacing the outer content node.
  if(pageCopy[kind]&&!content.querySelector('.lx-page-intro'))pageIntro(state,content,kind);
  if(kind==='home')dashboard(state,content);
  if((kind==='messages'||kind==='documents')&&content.querySelector('.ls-lectiofilepicker-container:not(.lx-browser-workspace)'))fileBrowser(state,content,kind);
- if((kind==='absence'||kind==='grades')&&content.querySelector('section.lf-island:not(.lx-native-section)'))sections(state,content,kind);
+ if(kind==='absence'&&content.querySelector('section.lf-island:not(.lx-native-section)'))sections(state,content,kind);
  if(kind==='activity'&&content.querySelector('#PrintAktivititetArea:not(.lx-activity-workspace)'))activity(state,content);
  if(kind!=='home'&&kind!=='activity')for(const table of content.querySelectorAll('table.lf-grid,table.yeartable,table.ls-table-layout2'))prepareTable(state,table,kind);
 }

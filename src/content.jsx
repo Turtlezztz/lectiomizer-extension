@@ -5,6 +5,7 @@ import { api, loadSettings, saveSettings } from './settings.js';
 import { readModel, searchItems } from './model.js';
 import { routeKey } from './lectio.js';
 import { preparePages, restorePages } from './pages.jsx';
+import { mountView, unmountView } from './views/index.jsx';
 
 const directionContract = `THESIS: Compact makes Lectio's daily tasks scannable through one persistent sidebar and aligned native content.
 OWN-WORLD: White ground, utility-red selection, Source Sans 3, fine rules, quiet lesson fills and Lucide icons.
@@ -123,13 +124,13 @@ export async function boot() {
  requestAnimationFrame(()=>requestAnimationFrame(()=>document.dispatchEvent(new Event('lectiomizer:ready'))));
  let timer;
  const observer=new MutationObserver(records=>{
-  if(!document.body.classList.contains('lx-enabled')||!records.some(r=>r.target instanceof Element && !r.target.closest('#lectiomizer-root') && (r.type==='childList'||r.attributeName==='class')))return;
+  if(!document.body.classList.contains('lx-enabled')||!records.some(r=>r.target instanceof Element && !r.target.closest('#lectiomizer-root,.lx-view') && (r.type==='childList'||r.attributeName==='class')))return;
   clearTimeout(timer);timer=setTimeout(()=>{prepareNative();document.dispatchEvent(new Event('lectiomizer:refresh'));},120);
  });
  const content=document.querySelector('#contenttable');
  const observed=document.querySelector('[id$="outerContentFrameDiv"]')||content;
  if(observed)observer.observe(observed,{subtree:true,childList:true});
- window.addEventListener('pagehide',event=>{if(event.persisted)return;observer.disconnect();clearTimeout(timer);restorePages();reactRoot.unmount();},{once:true});
+ window.addEventListener('pagehide',event=>{if(event.persisted)return;observer.disconnect();clearTimeout(timer);unmountView();restorePages();reactRoot.unmount();},{once:true});
 }
 
 export function prepareNative() {
@@ -155,12 +156,16 @@ export function prepareNative() {
    const nodes=Array.from(dashboard.querySelectorAll('[id$="_pa"]')).filter(el=>el.closest('.ls-std-island-layout-col'));
    if(nodes.length)dashboard.classList.add('lx-dashboard');
  }
- preparePages(content,readModel().kind);
+ const kind=readModel().kind;
+ // Rebuilt pages render their own view; everything else is restyled in place.
+ if(mountView(content,kind))return;
+ preparePages(content,kind);
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 
 export function restoreNative(){
+ unmountView();
  restorePages();
  for(const wrap of document.querySelectorAll('.lx-table-scroll'))wrap.replaceWith(...wrap.childNodes);
  for(const cols of document.querySelectorAll('[data-lx-columns]'))cols.remove();

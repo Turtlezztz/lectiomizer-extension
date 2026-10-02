@@ -78,7 +78,6 @@ body.lx-enabled .lx-disclosure[open]>summary{margin-bottom:12px}
 body.lx-enabled .lx-disclosure>.lx-native-section>.islandHeaderContainer{display:none!important}
 body.lx-enabled .lx-disclosure>.lx-native-section{margin-bottom:16px!important}
 body.lx-enabled .lx-absence-priority>.islandHeaderContainer .islandHeader{color:var(--lx-accent)!important}
-body.lx-enabled .lx-grades-workspace{max-width:100%;min-width:0}
 body.lx-enabled .lx-study-tools{display:flex;padding:0 0 20px}
 body.lx-enabled .lx-course-picker{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;width:100%;max-width:440px}
 body.lx-enabled #contenttable .lx-course-picker select{min-height:44px;flex:1;min-width:0!important;font-size:15px!important}

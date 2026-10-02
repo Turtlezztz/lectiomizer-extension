@@ -20,7 +20,7 @@ The toolbar popup and the page's top-right settings button let you disable the r
 - Opgaver: assignment records with title, subject, deadline and status; secondary fields behind “Vis alle felter.”
 - Beskeder and Dokumenter: folder navigation alongside searchable records; folders collapse on phones and original compose/upload/search controls remain available.
 - Fravær: missing causes first, registration history in a disclosure.
-- Karakterer: subject results with clearly labelled oral/written/year/exam grades and separate supplementary sections.
+- Karakterer (rebuilt view): exam averages first, then this year's grades per subject with written/oral progressions (1. standpunkt → årskarakter/eksamen), the diploma lines, and protocol lines grouped by term. **Lectios visning** switches to the original page for print, export and language.
 - Studieplan: select a single course for a readable timeline or compare the original course matrix in a contained horizontal scroller.
 - Bøger: title, course and return deadline first; loan details available on demand.
 - Aktivitetsforside: one action strip, lesson context, contents navigation and a readable homework/materials document.
@@ -31,9 +31,16 @@ The toolbar popup and the page's top-right settings button let you disable the r
 
 The adapter discovers links from the current school and preserves native controls, identifiers, hidden form fields and source event handlers. Unknown pages receive the common styles. The extension does not replace Lectio's backend.
 
+### Two kinds of page
+
+- **Rebuilt views** (`src/readers/`, `src/views/`): a reader turns Lectio's page into plain data and a React view renders it. Lectio's original content stays in the form, hidden, so postbacks and hidden fields keep working. If a reader can't understand the page it throws, and the page falls back to Lectio's own layout with the shared styles instead of a half-styled mix. Optional sections that fail show a notice with a link to the original. Currently: Karakterer.
+- **Restyled pages** (`src/pages.jsx`): everything else is still reflowed in place from Lectio's own nodes.
+
+To rebuild another page, add a reader that throws `ReaderError` on unexpected markup, a view, and an entry in `src/views/index.jsx`. Base its test fixture on the real page's markup with invented values (see `demo/grades-fixture.mjs`).
+
 ## Validation and limits
 
-All 13 primary student sections were structurally inspected in an authenticated user session. Seventeen automated tests exercise navigation, original click/change handlers, hidden fields, assignment filtering, secondary-field disclosure, folder selection, grouped grade labels, study course selection, activity drafts, UpdatePanel replacement and restoration of original nodes/positions when disabled. Synthetic browser layouts were checked at 320, 390, 768, 1024 and 1280 pixels.
+All 13 primary student sections were structurally inspected in an authenticated user session. Twenty-six automated tests exercise navigation, original click/change handlers, hidden fields, assignment filtering, secondary-field disclosure, folder selection, grouped grade labels, study course selection, activity drafts, UpdatePanel replacement and restoration of original nodes/positions when disabled, plus the Karakterer reader (grouping, tooltips, empty years, diploma groups, protocol labels, per-section failure) and view (mounting, switching to the original, fallback and UpdatePanel re-reads). Synthetic browser layouts were checked at 320, 390, 768, 1024 and 1280 pixels.
 
 Visual tests use invented data in a local preview with Lectio's public native stylesheet; they do not establish that every live Firefox postback, upload, school-specific page or staff workflow works. Test your real schedule, assignment detail, messages, files, grades, absence and profile after installing. Staff/admin features and every secondary route have not been individually audited.
 

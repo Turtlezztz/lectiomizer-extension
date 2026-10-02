@@ -8,6 +8,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function mount(path,before=()=>{},mobile=false){
  const dom=new JSDOM(fixture(path,false),{url:'https://www.lectio.dk'+path,runScripts:'outside-only',pretendToBeVisual:true});
  dom.window.matchMedia=()=>({matches:mobile,addEventListener(){},removeEventListener(){}});
+ dom.window.scrollTo=()=>{};
  before(dom.window.document);
  dom.window.eval(await readFile('dist/content.js','utf8'));
  for(let i=0;i<30&&!dom.window.document.querySelector('.lx-topbar');i++)await delay(10);
@@ -94,9 +95,41 @@ test('activity actions and editable notes remain original nodes and restore thei
  await disable(dom);assert.equal(notes.value,'Unsent draft');assert.equal(button.parentNode.parentNode,parent);assert.equal(doc.querySelector('.lx-activity-actions'),null);await close(dom);
 });
 
-test('all nine requested routes have task adapters and reports disclose secondary sections',async()=>{
- const routes=[['forside.aspx','home'],['OpgaverElev.aspx','assignments'],['beskeder2.aspx','messages'],['subnav/fravaerelev_fravaersaarsager.aspx','absence'],['grades/grade_report.aspx','grades'],['studieplan.aspx','study'],['DokumentOversigt.aspx','documents'],['BD/UserReservations.aspx','books'],['aktivitet/aktivitetforside2.aspx','activity']];
- for(const [path,kind] of routes){const dom=await mount('/lectio/123/'+path);assert.equal(dom.window.document.querySelector('#contenttable').dataset.lxWorkspace,kind);if(kind==='absence'||kind==='grades')assert.ok(dom.window.document.querySelector('details:not([open])'));await close(dom);}
+test('requested routes have task adapters or rebuilt views and reports disclose secondary sections',async()=>{
+ const routes=[['forside.aspx','home'],['OpgaverElev.aspx','assignments'],['beskeder2.aspx','messages'],['subnav/fravaerelev_fravaersaarsager.aspx','absence'],['studieplan.aspx','study'],['DokumentOversigt.aspx','documents'],['BD/UserReservations.aspx','books'],['aktivitet/aktivitetforside2.aspx','activity']];
+ for(const [path,kind] of routes){const dom=await mount('/lectio/123/'+path);assert.equal(dom.window.document.querySelector('#contenttable').dataset.lxWorkspace,kind);if(kind==='absence')assert.ok(dom.window.document.querySelector('details:not([open])'));await close(dom);}
+ const dom=await mount('/lectio/123/grades/grade_report.aspx');assert.ok(dom.window.document.querySelector('.lx-view[data-lx-view="grades"] details:not([open])'));await close(dom);
+});
+
+test('grades render as a rebuilt view while the native report stays in the form',async()=>{
+ let native,parent;
+ const dom=await mount('/lectio/123/grades/grade_report.aspx',doc=>{native=doc.querySelector('#printallarea');parent=native.parentNode;});const doc=dom.window.document;
+ const content=doc.querySelector('#contenttable');const view=content.querySelector('.lx-view[data-lx-view="grades"]');
+ assert.ok(view);assert.ok(content.classList.contains('lx-view-active'));assert.equal(native.parentNode,parent);
+ assert.equal(content.querySelector('[data-lx-record-prepared]'),null);assert.equal(content.querySelector('.lx-page-intro'),null);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-subject-head strong')).slice(0,2).map(n=>n.textContent),['Dansk A','Engelsk B']);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-stat dd')).map(n=>n.textContent),['8,4','8,6']);
+ assert.equal(view.querySelectorAll('.lx-grade-final').length,5);
+ assert.equal(view.querySelectorAll('.lx-diploma-table tbody tr').length,5);
+ Array.from(view.querySelectorAll('button')).find(b=>b.textContent.includes('Lectios visning')).click();await delay(20);
+ assert.equal(content.classList.contains('lx-view-active'),false);assert.ok(view.querySelector('.lx-view-bar'));
+ view.querySelector('.lx-view-bar button').click();await delay(20);assert.ok(content.classList.contains('lx-view-active'));
+ await disable(dom);assert.equal(content.querySelector('.lx-view'),null);assert.equal(content.classList.contains('lx-view-active'),false);assert.equal(native.parentNode,parent);
+ doc.querySelector('.lx-reenable').click();await delay(30);assert.ok(content.querySelector('.lx-view[data-lx-view="grades"]'));await close(dom);
+});
+
+test('grades fall back to the native page when the reader cannot understand it',async()=>{
+ const dom=await mount('/lectio/123/grades/grade_report.aspx',doc=>doc.querySelector('[id$="karakterView_KarakterGV"]').id='renamedByLectio');const content=dom.window.document.querySelector('#contenttable');
+ assert.equal(content.querySelector('.lx-view'),null);assert.equal(content.classList.contains('lx-view-active'),false);assert.ok(content.querySelector('#printallarea'));await close(dom);
+});
+
+test('grades view re-reads Lectio content after an UpdatePanel replacement',async()=>{
+ const dom=await mount('/lectio/123/grades/grade_report.aspx');const doc=dom.window.document;const content=doc.querySelector('#contenttable');
+ const fresh=new JSDOM(fixture('/lectio/123/grades/grade_report.aspx',false));const replacement=fresh.window.document.querySelector('#contenttable');
+ replacement.querySelector('[id$="karakterView_KarakterGV"] tbody').replaceChildren(...JSDOM.fragment('<tr><td colspan="4"><div class="noRecord">Der er ingen data...</div></td></tr>').childNodes);
+ content.replaceChildren(...Array.from(replacement.childNodes).map(n=>doc.importNode(n,true)));await delay(250);
+ const view=content.querySelector('.lx-view[data-lx-view="grades"]');assert.ok(view);assert.ok(content.classList.contains('lx-view-active'));
+ assert.equal(view.querySelectorAll('.lx-subject').length,0);assert.match(view.querySelector('.lx-empty-state').textContent,/ingen karakterer/);fresh.window.close();await close(dom);
 });
 
 test('new document UpdatePanel content receives the folder and record adapters',async()=>{

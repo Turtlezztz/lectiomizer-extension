@@ -376,6 +376,12 @@ At 720px the two-column arrangement gives titles full width and keeps selection 
 
 **The Native Record Rule.** Relocate and reflow Lectio's existing nodes; preserve ids, input values, hidden state, original handlers and the surrounding form. Restore moved nodes through their recorded original positions when the redesign is disabled. Do not copy academic data into replacement replicas.
 
+### Rebuilt Views
+
+Karakterer is rendered from data instead of reflowed. A reader in `src/readers/` extracts the page into plain data and a React view in `src/views/` renders it in a `.lx-view` container at the top of `#contenttable`; Lectio's original nodes remain in the form, hidden with `.lx-view-active`. A **Lectios visning** button reveals the original page (print, export, language) and a soft-red bar returns to the view. Readers throw on unexpected markup and the page then falls back to native presentation. Optional sections that fail render a quiet notice with a link to the original.
+
+The grades view uses the record vocabulary: a quiet-surface summary of exam averages (36px/700 values, 12px labels); one row per subject with 17px/600 subject names and per-form progressions of grade steps (12px type label, 19px/650 value, 23px at 720px); final grades marked by Lectio carry a 1.5px ink outline on white instead of colour, so no grade reads as good or bad. Diploma lines use the data-table frame; protocol lines sit in a closed disclosure grouped by term. The Native Record Rule applies to restyled pages; rebuilt views copy values only into their own rendering and never store them.
+
 ### Folder Navigation and Report Disclosures
 
 Messages and documents keep the original folder pane beside the record list. The quiet folder surface has 8px padding, control corners and a 65vh scrolling cap (45vh at 720px). It is sticky beneath the toolbar at top 96px on desktop and initially open; at 720px it initially closes above the records. Its native details/summary control remains operable at either size, with an 18px inline Lucide chevron that rotates 180 degrees when open. Original file and message toolbars wrap in quiet 12px by 16px action surfaces, with 8px by 16px gaps.
@@ -412,7 +418,7 @@ The popup repeats the same type, red action and fine-rule vocabulary. Preference
 ### Don't:
 
 - **Don't** introduce gradients, decorative imagery or shipped raster art into this system.
-- **Don't** rebuild academic data or native forms as decorative replicas.
+- **Don't** rebuild academic data or native forms as decorative replicas; rebuilt views render real values from a reader and keep the original page one click away.
 - **Don't** make persistent content panels float with shadows.
 - **Don't** turn page-specific homepage weighting into a compulsory layout for every route.
 - **Don't** wrap every record in a filled card or force the nine workspaces back into the fallback panel/table topology.

@@ -1,0 +1,92 @@
+/* Rebuilt page views (src/views). Lectio's original content stays in the form, hidden. */
+body.lx-enabled #contenttable.lx-view-active>:not(.lx-view){display:none!important}
+body.lx-enabled .lx-view{max-width:1040px;margin:0 auto;color:var(--lx-ink);font-size:15px;line-height:1.5}
+body.lx-enabled .lx-view *{box-sizing:border-box}
+body.lx-enabled #contenttable .lx-view :is(h2,h3){font-family:inherit!important;color:var(--lx-ink)!important;letter-spacing:-.015em}
+body.lx-enabled #contenttable .lx-view h2{font-size:19px!important;font-weight:650!important;line-height:1.3!important;margin:0 0 16px!important}
+body.lx-enabled #contenttable .lx-view h3{font-size:14px!important;font-weight:650!important;line-height:1.3!important;margin:0 0 6px!important;color:var(--lx-muted)!important;letter-spacing:0}
+body.lx-enabled .lx-view :is(ul,ol){list-style:none;margin:0;padding:0}
+body.lx-enabled .lx-view li{list-style:none!important;background-image:none!important;line-height:inherit}
+body.lx-enabled .lx-view p{margin:0}
+body.lx-enabled .lx-quiet{color:var(--lx-muted);font-size:14px}
+
+/* Header and switching to Lectio's original page */
+body.lx-enabled .lx-view-head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:8px 0 24px}
+body.lx-enabled #contenttable .lx-view .lx-view-head h2{font-size:23px!important;font-weight:700!important;letter-spacing:-.025em;margin:0 0 6px!important}
+body.lx-enabled .lx-view-head p{color:var(--lx-muted);max-width:72ch}
+body.lx-enabled :is(.lx-view-switch,.lx-view-bar button,.lx-view-notice button){display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:7px 12px;border:1px solid var(--lx-rule);border-radius:7px;background:#fff;color:var(--lx-ink);font:600 14px/1.2 "Source Sans 3",sans-serif;cursor:pointer;white-space:nowrap}
+body.lx-enabled :is(.lx-view-switch,.lx-view-bar button,.lx-view-notice button):hover{background:var(--lx-surface)}
+body.lx-enabled .lx-view-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:0 0 18px;padding:10px 14px;border-radius:7px;background:var(--lx-soft);font-size:14px}
+
+/* Notices and empty states */
+body.lx-enabled .lx-view-notice{display:flex;align-items:center;gap:10px;margin:0 0 16px!important;padding:10px 14px;border-radius:7px;background:var(--lx-surface);font-size:14px}
+body.lx-enabled .lx-view-notice svg{flex:none;color:var(--lx-muted)}
+body.lx-enabled .lx-view-notice button{margin-left:auto}
+body.lx-enabled .lx-empty-state{padding:16px 0;border-top:1px solid var(--lx-rule);color:var(--lx-muted);max-width:64ch}
+body.lx-enabled .lx-view-section{margin:0 0 36px}
+body.lx-enabled .lx-heading-meta{margin-left:6px;font-size:15px;font-weight:500;color:var(--lx-muted);letter-spacing:0}
+
+/* Exam result summary */
+body.lx-enabled .lx-grade-summary{margin:0 0 32px;padding:20px 24px;border-radius:12px;background:var(--lx-surface)}
+body.lx-enabled .lx-grade-summary dl{display:flex;flex-wrap:wrap;gap:12px 48px;margin:0}
+body.lx-enabled .lx-stat{display:flex;flex-direction:column-reverse;gap:2px}
+body.lx-enabled .lx-stat dt{font-size:12px;font-weight:500;color:var(--lx-muted)}
+body.lx-enabled .lx-stat dd{margin:0;font-size:36px;font-weight:700;line-height:1.1;letter-spacing:-.02em}
+body.lx-enabled .lx-grade-summary p{margin-top:12px;font-size:12px;color:var(--lx-muted)}
+
+/* Current grades: one row per subject, one progression per form */
+body.lx-enabled .lx-subject-list{border-top:1px solid var(--lx-rule)}
+body.lx-enabled .lx-subject{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);gap:8px 24px;padding:16px 0!important;margin:0;border-bottom:1px solid var(--lx-rule)}
+body.lx-enabled .lx-subject-head{display:flex;flex-direction:column;padding-top:4px}
+body.lx-enabled .lx-subject-head strong{font-size:17px;font-weight:600;line-height:1.3}
+body.lx-enabled .lx-subject-head span{font-size:12px;color:var(--lx-muted)}
+body.lx-enabled .lx-subject-forms{display:flex;flex-direction:column;gap:10px;min-width:0}
+body.lx-enabled .lx-form-row{display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px;align-items:center}
+body.lx-enabled .lx-form-label{font-size:14px;color:var(--lx-muted)}
+body.lx-enabled .lx-grade-steps{display:flex;flex-wrap:wrap;gap:6px}
+body.lx-enabled .lx-grade-step{display:flex;flex-direction:column;min-width:92px;margin:0;padding:6px 10px!important;border-radius:7px;background:var(--lx-surface);line-height:1.25!important}
+body.lx-enabled .lx-grade-type{font-size:12px;font-weight:500;color:var(--lx-muted)}
+body.lx-enabled .lx-grade-value{font-size:19px;font-weight:650}
+body.lx-enabled .lx-grade-extra{font-size:12px;color:var(--lx-muted)}
+body.lx-enabled .lx-grade-final{background:#fff;box-shadow:inset 0 0 0 1.5px var(--lx-ink)}
+
+/* Tables built by views */
+body.lx-enabled .lx-data-frame{overflow-x:auto;border:1px solid var(--lx-rule);border-radius:10px}
+body.lx-enabled .lx-data-table{width:100%;border-collapse:collapse;table-layout:auto!important;font:14px/1.45 "Source Sans 3",sans-serif!important;letter-spacing:normal!important;background:#fff}
+body.lx-enabled .lx-data-table :is(th,td){padding:11px 14px!important;border-bottom:1px solid var(--lx-rule);text-align:left!important;vertical-align:top;font-family:inherit!important;letter-spacing:normal!important;color:var(--lx-ink)}
+body.lx-enabled .lx-data-table thead th{background:var(--lx-surface);font-weight:650;color:#343b47;white-space:nowrap}
+body.lx-enabled .lx-data-table tbody th{font-weight:600}
+body.lx-enabled .lx-data-table tbody tr:last-child :is(th,td){border-bottom:0}
+body.lx-enabled .lx-table-grade{display:inline-block;min-width:2.2ch;margin-right:8px;font-size:17px;font-weight:650}
+body.lx-enabled .lx-data-table small{font-size:12px;color:var(--lx-muted);white-space:nowrap}
+
+/* Protocol lines */
+body.lx-enabled .lx-view-disclosure{margin:0 0 36px;border-top:1px solid var(--lx-rule);border-bottom:1px solid var(--lx-rule)}
+body.lx-enabled .lx-view-disclosure>summary{display:flex;align-items:center;gap:10px;min-height:52px;padding:12px 0;font-size:19px;font-weight:650;letter-spacing:-.015em;cursor:pointer;list-style:none}
+body.lx-enabled .lx-view-disclosure>summary::-webkit-details-marker{display:none}
+body.lx-enabled .lx-view-disclosure>summary svg{margin-left:auto;color:var(--lx-muted);transition:transform .14s ease-out}
+body.lx-enabled .lx-view-disclosure[open]>summary svg{transform:rotate(180deg)}
+body.lx-enabled .lx-count{padding:1px 8px;border-radius:999px;background:var(--lx-surface);font-size:12px;font-weight:600;color:var(--lx-muted);letter-spacing:0}
+body.lx-enabled .lx-disclosure-intro{margin:0 0 16px!important;font-size:14px;color:var(--lx-muted)}
+body.lx-enabled .lx-protocol-term{margin:0 0 20px}
+body.lx-enabled .lx-protocol-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;align-items:center;padding:10px 0!important;margin:0;border-top:1px solid var(--lx-rule)}
+body.lx-enabled .lx-protocol-main{display:flex;flex-direction:column}
+body.lx-enabled .lx-protocol-main strong{font-weight:600}
+body.lx-enabled .lx-protocol-main span{font-size:14px;color:var(--lx-muted)}
+body.lx-enabled .lx-protocol-grade{grid-row:span 2;min-width:3ch;text-align:right;font-size:19px;font-weight:650}
+body.lx-enabled .lx-protocol-meta{font-size:12px;color:var(--lx-muted)}
+
+@media(max-width:720px){
+ body.lx-enabled .lx-view-head{padding-bottom:20px}
+ body.lx-enabled .lx-view-switch{min-height:44px}
+ body.lx-enabled .lx-grade-summary{padding:16px;margin-bottom:28px}
+ body.lx-enabled .lx-grade-summary dl{gap:12px 32px}
+ body.lx-enabled .lx-stat dd{font-size:30px}
+ body.lx-enabled .lx-subject{grid-template-columns:minmax(0,1fr);gap:10px}
+ body.lx-enabled .lx-form-row{grid-template-columns:minmax(0,1fr);gap:6px}
+ body.lx-enabled .lx-grade-value{font-size:23px}
+ body.lx-enabled .lx-data-table :is(th,td){padding:10px 12px!important}
+ body.lx-enabled .lx-data-table small{display:block;white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){body.lx-enabled .lx-view-disclosure>summary svg{transition:none}}
+@media print{body.lx-enabled :is(.lx-view-switch,.lx-view-bar,.lx-view-notice button){display:none!important}body.lx-enabled .lx-subject,body.lx-enabled .lx-protocol-row,body.lx-enabled .lx-data-table tr{break-inside:avoid}}
