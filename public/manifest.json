@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "Lectiomizer",
+  "version": "0.3.0",
+  "description": "A compact new Lectio interface with sidebar navigation, readable schedules and a consistent design system.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "lectiomizer@local.extension",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.lectio.dk/*",
+    "https://lectio.dk/*"
+  ],
+  "action": {
+    "default_title": "Lectiomizer",
+    "default_popup": "popup.html",
+    "default_icon": "icons/book.svg"
+  },
+  "icons": {
+    "48": "icons/book.svg",
+    "96": "icons/book.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.lectio.dk/*",
+        "https://lectio.dk/*"
+      ],
+      "css": [
+        "bootstrap.css"
+      ],
+      "js": [
+        "bootstrap.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.lectio.dk/*",
+        "https://lectio.dk/*"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "fonts/*.woff2"
+      ],
+      "matches": [
+        "https://www.lectio.dk/*",
+        "https://lectio.dk/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  }
+}

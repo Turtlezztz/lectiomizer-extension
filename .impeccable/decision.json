@@ -1,0 +1,12 @@
+{
+ "title":"A new Lectio",
+ "question":"Choose the design to carry into your Firefox extension. These use illustrative timetable content; your real Lectio data stays intact.",
+ "options":[
+  {"id":"campus","label":"Campus","kicker":"THE DIRECTION","thesis":"An evergreen navigation rail and a warm, readable weekly workspace.","palette":["#143d32","#d9eea7","#f7f8f4","#242e29"],"materials":["flat warm surfaces","clear wayfinding"],"viewport":"Week schedule in the center, deadlines to the right, student tasks in the sidebar.","risk":"A full sidebar needs care on small laptops.","raised":[{"from":"Botanical folio","raise":"A consistent time scale makes days directly comparable."},{"from":"Factory catalog","raise":"Every section has a deliberate place in the navigation hierarchy."},{"from":"Cassette j-card","raise":"Aligned times make lesson changes easy to scan."}],"comp":".impeccable/mocks/decision/campus.png"},
+  {"id":"timetable","label":"Timetable","kicker":"IMPECCABLE’S PICK","thesis":"A spacious blue and white planner centered on the school week.","palette":["#1742a0","#eef3ff","#ffffff","#202c43"],"materials":["white workspace","blue ink"],"viewport":"A wide five-day schedule, with deadlines below and compact navigation.","risk":"Familiar productivity styling; less distinctive.","comp":".impeccable/mocks/decision/timetable.png"},
+  {"id":"dense","label":"Compact","verdict":"competitive","thesis":"A dense utility grid makes schedule, deadlines and messages visible together.","palette":["#ffffff","#222222","#b9362f","#eeeeeb"],"materials":["fine rules","compact modules"],"viewport":"A narrow rail beside a timetable and tightly aligned task and message lists.","case":"Excellent information coverage; needs more concentration to scan.","risk":"Dense pages can feel busy.","comp":".impeccable/mocks/decision/dense.png"}
+ ],
+ "reroll":{"registers":["safer","bolder"]},"steer":true,"canon":true,
+ "canonCard":{"label":"Classic workspace","thesis":"A neutral white student portal with familiar gray navigation.","palette":["#ffffff","#eef0f3","#1e293b","#2563eb"],"materials":["neutral panels","subtle borders"],"viewport":"Sidebar, page title, central schedule and a compact task list.","risk":"A conventional design with little individual character."},
+ "buildPath":{"value":"comp","toggle":true}
+}

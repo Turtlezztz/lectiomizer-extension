@@ -1,0 +1,5 @@
+Lectiomizer bundles React and React DOM (MIT) and Lucide icons (ISC).
+Their license texts are included in this directory.
+Source Sans 3 by Adobe is bundled under the SIL Open Font License;
+its license is included at fonts/LICENSE.md.
+No generated concept images, demo data or Lectio's source CSS ship in this extension.

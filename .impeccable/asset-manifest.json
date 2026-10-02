@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "direction": "Compact UI",
+  "reference": ".impeccable/mocks/decision/dense.png",
+  "shippingRasters": [],
+  "generatedImagesRequired": false,
+  "assets": [
+    {
+      "id": "wordmark",
+      "kind": "semantic-text",
+      "source": "Product name",
+      "treatment": "Live text in utility red; no logo bitmap."
+    },
+    {
+      "id": "navigation-and-action-icons",
+      "kind": "inline-svg",
+      "source": "Installed lucide-react package",
+      "suggestedIcons": ["House", "CalendarDays", "FileText", "Mail", "ChartNoAxesColumn", "Star", "Users", "Folder", "BookOpen", "Settings", "Search", "ChevronLeft", "ChevronRight", "Menu", "X"],
+      "treatment": "Consistent outline strokes; retain visible link labels and accessible button names. Hide redundant decorative SVGs from assistive technology."
+    },
+    {
+      "id": "surface-and-status-materials",
+      "kind": "css",
+      "source": "Approved compact direction",
+      "treatment": "White surfaces, fine gray rules, restrained neutral lesson fills, utility-red active navigation and CSS status dots. Status meaning must also remain available in real text."
+    },
+    {
+      "id": "typography",
+      "kind": "system-font-stack",
+      "source": "Locally available UI sans-serif fonts",
+      "treatment": "Readable workhorse UI type; no remote font or rasterized text required."
+    },
+    {
+      "id": "native-lectio-content",
+      "kind": "existing-dom",
+      "source": "Current Lectio page",
+      "treatment": "Preserve native images, links, uploads, forms, timetable geometry and event handlers. Do not copy academic data or personal images into extension assets."
+    }
+  ],
+  "semanticRequirements": "Render all navigation, headings, timetable data, lists, tables and controls as semantic code or preserved source DOM. The approved comp is a visual reference only and must not ship as interface content.",
+  "privacy": "This inventory contains no student records, names, messages, grades, credentials or session data."
+}

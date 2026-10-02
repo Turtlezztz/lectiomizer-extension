@@ -1,0 +1,432 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T09:30:02.812991+00:00",
+  "title": "Design System: Lectiomizer — Compact",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Utility Red"
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Deep Utility Red"
+      },
+      "primary-soft": {
+        "role": "primary",
+        "displayName": "Soft Red"
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "White Ground"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Quiet Surface"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Dense Ink"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Secondary Ink"
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Fine Rule"
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Edge"
+      },
+      "nav-hover": {
+        "role": "neutral",
+        "displayName": "Navigation Hover"
+      },
+      "row-hover": {
+        "role": "neutral",
+        "displayName": "Row Hover"
+      },
+      "lesson-neutral": {
+        "role": "secondary",
+        "displayName": "Lesson Neutral"
+      },
+      "lesson-blue": {
+        "role": "secondary",
+        "displayName": "Lesson Blue"
+      },
+      "lesson-sage": {
+        "role": "secondary",
+        "displayName": "Lesson Sage"
+      },
+      "lesson-lilac": {
+        "role": "secondary",
+        "displayName": "Lesson Lilac"
+      },
+      "lesson-peach": {
+        "role": "secondary",
+        "displayName": "Lesson Peach"
+      },
+      "lesson-cyan": {
+        "role": "secondary",
+        "displayName": "Lesson Cyan"
+      },
+      "changed-bg": {
+        "role": "secondary",
+        "displayName": "Changed Bg"
+      },
+      "changed-ink": {
+        "role": "secondary",
+        "displayName": "Changed Ink"
+      },
+      "changed-rule": {
+        "role": "secondary",
+        "displayName": "Changed Rule"
+      },
+      "cancelled-bg": {
+        "role": "secondary",
+        "displayName": "Cancelled Bg"
+      },
+      "cancelled-ink": {
+        "role": "secondary",
+        "displayName": "Cancelled Ink"
+      },
+      "switch-off": {
+        "role": "neutral",
+        "displayName": "Switch Off"
+      },
+      "focus-soft": {
+        "role": "primary",
+        "displayName": "Soft Focus"
+      },
+      "selection-bg": {
+        "role": "primary",
+        "displayName": "Text Selection Background"
+      },
+      "selection-ink": {
+        "role": "primary",
+        "displayName": "Text Selection Ink"
+      },
+      "selected-tab-rule": {
+        "role": "primary",
+        "displayName": "Selected Tab Edge"
+      },
+      "disabled-bg": {
+        "role": "neutral",
+        "displayName": "Disabled Field Background"
+      },
+      "disabled-ink": {
+        "role": "neutral",
+        "displayName": "Disabled Field Ink"
+      },
+      "scrollbar-thumb": {
+        "role": "neutral",
+        "displayName": "Scrollbar Thumb"
+      },
+      "scrollbar-track": {
+        "role": "neutral",
+        "displayName": "Scrollbar Track"
+      },
+      "avatar-bg": {
+        "role": "neutral",
+        "displayName": "Profile Neutral Background"
+      },
+      "avatar-ink": {
+        "role": "neutral",
+        "displayName": "Profile Initials Ink"
+      },
+      "keyboard-hint-bg": {
+        "role": "neutral",
+        "displayName": "Keyboard Hint Background"
+      },
+      "table-heading-ink": {
+        "role": "neutral",
+        "displayName": "Table Heading Ink"
+      },
+      "timetable-info-bg": {
+        "role": "neutral",
+        "displayName": "Timetable Info Background"
+      },
+      "timetable-rule": {
+        "role": "neutral",
+        "displayName": "Timetable Rule"
+      },
+      "lesson-hover": {
+        "role": "neutral",
+        "displayName": "Lesson Hover"
+      },
+      "drawer-scrim": {
+        "role": "neutral",
+        "displayName": "Drawer Scrim"
+      },
+      "lesson-ink": {
+        "role": "neutral",
+        "displayName": "Lesson Ink"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Persistent page title."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Native island and open-workspace headings; red or ink according to context."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Native content and shell text."
+      },
+      "table": {
+        "displayName": "Table",
+        "purpose": "Ordinary native comparison tables; reflowed records use record-body."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Native fields and small actions."
+      },
+      "navigation": {
+        "displayName": "Navigation",
+        "purpose": "Sidebar destinations."
+      },
+      "metadata": {
+        "displayName": "Metadata",
+        "purpose": "Dates, school term and secondary values."
+      },
+      "brand": {
+        "displayName": "Brand",
+        "purpose": "Red wordmark."
+      },
+      "intro": {
+        "displayName": "Page Introduction",
+        "purpose": "Page-local 23px context beneath the persistent toolbar title."
+      },
+      "record-title": {
+        "displayName": "Record Title",
+        "purpose": "Primary record name or link at 19px."
+      },
+      "record-body": {
+        "displayName": "Record Value",
+        "purpose": "Reflowed native record values at 15px; also local search text."
+      },
+      "record-label": {
+        "displayName": "Record Label",
+        "purpose": "Original column label above its value at 12px."
+      },
+      "grade": {
+        "displayName": "Grade Value",
+        "purpose": "Desktop result value at 19px and weight 650."
+      },
+      "grade-mobile": {
+        "displayName": "Mobile Grade Value",
+        "purpose": "Result value at 23px at 720px and below."
+      },
+      "reading": {
+        "displayName": "Lesson Reading",
+        "purpose": "Lesson document text at 15px with a 1.7 line height."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 10px 32px #171c251c",
+        "purpose": "Search and settings overlays."
+      },
+      {
+        "name": "lesson-hover",
+        "value": "0 3px 10px #171c2514",
+        "purpose": "Hovered native timetable event."
+      },
+      {
+        "name": "re-enable",
+        "value": "0 5px 18px #0002",
+        "purpose": "Floating action when redesign is disabled."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "140ms ease-out",
+        "purpose": "Navigation colors, lesson feedback and popup switch state."
+      },
+      {
+        "name": "mobile-drawer",
+        "value": "180ms cubic-bezier(.16,1,.3,1)",
+        "purpose": "Mobile sidebar entry and exit."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "none",
+        "purpose": "Disable transitions and animations; immediate state swaps."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1600px"
+      },
+      {
+        "name": "compact-workspace",
+        "value": "1200px"
+      },
+      {
+        "name": "page-columns-narrow",
+        "value": "1100px"
+      },
+      {
+        "name": "icon-rail",
+        "value": "900px"
+      },
+      {
+        "name": "year-select-hidden",
+        "value": "750px"
+      },
+      {
+        "name": "page-stack-and-disclosures",
+        "value": "720px"
+      },
+      {
+        "name": "mobile-drawer-and-initial-course",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Native submit action; the popup link shares its red action language.",
+      "html": "<button class=\"ds-primary\" type=\"button\">Gem</button>",
+      "css": ".ds-primary{font-family:\"Source Sans 3\",sans-serif;font-size:14px;color:#fff;background:var(--lx-accent,#bc262b);border:1px solid var(--lx-accent,#bc262b);border-radius:7px;min-height:35px;padding:8px 12px;cursor:pointer}.ds-primary:hover{filter:brightness(.96)}.ds-primary:focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}.ds-primary:disabled{filter:none;opacity:.65;cursor:not-allowed}"
+    },
+    {
+      "name": "Native Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Original field retained inside the Lectio form.",
+      "html": "<label class=\"ds-field-label\">Titel<input class=\"ds-field\" type=\"text\" placeholder=\"Skriv en titel\"></label>",
+      "css": ".ds-field-label{font-family:\"Source Sans 3\",sans-serif;display:grid;gap:6px;color:var(--lx-ink,#171c25);font-size:14px}.ds-field{font-family:\"Source Sans 3\",sans-serif;font-size:14px;color:var(--lx-ink,#171c25);background:#fff;border:1px solid #c7cbd1;border-radius:7px;padding:8px 11px;min-height:36px;max-width:100%}.ds-field::placeholder{color:var(--lx-muted,#5d6470);opacity:1}.ds-field:focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}.ds-field:disabled{background:#f3f4f5;color:#6e7581;cursor:not-allowed}"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Persistent location row, with an explicit active state.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Sider\"><a href=\"#skema\" class=\"ds-nav-item ds-active\" aria-current=\"page\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2v4M16 2v4M3 10h18\"/><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M8 14h2M14 14h2M8 18h2\"/></svg><span>Skema</span></a><a href=\"#opgaver\" class=\"ds-nav-item\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 2v4M16 2v4M3 10h18\"/><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M8 14h2M14 14h2M8 18h2\"/></svg><span>Opgaver</span></a></nav>",
+      "css": ".ds-nav{display:grid;gap:2px;width:192px}.ds-nav-item{font-family:\"Source Sans 3\",sans-serif;display:flex;align-items:center;gap:12px;min-height:39px;padding:9px 12px;border-radius:7px;background:transparent;color:var(--lx-ink,#171c25);font-size:15px;font-weight:500;line-height:1.4;text-decoration:none;transition:background-color 140ms ease-out,color 140ms ease-out}.ds-nav-item svg{flex-shrink:0}.ds-nav-item:hover{background:#f4f4f5}.ds-nav-item.ds-active{background:var(--lx-accent,#bc262b);color:#fff;font-weight:620}.ds-nav-item.ds-active:hover{background:var(--lx-accent-hover,#a21d23)}.ds-nav-item:focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-nav-item{transition:none}}"
+    },
+    {
+      "name": "Fallback Native Island",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Shared bordered fallback for native content outside the nine open page workspaces; overlays reuse its form language.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-header\"><h3>I dag</h3></header><div class=\"ds-panel-body\"><strong>Dansk</strong><p>08.15–09.15 · Lokale A12</p></div></section>",
+      "css": ".ds-panel{font-family:\"Source Sans 3\",sans-serif;background:#fff;border:1px solid var(--lx-rule,#dedfe2);border-radius:12px;color:var(--lx-ink,#171c25);font-size:15px;line-height:1.45;max-width:440px}.ds-panel-header{padding:16px 18px 12px}.ds-panel-header h3{margin:0;color:var(--lx-accent,#bc262b);font-size:19px;font-weight:650;line-height:1.3;letter-spacing:-.015em}.ds-panel-body{padding:0 18px 18px}.ds-panel-body p{margin:4px 0 0}"
+    },
+    {
+      "name": "Popup Switch",
+      "kind": "input",
+      "refersTo": "popup-switch",
+      "description": "Persistent preference switch used by the extension popup.",
+      "html": "<label class=\"ds-setting\"><span><strong>Nyt design</strong><small>Sidebar og Compact-designsystem</small></span><input class=\"ds-switch\" type=\"checkbox\" role=\"switch\" checked></label>",
+      "css": ".ds-setting{font-family:\"Source Sans 3\",sans-serif;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 0;border-top:1px solid var(--lx-rule,#dedfe2);color:var(--lx-ink,#171c25);width:296px}.ds-setting span{display:flex;flex-direction:column;gap:4px}.ds-setting strong{font-size:14px;font-weight:600}.ds-setting small{font-size:12px;color:var(--lx-muted,#5d6470)}.ds-switch{appearance:none;width:34px;height:20px;border-radius:12px;background:#d5d8dc;position:relative;flex-shrink:0;cursor:pointer;margin:0;transition:background-color 140ms ease-out}.ds-switch:before{content:\"\";position:absolute;width:14px;height:14px;top:3px;left:3px;background:#fff;border-radius:50%;transition:transform 140ms ease-out}.ds-switch:checked{background:var(--lx-accent,#bc262b)}.ds-switch:checked:before{transform:translateX(14px)}.ds-switch:focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}.ds-switch:disabled{opacity:.5;cursor:wait}@media(prefers-reduced-motion:reduce){.ds-switch,.ds-switch:before{transition:none}}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet native utility action retained within the original form.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">Annuller</button>",
+      "css": ".ds-secondary{font:14px \"Source Sans 3\",sans-serif;color:var(--lx-ink,#171c25);background:#fff;border:1px solid var(--lx-rule,#dedfe2);border-radius:7px;min-height:35px;padding:8px 12px;cursor:pointer}.ds-secondary:hover{filter:brightness(.96)}.ds-secondary:focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}.ds-secondary:disabled{filter:none;opacity:.65;cursor:not-allowed}"
+    },
+    {
+      "name": "Local Record Search",
+      "kind": "input",
+      "refersTo": "record-search",
+      "description": "Page-local filtering field; the runtime also reports matching counts and an empty state.",
+      "html": "<label class=\"ds-record-search\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input type=\"search\" placeholder=\"Søg i denne liste…\" aria-label=\"Søg i denne liste\"></label>",
+      "css": ".ds-record-search{display:flex;align-items:center;gap:10px;min-width:180px;max-width:480px;padding:0 12px;background:var(--lx-surface,#f6f7f7);border:1px solid var(--lx-rule,#dedfe2);border-radius:7px;height:44px;color:var(--lx-muted,#5d6470)}.ds-record-search svg{flex-shrink:0}.ds-record-search input{font:15px \"Source Sans 3\",sans-serif;color:var(--lx-ink,#171c25);background:transparent;border:0;padding:0;min-width:0;width:100%;min-height:40px}.ds-record-search input::placeholder{color:var(--lx-muted,#5d6470);opacity:1}.ds-record-search input:focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:0}"
+    },
+    {
+      "name": "Labelled Native Record",
+      "kind": "custom",
+      "refersTo": "record-row",
+      "description": "Representative CSS grouping of original table cells; the shipped adapter preserves native row and cell nodes.",
+      "html": "<table class=\"ds-record-table\"><tbody><tr><td class=\"ds-record-title\"><a href=\"#record\">Opgavetitel</a></td><td data-label=\"Hold\">Holdnavn</td><td data-label=\"Frist\">Frist fra Lectio</td><td data-label=\"Status\">Status fra Lectio</td></tr></tbody></table>",
+      "css": ".ds-record-table{display:block;width:100%;font-family:\"Source Sans 3\",sans-serif;color:var(--lx-ink,#171c25)}.ds-record-table tbody{display:block}.ds-record-table tr{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px 20px;padding:20px 0;border-bottom:1px solid var(--lx-rule,#dedfe2)}.ds-record-table tr:hover{background:var(--lx-surface,#f6f7f7)}.ds-record-table td{display:flex;flex-direction:column;grid-column:span 2;min-width:0;padding:0;font-size:15px;line-height:1.5;overflow-wrap:anywhere}.ds-record-table td:before{content:attr(data-label);color:var(--lx-muted,#5d6470);font-size:12px;font-weight:500;line-height:1.3;margin-bottom:5px}.ds-record-table .ds-record-title{grid-column:span 6;font-size:19px;font-weight:600}.ds-record-title:before{display:none}.ds-record-title a{color:var(--lx-accent,#bc262b);text-decoration:none}.ds-record-title a:hover{text-decoration:underline}.ds-record-title a:focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}@media(max-width:720px){.ds-record-table tr{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.ds-record-table td{grid-column:span 1}.ds-record-table .ds-record-title{grid-column:1/-1}}"
+    },
+    {
+      "name": "Folder Disclosure",
+      "kind": "custom",
+      "description": "Native details open state with an inline chevron; desktop starts open and narrow layouts start closed.",
+      "html": "<details class=\"ds-folders\" open><summary>Mapper<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></summary><div class=\"ds-folder-content\"><a href=\"#folder\">Mappe fra Lectio</a></div></details>",
+      "css": ".ds-folders{font-family:\"Source Sans 3\",sans-serif;color:var(--lx-ink,#171c25);max-width:220px}.ds-folders summary{display:flex;justify-content:space-between;align-items:center;list-style:none;font-size:19px;font-weight:600;padding:0 0 12px;cursor:pointer}.ds-folders summary::-webkit-details-marker{display:none}.ds-folders summary::marker{content:\"\"}.ds-folders summary svg{flex-shrink:0}.ds-folders[open] summary svg{transform:rotate(180deg)}.ds-folder-content{padding:8px;background:var(--lx-surface,#f6f7f7);border-radius:7px;max-height:65vh;overflow:auto}.ds-folder-content a{display:block;min-height:36px;color:var(--lx-accent,#bc262b);font-size:15px;line-height:1.5;overflow-wrap:anywhere;text-decoration:none}.ds-folder-content a:hover{text-decoration:underline}.ds-folders :is(summary,a):focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}@media(max-width:720px){.ds-folders{max-width:100%}.ds-folders summary{font-size:15px;min-height:44px;padding:12px;background:var(--lx-surface,#f6f7f7);border-radius:7px}.ds-folder-content{max-height:45vh}}"
+    },
+    {
+      "name": "Activity Action Strip",
+      "kind": "custom",
+      "refersTo": "activity-actions",
+      "description": "One wrapping surface for original activity and editor toolbars above the lesson.",
+      "html": "<div class=\"ds-activity-actions\"><button type=\"button\">Gem</button><a href=\"#activity\">Aktivitet fra Lectio</a></div>",
+      "css": ".ds-activity-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 16px;background:var(--lx-surface,#f6f7f7);border-radius:7px;font:14px \"Source Sans 3\",sans-serif}.ds-activity-actions button{background:#fff;color:var(--lx-ink,#171c25);border:1px solid var(--lx-rule,#dedfe2);border-radius:7px;padding:8px 12px;min-height:35px;font:inherit;cursor:pointer}.ds-activity-actions button:hover{filter:brightness(.96)}.ds-activity-actions a{color:var(--lx-accent,#bc262b);text-decoration:none}.ds-activity-actions a:hover{text-decoration:underline}.ds-activity-actions :is(button,a):focus-visible{outline:2px solid var(--lx-accent,#bc262b);outline-offset:3px}@media(max-width:720px){.ds-activity-actions :is(button,a){min-height:44px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Compact",
+    "overview": "Compact turns Lectio into a persistent, scannable student workspace. Bright white surfaces, utility red, Source Sans 3 and fine neutral rules give schedules, deadlines and records a consistent hierarchy. Information stays compact through aligned rows and restrained spacing, with readable text instead of the seed's proposed tiny type. The nine page workspaces extend this approved identity with task-specific reading order, open records and readable documents.\n\nThe extension frames Lectio's original content with a React navigation shell. Native form fields, uploads, links, hidden state and timetable geometry remain owned by Lectio; visual consistency must preserve those actions. Lucide outline SVGs support navigation. The approved image is a design reference, and no raster imagery ships in the interface.",
+    "keyCharacteristics": [
+      "White ground and a single utility-red accent.",
+      "Humanist type, tabular numerals, labelled records and compact comparison tables.",
+      "Persistent navigation with an icon rail and mobile drawer.",
+      "Flat open sections, quiet context surfaces, soft subject fills and explicit event states.",
+      "Native Lectio content and actions remain intact."
+    ],
+    "rules": [
+      {
+        "name": "The Utility Red Rule",
+        "body": "Use red for identity, selected navigation, links, section accents and meaningful action or error states; use quiet subject fills for ordinary lessons.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readable Density Rule",
+        "body": "Compactness comes from rows, rules and spacing. Keep ordinary native table and form text at 14px, shell/body and reflowed record values at 15px, record titles at 19px and labels at 12px; reserve smaller text for ancillary metadata.",
+        "section": "typography"
+      },
+      {
+        "name": "The Task Hierarchy Rule",
+        "body": "Structure each workspace around its primary student task. Reuse the shared type, colors and record rhythm without forcing every route into the same panel grid. Detailed route composition remains in `.impeccable/page-layouts.md`.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Surface Rule",
+        "body": "Keep persistent panels and tables flat. Reserve elevation for overlays, the re-enable control and lesson hover feedback.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Native Record Rule",
+        "body": "Relocate and reflow Lectio's existing nodes; preserve ids, input values, hidden state, original handlers and the surrounding form. Restore moved nodes through their recorded original positions when the redesign is disabled. Do not copy academic data into replacement replicas.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** reuse Source Sans 3, utility red and fine neutral rules across the shell, native pages and popup.",
+      "**Do** preserve original Lectio ids, form hierarchy, events, uploads, links and timetable position geometry.",
+      "**Do** keep selected navigation explicit and secondary native tabs visible.",
+      "**Do** keep record titles, deadlines, statuses and native actions prominent, with secondary administrative fields disclosed on demand.",
+      "**Do** use 15px record values, 19px titles and 12px field labels; preserve meaningful field labels when records stack.",
+      "**Do** allow contained horizontal scrolling for comparison tables and the weekly timetable, and use a focused course for narrow study reading.",
+      "**Do** preserve DOM reading order when moving native sections and keep page-local search state reversible.",
+      "**Do** keep focus visible, respect reduced motion, and make disabling the redesign restore native presentation."
+    ],
+    "donts": [
+      "**Don't** introduce gradients, decorative imagery or shipped raster art into this system.",
+      "**Don't** rebuild academic data or native forms as decorative replicas.",
+      "**Don't** make persistent content panels float with shadows.",
+      "**Don't** turn page-specific homepage weighting into a compulsory layout for every route.",
+      "**Don't** wrap every record in a filled card or force the nine workspaces back into the fallback panel/table topology.",
+      "**Don't** remove native controls or hide primary selection/action fields behind the extra-field toggle."
+    ]
+  }
+}

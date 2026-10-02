@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-02",
+  "artifact": "artifacts/lectiomizer-0.1.0.zip",
+  "automatedTests": {"passed": 7, "failed": 0},
+  "firefoxLint": {"errors": 0, "notices": 0, "warnings": 4, "warningOrigin": "React framework internal innerHTML support"},
+  "runtimeDependencyAudit": {"vulnerabilities": 0},
+  "browserChecks": ["navigation search and empty results", "keyboard result navigation", "native demo draft handler", "preserved hidden form fields", "desktop and mobile layout", "mobile drawer", "computed heading fonts", "mobile lesson text fits"],
+  "visualEvidence": "Synthetic representative Lectio DOM with public native stylesheet; invented demonstration data",
+  "reviewDisposition": "ship",
+  "reviewScope": "All six listed material fixes resolved; verdict pass is not a renewed whole-surface review",
+  "pending": ["User installation in Firefox", "Live authenticated postbacks and uploads", "Every secondary route and staff/admin workflows"]
+}

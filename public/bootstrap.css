@@ -1,0 +1,3 @@
+/* Suppress the native flash before document_end. Failure never leaves a blank page. */
+html.lx-preparing{background:#fff!important}
+html.lx-preparing body{visibility:hidden!important}
