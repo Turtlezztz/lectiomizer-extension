@@ -141,31 +141,42 @@ body.lx-enabled .ls-validation-error,body.lx-enabled .validationError,body.lx-en
 body.lx-enabled .ls-lectiofilepicker-container{gap:20px!important;background:#fff!important;border:1px solid var(--lx-rule);border-radius:12px;padding:16px!important;max-width:100%;min-width:0;box-sizing:border-box}
 body.lx-enabled .ls-lectiofilepicker-container .lx-table-scroll{border-radius:8px}
 body.lx-enabled .ls-std-table-inputlist{border-collapse:separate!important;border-spacing:0 14px!important;font-size:14px!important;max-width:100%}
-/* Timetable: retain the original relative-em layout and collision handling. */
+/* Timetable: retain the original relative-em layout and collision handling.
+   Lectio places modules and lessons in em, so --lx-skema-em sets the timetable's vertical scale. */
+body.lx-enabled{--lx-skema-em:11px}
+body.lx-enabled[data-lx-density="comfortable"]{--lx-skema-em:13px}
 body.lx-enabled .display-grid-skemany,body.lx-enabled .display-grid-skemaforside{gap:12px!important;margin-top:0!important;min-width:0!important}
 body.lx-enabled .grid-area-skema{min-width:0!important}
 body.lx-enabled .ls-skema-scroll-horizontal{max-width:100%!important;min-width:0!important}
-body.lx-enabled .s2skema{font-family:"Source Sans 3",sans-serif!important;font-size:14px!important;border-collapse:separate!important;border-spacing:0!important;border:0!important;background:#fff!important;min-width:980px;width:100%!important;table-layout:fixed!important;color:var(--lx-ink)!important}
+body.lx-enabled .s2skema{font-family:"Source Sans 3",sans-serif!important;font-size:14px!important;border-collapse:separate!important;border-spacing:0!important;border:0!important;background:#fff!important;min-width:720px;width:100%!important;table-layout:fixed!important;color:var(--lx-ink)!important}
 body.lx-enabled .s2skema td{padding:0!important;border:0!important;border-right:1px solid var(--lx-rule)!important;vertical-align:top;background:#fff!important}
 body.lx-enabled .s2skema td:last-child{border-right:0!important}
-body.lx-enabled .s2skema tr:first-child td{padding:10px 12px!important;font-size:17px!important;font-weight:650;border-bottom:1px solid var(--lx-rule)!important}
-body.lx-enabled .s2skema tr:nth-child(2) td{padding:12px 10px!important;text-align:center;font-weight:650;font-size:15px!important;border-bottom:1px solid var(--lx-rule)!important}
+body.lx-enabled .s2skema tr:first-child td{padding:6px 10px!important;font-size:15px!important;font-weight:650;line-height:1.3;border-bottom:1px solid var(--lx-rule)!important}
+body.lx-enabled .s2skema tr:nth-child(2) td{padding:6px 8px!important;text-align:center;font-weight:650;font-size:14px!important;line-height:1.3;border-bottom:1px solid var(--lx-rule)!important}
 body.lx-enabled .s2skema td.s2infoHeader{background:#fbfbfc!important;border-bottom:1px solid var(--lx-rule)!important;font-size:11px!important;line-height:1.35}
-body.lx-enabled .s2skema .s2infoHeader .s2skemabrik{font-size:11px!important;color:var(--lx-muted)!important;background:transparent!important;padding:5px!important;white-space:normal!important}
-body.lx-enabled .s2skema .s2brik{background:#f2f3f3!important;color:#263039!important;border:1px solid transparent!important;border-radius:7px!important;padding:6px 8px!important;box-sizing:border-box!important;font-weight:500;font-style:normal!important;text-decoration:none!important;line-height:1.25!important;overflow:hidden;transition:background-color 140ms ease-out,box-shadow 140ms ease-out}
-body.lx-enabled .s2skema .s2brik:hover{background:#e8ebed!important;box-shadow:0 3px 10px #171c2514!important;z-index:10}
+body.lx-enabled .s2skema td:not(.s2infoHeader) .s2skemabrikcontainer,body.lx-enabled .s2skema td:not(.s2infoHeader) .s2skemabrikcontainer :is(.s2brik,.s2module-bg){font-size:var(--lx-skema-em)!important}
+/* Background carries the lesson's status; the subject colour is a dot before its name. */
+body.lx-enabled .s2skema .s2brik{--lx-brik-bg:#f2f3f3;--lx-brik-hover:#e8ebed;background:var(--lx-brik-bg)!important;color:#263039!important;border:1px solid transparent!important;border-radius:6px!important;padding:3px 6px 3px 18px!important;box-sizing:border-box!important;font-weight:500;font-style:normal!important;text-decoration:none!important;line-height:1.25!important;overflow:hidden;transition:background-color 140ms ease-out,box-shadow 140ms ease-out}
+body.lx-enabled .s2skema .s2brik::before{content:"";position:absolute;top:7px;left:7px;width:7px;height:7px;border-radius:50%;background:var(--lx-dot,#8a919c)}
+body.lx-enabled .s2skema .s2brik:hover{background:var(--lx-brik-hover)!important;box-shadow:0 3px 10px #171c2514!important;z-index:10}
 body.lx-enabled .s2skema .s2brik:is(:hover,:focus-visible){height:auto!important;min-height:var(--lx-event-height,3.82em);z-index:10}
-body.lx-enabled .s2skema .s2brik[data-lx-subject="0"]{background:#edf1f7!important}
-body.lx-enabled .s2skema .s2brik[data-lx-subject="1"]{background:#eef2ee!important}
-body.lx-enabled .s2skema .s2brik[data-lx-subject="2"]{background:#f2eff6!important}
-body.lx-enabled .s2skema .s2brik[data-lx-subject="3"]{background:#f7efe9!important}
-body.lx-enabled .s2skema .s2brik[data-lx-subject="4"]{background:#eef3f4!important}
-body.lx-enabled .s2skema .s2brik.s2changed{background:#fff1da!important;color:#704509!important;font-style:italic!important;border:1px dashed #b68b43!important}
-body.lx-enabled .s2skema .s2brik.s2cancelled{background:#fbe9eb!important;color:#98242a!important;text-decoration:line-through!important;font-style:italic!important}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="0"]{--lx-dot:#2f6fd0}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="1"]{--lx-dot:#7a4fc4}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="2"]{--lx-dot:#d9761a}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="3"]{--lx-dot:#11899a}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="4"]{--lx-dot:#c2408f}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="5"]{--lx-dot:#3b4a9c}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="6"]{--lx-dot:#b8930f}
+body.lx-enabled .s2skema .s2brik[data-lx-subject="7"]{--lx-dot:#8b5a3c}
+body.lx-enabled .s2skema .s2brik.s2changed{--lx-brik-bg:#e2f1e4;--lx-brik-hover:#d3e9d7;color:#1f5b2c!important;font-style:italic!important}
+body.lx-enabled .s2skema .s2brik.s2cancelled{--lx-brik-bg:#fbe3e5;--lx-brik-hover:#f6d3d7;color:#98242a!important;text-decoration:line-through!important;font-style:italic!important}
+body.lx-enabled .s2skema .s2brik.s2cancelled::before{opacity:.45}
 body.lx-enabled .s2skema .s2brik.s2selected{outline:2px solid var(--lx-accent);outline-offset:1px}
 body.lx-enabled .s2skema .s2brik .separator-value{font-weight:650}
 body.lx-enabled .s2skema .s2brik .separator-undervalue{font-size:12px;line-height:1.25}
-body.lx-enabled .s2skema .s2module-bg{border-color:#e8eaed!important;background:transparent!important;color:var(--lx-muted)!important;font-size:12px}
+body.lx-enabled .s2skema td.s2infoHeader .s2skemabrik{font-size:11px!important;color:var(--lx-muted)!important;background:transparent!important;padding:5px!important;white-space:normal!important}
+body.lx-enabled .s2skema td.s2infoHeader .s2skemabrik::before{content:none}
+body.lx-enabled .s2skema .s2module-bg{border-color:#e8eaed!important;background:transparent!important;color:var(--lx-muted)!important}
 body.lx-enabled .s2skema .s2skemabrikcontainer{background:transparent!important}
 body.lx-enabled .grid-area-navigation,body.lx-enabled .grid-area-additional{background:transparent!important}
 body.lx-enabled .ls-datepicker{font-size:14px!important}
@@ -184,7 +195,7 @@ body.lx-embedded #schoolsdiv a:hover{background:#fbebec}
 @media(prefers-reduced-motion:reduce){#lectiomizer-root *,body.lx-enabled .s2brik{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 @media print{body.lx-enabled{padding:0!important;background:#fff!important}#lectiomizer-root{display:none!important}body.lx-enabled [id$="outerContentFrameDiv"]{padding:0!important}body.lx-enabled [id$="MainTitle"],body.lx-enabled #MainTitle{display:block!important}body.lx-enabled .lx-table-scroll{overflow:visible!important;border:0!important}body.lx-enabled .s2skema{font-size:10px!important;min-width:0!important}body.lx-enabled .s2skema .s2brik{print-color-adjust:exact!important}body.lx-enabled [id$="masterFooter"]{display:none!important}}
 
-body.lx-enabled .s2skema tr:not(:first-child)>td:first-child{width:82px!important}
+body.lx-enabled .s2skema tr:not(:first-child)>td:first-child{width:76px!important}
 body.lx-enabled .s2skema tr:last-child>td>.s2skemabrikcontainer{width:100%!important}
 body.lx-enabled .s2skema .s2brik[data-lx-responsive]{left:var(--lx-event-left)!important;width:var(--lx-event-width)!important}
 .lx-year-select{font:inherit;font-size:13px;color:var(--lx-muted);border:1px solid var(--lx-rule);border-radius:7px;background:#fff;padding:8px 9px;height:38px}
@@ -193,15 +204,20 @@ body.lx-enabled .s2skema .s2brik[data-lx-responsive]{left:var(--lx-event-left)!i
 .lx-sidebar-year{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--lx-muted);padding:0 12px 6px;gap:10px}.lx-sidebar-year select{font:inherit;padding:5px 8px;border:1px solid var(--lx-rule);border-radius:6px;background:#fff;color:var(--lx-ink)}
 
 /* Source schedule pages generate their own grid areas; use one stable flow. */
-body.lx-enabled .display-grid-skemany{display:block!important}
+/* Each area gets its own row, except week navigation and extra actions, which share one. */
+body.lx-enabled .display-grid-skemany{display:flex!important;flex-wrap:wrap;align-items:center}
 body.lx-enabled .display-grid-skemany>.ls-card-filled{padding:0!important;border:0!important;background:transparent!important}
-body.lx-enabled .display-grid-skemany>*{min-width:0!important;max-width:100%!important}
+body.lx-enabled .display-grid-skemany>*{flex:1 1 100%;min-width:0!important;max-width:100%!important;margin:0!important}
+body.lx-enabled .display-grid-skemany>.grid-area-navigation{flex:1 1 auto}
+body.lx-enabled .display-grid-skemany>.grid-area-additional{flex:0 1 auto}
+body.lx-enabled .display-grid-skemany .lx-table-scroll{margin:0}
 body.lx-enabled .display-grid-skemany .grid-area-navigation{display:flex;flex-wrap:wrap;gap:8px 12px}
 body.lx-enabled .display-grid-skemany .grid-area-navigation input{width:235px}
 #lectiomizer-root h1,#lectiomizer-root h2,#lectiomizer-root a,#lectiomizer-root input,#lectiomizer-root select,#lectiomizer-root button{font-family:"Source Sans 3",sans-serif!important}
 
 body.lx-enabled .display-grid-skemany .ls-std-rowblock{justify-content:flex-start!important}
-body.lx-enabled .s2skema .s2brik .s2skemabrikcontent{font-size:14px!important;line-height:1.25!important}
+body.lx-enabled .display-grid-skemany>.grid-area-navigation.ls-std-rowblock{padding:0!important}
+body.lx-enabled .s2skema .s2brik .s2skemabrikcontent{font-size:13px!important;line-height:1.25!important}
 .lx-utilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px}
 .lx-utility{width:auto;flex-direction:column;justify-content:center;gap:4px;padding:6px 2px;font-size:12px;min-height:45px}
 @media(min-width:641px) and (max-width:900px){.lx-utilities{display:flex;flex-direction:column}.lx-utility{min-height:34px;padding:7px 0}}

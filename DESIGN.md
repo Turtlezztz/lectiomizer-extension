@@ -15,15 +15,17 @@ colors:
   row-hover: "#faf5f5"
   lesson-neutral: "#f2f3f3"
   lesson-ink: "#263039"
-  lesson-blue: "#edf1f7"
-  lesson-sage: "#eef2ee"
-  lesson-lilac: "#f2eff6"
-  lesson-peach: "#f7efe9"
-  lesson-cyan: "#eef3f4"
-  changed-bg: "#fff1da"
-  changed-ink: "#704509"
-  changed-rule: "#b68b43"
-  cancelled-bg: "#fbe9eb"
+  subject-dot-0: "#2f6fd0"
+  subject-dot-1: "#7a4fc4"
+  subject-dot-2: "#d9761a"
+  subject-dot-3: "#11899a"
+  subject-dot-4: "#c2408f"
+  subject-dot-5: "#3b4a9c"
+  subject-dot-6: "#b8930f"
+  subject-dot-7: "#8b5a3c"
+  changed-bg: "#e2f1e4"
+  changed-ink: "#1f5b2c"
+  cancelled-bg: "#fbe3e5"
   cancelled-ink: "#98242a"
   switch-off: "#d5d8dc"
   focus-soft: "#f7dadd"
@@ -262,7 +264,7 @@ The extension frames Lectio's original content with a React navigation shell. Na
 - White ground and a single utility-red accent.
 - Humanist type, tabular numerals, labelled records and compact comparison tables.
 - Persistent navigation with an icon rail and mobile drawer.
-- Flat open sections, quiet context surfaces, soft subject fills and explicit event states.
+- Flat open sections, quiet context surfaces, subject dots and explicit event states.
 - Native Lectio content and actions remain intact.
 
 ## Colors
@@ -277,10 +279,11 @@ The palette is a white utility surface with dark ink, cool gray rules and red ac
 
 ### Secondary
 
-- **Quiet Subject Fills** (`lesson-neutral`, `lesson-blue`, `lesson-sage`, `lesson-lilac`, `lesson-peach`, `lesson-cyan`): muted lesson differentiation. Subject colors are generated from the source subject label; they do not independently assert an academic status.
-- **Lesson Ink** (`lesson-ink`): ordinary lesson text over the quiet subject fills.
-- **Changed Amber** (`changed-bg`, `changed-ink`, `changed-rule`): changed lessons, paired with italic text and a dashed border.
-- **Cancelled Rose** (`cancelled-bg`, `cancelled-ink`): cancelled lessons, paired with italic text and strikethrough.
+- **Lesson Grey** (`lesson-neutral`): the fill of an ordinary timetable lesson. In the timetable the fill states the lesson's status, never its subject.
+- **Subject Dots** (`subject-dot-0` … `subject-dot-7`): a 7px dot before each timetable lesson's name. The colour is generated from the lesson's hold, so a subject keeps its dot across weeks. The palette avoids red and green so a dot never reads as a status.
+- **Lesson Ink** (`lesson-ink`): ordinary lesson text over Lesson Grey.
+- **Changed Green** (`changed-bg`, `changed-ink`): changed lessons, paired with italic text.
+- **Cancelled Rose** (`cancelled-bg`, `cancelled-ink`): cancelled lessons, paired with italic text and strikethrough; the subject dot fades.
 
 ### Neutral
 
@@ -299,7 +302,7 @@ The palette is a white utility surface with dark ink, cool gray rules and red ac
 - **Table Heading Ink** (`table-heading-ink`), **Timetable Info** (`timetable-info-bg`) and **Timetable Rule** (`timetable-rule`): native comparison/table headings and timetable context divisions. **Lesson Hover** (`lesson-hover`): neutral event hover fill.
 - **Drawer Scrim** (`drawer-scrim`): translucent ink behind mobile navigation.
 
-**The Utility Red Rule.** Use red for identity, selected navigation, links, section accents and meaningful action or error states; use quiet subject fills for ordinary lessons.
+**The Utility Red Rule.** Use red for identity, selected navigation, links, section accents and meaningful action or error states; use Lesson Grey with a subject dot for ordinary timetable lessons.
 
 ## Typography
 
@@ -426,7 +429,7 @@ Activity context uses a quiet rounded surface, a 19px heading, 15px metadata and
 
 ### Timetable Lessons
 
-Retain native clickable event geometry. Lessons use soft subject fills, ink text, control corners and 6px by 8px padding. Subject names and leading values use weight 650; time and room lines remain readable. Changed events add amber, italic text and a dashed border; cancelled events add rose, italic text and strikethrough. Selected events use a 2px red outline. Hover/focus can expand a lesson to reveal content while retaining its native minimum height.
+Retain native clickable event geometry. Lectio places modules and lessons in em, so the timetable's vertical scale is one font size, `--lx-skema-em`: 11px when compact, 13px when comfortable; lesson text stays 13px. Lessons use a status fill (Lesson Grey, Changed Green or Cancelled Rose), a subject dot before the name, ink text, control corners and 3px by 6px padding (18px on the left for the dot). Subject names and leading values use weight 650. Week navigation and the extra actions share one row above the table; the week and day header rows use 6px vertical padding, and the table needs 720px before it scrolls horizontally. Selected events use a 2px red outline. Hover/focus can expand a lesson to reveal content while retaining its native minimum height.
 
 ### Popup Preferences
 

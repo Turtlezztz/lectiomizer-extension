@@ -29,6 +29,7 @@ test('sidebar keeps source navigation handlers, form values and all student sect
  assert.equal(doc.querySelectorAll('.lx-navigation a').length,13); // 12 daily/secondary destinations plus main menu; profile is in footer.
  assert.equal(doc.querySelector('.s2brik').dataset.lxResponsive,'true');
  assert.equal(doc.querySelector('.s2brik').style.top,'0.91em');
+ const subjects=new Map();for(const brik of doc.querySelectorAll('.s2brik')){const name=brik.querySelector('.separator-value').textContent;assert.match(brik.dataset.lxSubject,/^[0-7]$/);assert.equal(subjects.get(name)??brik.dataset.lxSubject,brik.dataset.lxSubject);subjects.set(name,brik.dataset.lxSubject);}
  dom.window.dispatchEvent(new dom.window.Event('pagehide'));await delay(10);dom.window.close();
 });
 

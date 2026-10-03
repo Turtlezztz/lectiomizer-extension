@@ -136,7 +136,7 @@ export async function boot() {
 export function prepareNative() {
  const content=document.querySelector('#contenttable');if(!content)return;
  for(const table of content.querySelectorAll('table.lf-grid,table.yeartable,table.s2skema')) {
-   if(table.classList.contains('s2skema')&&!table.querySelector('colgroup')&&table.rows[1]?.cells.length<=8){const cols=document.createElement('colgroup');cols.dataset.lxColumns='true';for(let i=0;i<table.rows[1].cells.length;i++){const col=document.createElement('col');if(i===0)col.style.width='82px';cols.append(col);}table.prepend(cols);}
+   if(table.classList.contains('s2skema')&&!table.querySelector('colgroup')&&table.rows[1]?.cells.length<=8){const cols=document.createElement('colgroup');cols.dataset.lxColumns='true';for(let i=0;i<table.rows[1].cells.length;i++){const col=document.createElement('col');if(i===0)col.style.width='76px';cols.append(col);}table.prepend(cols);}
    // Wrapping leaves each table and all of its event handlers intact.
    if(!table.parentElement.classList.contains('lx-table-scroll')){
     const wrap=document.createElement('div');wrap.className='lx-table-scroll';wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label',table.classList.contains('s2skema')?'Ugeskema, rul vandret ved behov':'Tabel, rul vandret ved behov');table.before(wrap);wrap.append(table);
@@ -147,9 +147,10 @@ export function prepareNative() {
    if(block.dataset.lxSubject)continue;
    const parentWidth=parseFloat(block.parentElement.style.width);
    if(parentWidth&&block.style.left.endsWith('em')&&block.style.width.endsWith('em')){block.dataset.lxResponsive='true';block.style.setProperty('--lx-event-left',`${parseFloat(block.style.left)/parentWidth*100}%`);block.style.setProperty('--lx-event-width',`${parseFloat(block.style.width)/parentWidth*100}%`);}
-   const text=block.querySelector('.separator-value')?.textContent||block.textContent;
-   let hash=0;for(const char of text.split('•')[0])hash=(hash*31+char.charCodeAt(0))|0;
-   block.dataset.lxSubject=String(Math.abs(hash)%5);
+   // The hold names the subject; fall back to the brick's first segment.
+   const text=(block.querySelector('[data-lectiocontextcard^="H"]')||block.querySelector('.separator-value'))?.textContent||block.textContent.split('•')[0];
+   let hash=0;for(const char of text.trim())hash=(hash*31+char.charCodeAt(0))|0;
+   block.dataset.lxSubject=String(Math.abs(hash)%8);
  }
  const dashboard=content.querySelector('.ls-dashboard');
  if(dashboard){
