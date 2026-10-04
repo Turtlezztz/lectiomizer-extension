@@ -6,7 +6,7 @@ A Firefox extension that gives Lectio a compact white-and-red interface, a React
 
 1. Open `about:debugging#/runtime/this-firefox` in Firefox.
 2. Click **Load Temporary Add-on…** (Danish: **Indlæs midlertidig tilføjelse…**).
-3. Select `dist/manifest.json` in this project, or select `artifacts/lectiomizer-0.5.0.zip`.
+3. Select `dist/manifest.json` in this project, or select `artifacts/lectiomizer-1.0.0.zip`.
 4. Open your school's Lectio page and refresh it. Sign in normally if needed.
 
 This development installation remains until Firefox restarts. Normal permanent installation requires Mozilla signing; the ZIP is an unsigned development build. Firefox 142 or newer is required.
@@ -98,6 +98,6 @@ npm run dev
 
 Preview: `http://127.0.0.1:4173/lectio/123/SkemaNy.aspx`. All preview data is invented. The preview source and Lectio's public native stylesheet in `demo/` are excluded from the extension package. `demo/native.css` is an unmodified reference fetched from https://www.lectio.dk/lectio/content/lectio-css.bundle.css on 2026-10-02; it remains the property of its respective owners.
 
-For an existing installation loaded from this project’s `dist/manifest.json`, click **Reload** on Lectiomizer in `about:debugging` and refresh Lectio. If you loaded the previous ZIP, remove the temporary add-on and load the new `lectiomizer-0.5.0.zip`.
+For an existing installation loaded from this project’s `dist/manifest.json`, click **Reload** on Lectiomizer in `about:debugging` and refresh Lectio. If you loaded the previous ZIP, remove the temporary add-on and load the new `lectiomizer-1.0.0.zip`.
 
 After changing the extension, rebuild and click **Reload** on Lectiomizer in `about:debugging`, then refresh Lectio. `dist/` is the loadable extension; `artifacts/` contains the packaged ZIP.
