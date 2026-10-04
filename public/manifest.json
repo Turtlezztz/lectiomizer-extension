@@ -10,17 +10,28 @@
       "data_collection_permissions": {
         "required": [
           "none"
+        ],
+        "optional": [
+          "websiteContent"
         ]
       }
     }
   },
   "permissions": [
-    "storage"
+    "storage",
+    "identity"
   ],
   "host_permissions": [
     "https://www.lectio.dk/*",
-    "https://lectio.dk/*"
+    "https://lectio.dk/*",
+    "https://www.googleapis.com/*",
+    "https://oauth2.googleapis.com/*"
   ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
   "action": {
     "default_title": "Lectiomizer",
     "default_popup": "popup.html",

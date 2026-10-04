@@ -6,6 +6,7 @@ import { readModel, searchItems } from './model.js';
 import { routeKey } from './lectio.js';
 import { preparePages, restorePages } from './pages.jsx';
 import { mountView, unmountView } from './views/index.jsx';
+import { watchSchedule } from './calendar/scrape.js';
 
 const directionContract = `THESIS: Compact makes Lectio's daily tasks scannable through one persistent sidebar and aligned native content.
 OWN-WORLD: White ground, utility-red selection, Source Sans 3, fine rules, quiet lesson fills and Lucide icons.
@@ -116,6 +117,8 @@ export async function boot() {
  if(window.top!==window){document.body.classList.toggle('lx-embedded',initialPrefs.enabled);document.dispatchEvent(new Event('lectiomizer:ready'));api?.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.preferences)document.body.classList.toggle('lx-embedded',changes.preferences.newValue?.enabled!==false);});return;}
  document.body.prepend(document.createComment(directionContract));
  const model=readModel();
+ // Calendar sync runs whether or not the redesign is switched on.
+ if(model.authenticated)watchSchedule(()=>readModel().nav.find(n=>n.label==='Skema')?.href);
  document.body.classList.toggle('lx-enabled',initialPrefs.enabled);
  const host=document.createElement('div');host.id='lectiomizer-root';document.body.append(host);
  document.documentElement.classList.add('lx-ready');

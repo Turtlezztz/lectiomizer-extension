@@ -3,3 +3,4 @@ dist/
 artifacts/
 .impeccable/questions/
 .impeccable/review/
+.env
