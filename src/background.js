@@ -1,8 +1,10 @@
-// Background script: owns the Google token and every call to Google. Content
-// scripts send it lessons they read from Lectio; the popup connects, and the
-// popup or the page's settings card disconnects. Nothing is sent to Google
-// until the user connects.
+// Background script: owns the Google and ChatGPT tokens and every call to
+// Google and OpenAI. Content scripts send it lessons they read from Lectio and
+// chat questions, whose answers run here (chat/jobs.js); the popup connects,
+// and the popup or the page's settings card disconnects. Nothing is sent to Google or OpenAI until the user connects.
 import { api } from './settings.js';
+import { cancelSignIn, hasChatConsent, onCallbackRequest, onTabRemoved, onTabUpdated, pasteCallback, refreshModels, signOut, startSignIn } from './chat/session.js';
+import { resetActivity, retryAnswer, send, stop, watch } from './chat/jobs.js';
 import { GOOGLE_CLIENT_ID, loadCalendar, saveCalendar, saveCalendarStatus } from './calendar/store.js';
 import { GoogleError, authorize, createClient, ensureCalendar, syncCalendar } from './calendar/google.js';
 
@@ -104,7 +106,8 @@ async function requestSync() {
 }
 
 // Firefox asks for data consent only on extension pages, so the settings card
-// in a Lectio page connects through the popup, opened as a small window.
+// and chat page in a Lectio page connect through the popup, opened as a small
+// window.
 async function openSettings() {
   if (!api.windows) return { ok: false, message: 'Åbn Lectiomizer fra værktøjslinjen for at forbinde.' };
   await api.windows.create({ type: 'popup', url: api.runtime.getURL('popup.html'), width: 380, height: 680 });
@@ -124,5 +127,36 @@ api.runtime.onMessage.addListener((message, sender) => {
     case 'calendar:disconnect': if (fromExtension || fromLectio) return disconnect(); return;
     case 'calendar:sync-now': if (fromExtension || fromLectio) return requestSync(); return;
     case 'calendar:open-settings': if (fromLectio) return openSettings(); return;
+    // The chat page in Lectio signs in directly once the user has given data
+    // consent; otherwise the popup asks for it first.
+    case 'chat:connect':
+      if (fromExtension) return startSignIn({ consent: !!message.consent });
+      if (fromLectio) return hasChatConsent().then(granted => granted ? startSignIn({ openerTabId: sender.tab.id, consent: !!message.consent }) : openSettings());
+      return;
+    case 'chat:cancel': if (fromExtension || fromLectio) return cancelSignIn(); return;
+    case 'chat:callback': if (fromExtension || fromLectio) return pasteCallback(message.url); return;
+    case 'chat:disconnect': if (fromExtension || fromLectio) return signOut(); return;
+    case 'chat:models': if (fromExtension || fromLectio) return refreshModels(); return;
+    // Answers run here and carry on when the student leaves the Chat page.
+    case 'chat:send': if (fromLectio) return send(message, sender); return;
+    case 'chat:retry': if (fromLectio) return retryAnswer(message, sender); return;
+    case 'chat:stop': if (fromLectio) return stop(message); return;
   }
 });
+
+api.runtime.onConnect.addListener(port => {
+  const sender = port.sender || {};
+  if (port.name === 'chat' && sender.tab && isLectio(sender.url)) watch(port);
+  else if (port.name === 'chat') port.disconnect();
+});
+
+// Sign in with ChatGPT returns to a loopback address. Catch it before it
+// reaches the network where Firefox allows, else from the tab's address.
+try {
+  api.webRequest.onBeforeRequest.addListener(onCallbackRequest, { urls: ['http://127.0.0.1/*'], types: ['main_frame'] }, ['blocking']);
+} catch (error) {
+  console.warn('Lectiomizer: ChatGPT-login kan ikke opfanges med webRequest:', error);
+}
+api.tabs.onUpdated.addListener((tabId, changeInfo) => { onTabUpdated(tabId, changeInfo).catch(() => {}); }, { urls: ['http://127.0.0.1/*'], properties: ['url'] });
+api.tabs.onRemoved.addListener(tabId => { onTabRemoved(tabId).catch(() => {}); });
+resetActivity().catch(() => {});

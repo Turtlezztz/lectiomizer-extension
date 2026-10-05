@@ -12,7 +12,7 @@ export function pageFixture(p){
  if(p.endsWith('forside.aspx'))return homePage();
  if(p.includes('elevaflevering'))return assignmentPage();
  if(p.includes('opgaverelev'))return assignmentsPage();
- if(p.includes('beskeder'))return messagesPage();
+ if(p.includes('beskeder'))return messagesPage({thread:p.includes('demo=traad'),compose:p.includes('demo=ny')?(p.match(/til=([^&]*)/)?.[1]||'').toUpperCase().split(',').filter(Boolean):null});
  if(p.includes('fravaersaarsager'))return absencePage();
  if(p.includes('aktivitet'))return activityPage();
  if(p.includes('dokument')){

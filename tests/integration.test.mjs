@@ -4,6 +4,7 @@ import {JSDOM} from 'jsdom';
 import {readFile} from 'node:fs/promises';
 import {fixture} from '../demo/fixtures.mjs';
 import {readModel} from '../src/model.js';
+import {contextCard,dropDown,recipientRow} from '../demo/views-fixtures.mjs';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const opened=new Set();
 after(()=>{for(const dom of opened)dom.window.close();});
@@ -26,7 +27,9 @@ test('sidebar keeps source navigation handlers, form values and all student sect
  doc.querySelector('.lx-navigation a[href$="OpgaverElev.aspx"]').click();
  assert.equal(clicks,1);assert.equal(submits,0);
  assert.equal(doc.querySelector('input[name="__VIEWSTATE"]').value,'DEMO-HIDDEN-FIELD');
- assert.equal(doc.querySelectorAll('.lx-navigation a').length,13); // 12 daily/secondary destinations plus main menu; profile is in footer.
+ assert.equal(doc.querySelectorAll('.lx-navigation a').length,14); // 12 daily/secondary destinations, Chat and main menu; profile is in footer.
+ const labels=Array.from(doc.querySelectorAll('.lx-navigation a'),a=>a.textContent);
+ assert.equal(labels.indexOf('Chat'),labels.indexOf('Studieplan')-1); // Chat closes the daily group.
  assert.equal(doc.querySelector('.s2brik').dataset.lxResponsive,'true');
  assert.equal(doc.querySelector('.s2brik').style.top,'0.91em');
  const subjects=new Map();for(const brik of doc.querySelectorAll('.s2brik')){const name=brik.querySelector('.separator-value').textContent;assert.match(brik.dataset.lxSubject,/^[0-7]$/);assert.equal(subjects.get(name)??brik.dataset.lxSubject,brik.dataset.lxSubject);subjects.set(name,brik.dataset.lxSubject);}
@@ -160,9 +163,111 @@ test('messages render a compact list and act through native controls',async()=>{
  assert.equal(doc.querySelector('[id$="MarkChkDD"]').value,'read');assert.equal(changes,1);await close(dom);
 });
 
-test('an open message thread keeps the restyled native page',async()=>{
- const dom=await mount('/lectio/123/beskeder2.aspx',doc=>{doc.querySelector('.lectiofilepicker-foldercontent-col').innerHTML='<div id="s_m_Content_Content_ViewThreadPagePanel"><p>Hej</p></div>';});const doc=dom.window.document;
- assert.equal(doc.querySelector('.lx-view'),null);assert.ok(doc.querySelector('.lx-browser-workspace'));await close(dom);
+test('an open thread is a chat: others on the left with photos, own messages on the right',async()=>{
+ const cards=[];
+ const dom=await mount('/lectio/123/beskeder2.aspx?mappeid=-70&demo=traad',doc=>{doc.defaultView.fetch=async url=>{const id=new URL(url).searchParams.get('lectiocontextcard');cards.push(id);return {ok:true,text:async()=>contextCard(id)};};});
+ const doc=dom.window.document;const view=doc.querySelector('.lx-view[data-lx-view="messages"]');
+ assert.ok(view.querySelector('.lx-messages-thread .lx-folders')&&view.querySelector('.lx-thread'));
+ assert.equal(view.querySelector('.lx-thread-head h2').textContent,'Ekskursion fredag');
+ assert.equal(view.querySelector('.lx-thread-back').getAttribute('href'),'https://www.lectio.dk/lectio/123/beskeder2.aspx?mappeid=-70&demo=traad');
+ // Runs from one sender; a time label opens each day.
+ const groups=Array.from(view.querySelectorAll('.lx-thread-group'));
+ assert.deepEqual(groups.map(g=>[g.classList.contains('lx-own'),g.querySelectorAll('.lx-bubble').length]),[[false,2],[false,1],[true,2],[false,1],[false,1]]);
+ assert.equal(view.querySelectorAll('.lx-thread-stamp').length,3);assert.equal(view.querySelectorAll('.lx-tail').length,5);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-thread-name'),n=>n.textContent),['Lene Madsen','Anna Andersen','Lene Madsen','Mikkel Holm']);
+ assert.equal(groups[2].querySelector('.lx-avatar'),null);
+ // Only a title of its own is shown; "Re: …" isn't.
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-bubble-title'),t=>t.textContent),['Fravær fredag']);
+ assert.equal(view.querySelector('.lx-bubble-files a').textContent,'Program.pdf84 KB');
+ // Photos come from each person's context card, once per person; no photo falls back to initials.
+ for(let i=0;i<30&&!view.querySelector('.lx-thread-log .lx-avatar img');i++)await delay(10);
+ assert.deepEqual(cards.toSorted(),['U100001','U100002','U100003','U100004']);
+ assert.equal(groups[0].querySelector('.lx-avatar img').getAttribute('src'),'https://www.lectio.dk/lectio/123/GetImage.aspx?pictureid=100001');
+ assert.equal(groups[4].querySelector('.lx-avatar').textContent,'MH');
+ assert.equal(view.querySelectorAll('.lx-thread-faces .lx-avatar').length,3);
+ view.querySelector('.lx-thread-people-toggle').click();await delay(10);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-thread-people li > span:not(.lx-avatar)'),s=>s.textContent),['Lene Madsen','Anna Andersen','Mikkel Holm','Demo Elev (dig)']);
+ assert.equal(dom.window.sessionStorage.getItem('lectiomizer:photo:https://www.lectio.dk/lectio/123/U100003'),'');
+ await close(dom);
+});
+
+test('a reply is written into Lectio\'s own reply form and sent with its Send button',async()=>{
+ let sent=0,flagged=0,edited=0;
+ const dom=await mount('/lectio/123/beskeder2.aspx?mappeid=-70&demo=traad',doc=>{doc.querySelector('a[id$="SendMessageBtn"]').addEventListener('click',e=>{e.preventDefault();sent++;});doc.querySelector('a[id$="FlagThreadHeaderOutsideBtn"]').addEventListener('click',e=>{e.preventDefault();flagged++;});doc.querySelector('a[id$="ctl05_EditModeToggleBtn"]').addEventListener('click',e=>{e.preventDefault();edited++;});});
+ const doc=dom.window.document;const view=doc.querySelector('.lx-view');const field=view.querySelector('.lx-thread-field textarea');
+ Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype,'value').set.call(field,'Vi ses fredag');
+ field.dispatchEvent(new dom.window.Event('input',{bubbles:true}));await delay(10);
+ const native=doc.querySelector('textarea[id$="EditModeContentBBTB_TbxNAME_tb"]');assert.equal(native.value,'Vi ses fredag');
+ field.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Enter',shiftKey:true,bubbles:true}));await delay(10);assert.equal(sent,0);
+ field.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await delay(10);
+ assert.equal(sent,1);assert.equal(view.querySelector('.lx-pending .lx-bubble').textContent,'Vi ses fredag');assert.equal(field.disabled,true);
+ // Lectio answers with the message in the thread and an empty form.
+ const row=doc.querySelectorAll('[id="GridRowMessage"]')[4].closest('tr').cloneNode(true);native.value='';native.closest('tr').before(row);
+ for(let i=0;i<40&&view.querySelector('.lx-pending');i++)await delay(10);
+ assert.equal(view.querySelector('.lx-pending'),null);assert.equal(field.disabled,false);assert.equal(field.value,'');
+ assert.equal(view.querySelectorAll('.lx-own .lx-bubble').length,3);
+ view.querySelector('.lx-thread-actions .lx-icon-chip').click();assert.equal(flagged,1);
+ const own=view.querySelector('.lx-own .lx-bubble-menu button');own.click();await delay(10);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-menu-list .lx-menu-item'),i=>i.textContent),['Rediger','Send ny besked til afsender']);
+ view.querySelector('.lx-menu-list .lx-menu-item').click();assert.equal(edited,1);
+ await close(dom);
+});
+
+// Types into a React-controlled field the way a browser does.
+function typeInto(dom,el,value){Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value').set.call(el,value);el.dispatchEvent(new dom.window.Event('input',{bubbles:true}));}
+const key=(dom,el,k)=>el.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:k,bubbles:true}));
+
+test('a new message picks recipients from Lectio\'s lists and writes into Lectio\'s own form',async()=>{
+ const asked=[];let added=0,removed=0,sent=0;
+ const dom=await mount('/lectio/123/beskeder2.aspx?mappeid=-70&demo=ny&til=T200001',doc=>{
+  doc.defaultView.fetch=async url=>{const u=new URL(url);const type=u.searchParams.get('type');asked.push(type||u.searchParams.get('lectiocontextcard'));
+   return type?{ok:true,json:async()=>JSON.parse(dropDown(type))}:{ok:true,text:async()=>contextCard(u.searchParams.get('lectiocontextcard'))};};
+  doc.querySelector('a[id$="AddRecipientBtn"]').addEventListener('click',e=>{e.preventDefault();added++;});
+  doc.querySelector('[id$="ThreadRecipientsGV"] a').addEventListener('click',e=>{e.preventDefault();removed++;});
+  doc.querySelector('a[id$="SendMessageBtn"]').addEventListener('click',e=>{e.preventDefault();sent++;});
+ });
+ const doc=dom.window.document;const view=doc.querySelector('.lx-view[data-lx-view="messages"]');
+ assert.ok(view.querySelector('.lx-messages-thread .lx-compose'));assert.equal(view.querySelector('.lx-thread-head h2').textContent,'Ny besked');
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-recipient > span:not(.lx-avatar)'),c=>c.textContent),['Lene Madsen']);
+ // Lectio lists Lene by name only; the search lists give her id, and with it her photo.
+ for(let i=0;i<40&&!view.querySelector('.lx-recipient img');i++)await delay(10);
+ assert.equal(view.querySelector('.lx-recipient img').getAttribute('src'),'https://www.lectio.dk/lectio/123/GetImage.aspx?pictureid=200001');
+ assert.deepEqual(asked.slice(0,4),['bcteacher','bcstudent','bchold','bcgroup']);
+ assert.equal(view.querySelector('.lx-compose-names').textContent,'Lene Madsen');
+ // Search: the student and those already chosen are left out.
+ const to=view.querySelector('#lx-compose-to');to.focus();typeInto(dom,to,'3a');await delay(10);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-recipient-option strong'),o=>o.textContent),['3a','3a Da','3a En','3a Ma','Anna Andersen (3a 01)','Mikkel Holm (3a 12)','Sofie Bjørn (3a 15)']);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-recipient-option small'),o=>o.textContent).slice(0,2),['Gruppe','Hold']);
+ key(dom,to,'ArrowDown');await delay(10);key(dom,to,'Enter');await delay(10);
+ assert.equal(added,1);assert.equal(doc.querySelector('[id$="addRecipientDD_inp"]').value,'3a Da');assert.equal(doc.querySelector('[id$="addRecipientDD_inpid"]').value,'H400001');
+ assert.equal(view.querySelector('.lx-recipient.lx-pending > span').textContent,'3a Da');assert.equal(dom.window.sessionStorage.getItem('lectiomizer:compose-focus'),'to');
+ // Lectio answers with the recipient in its list.
+ doc.querySelector('[id$="ThreadRecipientsGV"]').insertAdjacentHTML('beforeend',recipientRow('3a Da',1));
+ for(let i=0;i<40&&view.querySelector('.lx-pending');i++)await delay(10);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-recipient > span:not(.lx-avatar)'),c=>c.textContent),['Lene Madsen','3a Da']);assert.ok(view.querySelectorAll('.lx-recipient')[1].querySelector('.lx-avatar svg'));
+ assert.equal(doc.activeElement,to);
+ view.querySelector('.lx-recipient button').click();assert.equal(removed,1);
+ doc.querySelector('[id$="ThreadRecipientsGV"] tr:nth-child(2)').remove();
+ for(let i=0;i<40&&view.querySelectorAll('.lx-recipient').length!==1;i++)await delay(10);
+ assert.deepEqual(Array.from(view.querySelectorAll('.lx-recipient > span:not(.lx-avatar)'),c=>c.textContent),['3a Da']);assert.equal(view.querySelector('.lx-pending'),null);
+ // Send asks for what's missing before pressing Lectio's Send.
+ const body=view.querySelector('.lx-thread-field textarea');const subject=view.querySelector('#lx-compose-subject');
+ assert.equal(view.querySelector('.lx-compose-limit').textContent,'maks. 100 tegn');assert.equal(subject.maxLength,100);assert.equal(view.querySelector('.lx-thread-error'),null);
+ typeInto(dom,body,'Hvornår er vi tilbage?');await delay(10);key(dom,body,'Enter');await delay(10);
+ assert.equal(sent,0);assert.equal(view.querySelector('.lx-thread-error').textContent,'Skriv et emne.');assert.equal(doc.activeElement,subject);
+ typeInto(dom,subject,'Ekskursion');await delay(10);key(dom,subject,'Enter');await delay(10);assert.equal(doc.activeElement,body);
+ view.querySelector('.lx-compose-options input').click();assert.equal(doc.querySelector('[id$="RepliesNotAllowedChkBox"]').checked,true);
+ key(dom,body,'Enter');await delay(10);
+ assert.equal(sent,1);assert.equal(doc.querySelector('[id$="EditModeHeaderTitleTB_tb"]').value,'Ekskursion');assert.equal(doc.querySelector('[id$="EditModeContentBBTB_TbxNAME_tb"]').value,'Hvornår er vi tilbage?');
+ assert.equal(view.querySelector('.lx-pending .lx-bubble').textContent,'Hvornår er vi tilbage?');
+ await close(dom);
+});
+
+test('a thread Lectiomizer can\'t read, one being edited, or a new message without Lectio\'s recipient search keeps the restyled native page',async()=>{
+ for(const change of [doc=>{doc.querySelector('.lectiofilepicker-foldercontent-col').innerHTML='<div id="s_m_Content_Content_ViewThreadPagePanel"><p>Hej</p></div>';},doc=>{doc.querySelector('.message-thread-message-content').innerHTML='<textarea></textarea>';},doc=>{for(const row of doc.querySelectorAll('.message-thread-message-sender'))row.closest('tr').remove();}]){
+  const dom=await mount('/lectio/123/beskeder2.aspx?mappeid=-70&demo=traad',change);const doc=dom.window.document;
+  assert.equal(doc.querySelector('.lx-view'),null);assert.ok(doc.querySelector('.lx-browser-workspace'));await close(dom);
+ }
 });
 
 test('home leads with the running lesson, ranks what needs you and keeps today beside it',async()=>{

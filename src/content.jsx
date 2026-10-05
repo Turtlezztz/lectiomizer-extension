@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, Home, CalendarDays, ClipboardList, Mail, ChartNoAxesColumn, Star, Users, Folder, Map, LibraryBig, ListChecks, Accessibility, CircleUserRound, CircleHelp, LogOut, LogIn, Search, PanelLeftClose, PanelLeftOpen, Menu, X, ArrowUpRight, ChevronRight, LayoutGrid, SlidersHorizontal } from 'lucide-react';
+import { BookOpen, Home, CalendarDays, ClipboardList, Mail, ChartNoAxesColumn, Star, Users, Folder, Map, LibraryBig, ListChecks, Accessibility, CircleUserRound, CircleHelp, LogOut, LogIn, Search, PanelLeftClose, PanelLeftOpen, Menu, X, ArrowUpRight, ChevronRight, LayoutGrid, SlidersHorizontal, MessagesSquare } from 'lucide-react';
 import { api, loadSettings, saveSettings } from './settings.js';
 import { readModel, searchItems } from './model.js';
 import { routeKey } from './lectio.js';
@@ -8,6 +8,10 @@ import { preparePages, restorePages } from './pages.jsx';
 import { mountView, unmountView } from './views/index.jsx';
 import { watchSchedule } from './calendar/scrape.js';
 import { CalendarPanel } from './calendar/CalendarPanel.jsx';
+import { ChatPage } from './chat/ChatPage.jsx';
+import { ChatPanel } from './chat/ChatPanel.jsx';
+import { ACTIVITY, loadActivity } from './chat/store.js';
+import { createTools } from './chat/tools.js';
 
 const directionContract = `THESIS: Compact makes Lectio's daily tasks scannable through one persistent sidebar and aligned native content.
 OWN-WORLD: White ground, utility-red selection, Source Sans 3, fine rules, quiet lesson fills and Lucide icons.
@@ -16,7 +20,11 @@ FIRST VIEWPORT: A 216px rail and 76px toolbar frame the timetable; home gives da
 FORM: Japanese high-density web, challenger 1, selected by the user as Compact; direction seed 87765d5f assigned grounded candidate 6.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance`;
 
-const iconFor = { Forside:Home, Skema:CalendarDays, Opgaver:ClipboardList, Beskeder:Mail, Fravær:ChartNoAxesColumn, Karakterer:Star, Hold:Users, Studieplan:Map, Dokumenter:Folder, Lektier:BookOpen, Bøger:LibraryBig, Spørgeskema:ListChecks, SPS:Accessibility, Profil:CircleUserRound, Hjælp:CircleHelp, 'Log ud':LogOut, 'Log ind':LogIn, Hovedmenu:LayoutGrid };
+// The Chat page is Lectiomizer's own, so it lives in the address hash: the
+// Lectio page underneath stays loaded, and reload and Back keep working.
+export const CHAT_HASH = '#lectiomizer-chat';
+
+const iconFor = { Chat:MessagesSquare, Forside:Home, Skema:CalendarDays, Opgaver:ClipboardList, Beskeder:Mail, Fravær:ChartNoAxesColumn, Karakterer:Star, Hold:Users, Studieplan:Map, Dokumenter:Folder, Lektier:BookOpen, Bøger:LibraryBig, Spørgeskema:ListChecks, SPS:Accessibility, Profil:CircleUserRound, Hjælp:CircleHelp, 'Log ud':LogOut, 'Log ind':LogIn, Hovedmenu:LayoutGrid };
 
 export function followSource(event, item) {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -36,12 +44,16 @@ function Shell({ initialModel,initialPrefs }) {
  const [query,setQuery]=useState('');
  const [activeResult,setActiveResult]=useState(0);
  const [status,setStatus]=useState('');
+ const [chatOpen,setChatOpen]=useState(()=>location.hash===CHAT_HASH);
+ const [chatActivity,setChatActivity]=useState({running:[],unread:[]});
  const searchRef=useRef(null);
  const searchArea=useRef(null);
  const settingsArea=useRef(null);
  const menuButton=useRef(null);
  const sidebar=useRef(null);
- const results=searchItems(document,model,query);
+ const chatAvailable=model.authenticated&&!!model.base;
+ const showChat=chatOpen&&chatAvailable&&prefs.enabled;
+ const results=searchItems(document,chatAvailable?{...model,nav:[...model.nav,{label:'Chat',href:CHAT_HASH}]}:model,query);
 
  useEffect(()=>{
    const onStorage=(changes,area)=>{if(area==='local'&&changes.preferences)setPrefs(p=>({...p,...changes.preferences.newValue}));};
@@ -60,7 +72,11 @@ function Shell({ initialModel,initialPrefs }) {
    if(prefs.enabled)prepareNative();else restoreNative();
  },[prefs,model.kind]);
  useEffect(()=>{const media=window.matchMedia('(max-width:640px)');const change=()=>{setIsMobile(media.matches);if(!media.matches)setMobileOpen(false);};media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
- useEffect(()=>{document.body.classList.toggle('lx-menu-open',mobileOpen);const content=document.getElementById('masterContent');if(content)content.inert=mobileOpen&&isMobile;return()=>{document.body.classList.remove('lx-menu-open');if(content)content.inert=false;};},[mobileOpen,isMobile]);
+ useEffect(()=>{const onHash=()=>setChatOpen(location.hash===CHAT_HASH);window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash);},[]);
+ // Answers run in the background; the Chat link shows one running or waiting to be read.
+ useEffect(()=>{loadActivity().then(setChatActivity);const onChange=(changes,area)=>{if(area==='local'&&changes[ACTIVITY])setChatActivity({running:[],unread:[],...changes[ACTIVITY].newValue});};api?.storage.onChanged.addListener(onChange);return()=>api?.storage.onChanged.removeListener(onChange);},[]);
+ // The chat covers Lectio's page, which stays inert underneath; so does the mobile drawer.
+ useEffect(()=>{document.body.classList.toggle('lx-menu-open',mobileOpen);document.documentElement.classList.toggle('lx-chat-open',showChat);const content=document.getElementById('masterContent');if(content)content.inert=(mobileOpen&&isMobile)||showChat;return()=>{document.body.classList.remove('lx-menu-open');document.documentElement.classList.remove('lx-chat-open');if(content)content.inert=false;};},[mobileOpen,isMobile,showChat]);
  useEffect(()=>{
    function keyboard(e){
      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&prefs.enabled){e.preventDefault();setSearchOpen(true);setTimeout(()=>searchRef.current?.focus(),0);}
@@ -81,7 +97,11 @@ function Shell({ initialModel,initialPrefs }) {
  const term=document.querySelector('[id$="ChooseTerm_term"]');
  const initials=model.name==='Lectio'?'L':model.name.split(' ').filter(Boolean).slice(0,2).map(n=>n[0]).join('');
  if(!prefs.enabled) return <button type="button" className="lx-reenable" onClick={()=>update({enabled:true})}><BookOpen size={18}/> Aktivér Lectiomizer</button>;
- const link=(item,extra='')=>{const Icon=iconFor[item.label]||LayoutGrid;const active=routeKey(item.href)===routeKey(model.url)||(!model.nav.some(n=>routeKey(n.href)===routeKey(model.url))&&({assignments:'Opgaver',assignment:'Opgaver',activity:'Skema',messages:'Beskeder',absence:'Fravær',grades:'Karakterer',documents:'Dokumenter',study:'Studieplan',homework:'Lektier'})[model.kind]===item.label);return <a key={item.href} className={`lx-navlink ${active?'lx-active':''} ${extra}`} href={item.href} aria-current={active?'page':undefined} title={prefs.collapsed?item.label:undefined} onClick={e=>{setMobileOpen(false);followSource(e,item);}}><Icon size={20} strokeWidth={1.8} aria-hidden="true"/><span>{item.label}</span></a>;};
+ const link=(item,extra='')=>{const Icon=iconFor[item.label]||LayoutGrid;const active=!showChat&&(routeKey(item.href)===routeKey(model.url)||(!model.nav.some(n=>routeKey(n.href)===routeKey(model.url))&&({assignments:'Opgaver',assignment:'Opgaver',activity:'Skema',messages:'Beskeder',absence:'Fravær',grades:'Karakterer',documents:'Dokumenter',study:'Studieplan',homework:'Lektier'})[model.kind]===item.label));return <a key={item.href} className={`lx-navlink ${active?'lx-active':''} ${extra}`} href={item.href} aria-current={active?'page':undefined} title={prefs.collapsed?item.label:undefined} onClick={e=>{setMobileOpen(false);followSource(e,item);}}><Icon size={20} strokeWidth={1.8} aria-hidden="true"/><span>{item.label}</span></a>;};
+ // Chat closes the daily group, just above the divider before Studieplan.
+ const studyAt=primary.findIndex(n=>n.label==='Studieplan');
+ const chatAt=studyAt>0?studyAt:-1;
+ const chatLink=chatAvailable&&<a key="lx-chat" className={`lx-navlink ${showChat?'lx-active':''}`} href={CHAT_HASH} aria-current={showChat?'page':undefined} title={prefs.collapsed?'Chat':undefined} onClick={()=>setMobileOpen(false)}><MessagesSquare size={20} strokeWidth={1.8} aria-hidden="true"/><span>Chat</span>{chatActivity.running.length>0?<i className="lx-chat-dot lx-chat-dot-running" title="Svarer…" aria-label="Et svar er på vej"/>:chatActivity.unread.length>0&&!showChat?<i className="lx-chat-dot" title="Nyt svar" aria-label="Nyt svar"/>:null}</a>;
  return <>
   <a className="lx-skip" href="#contenttable">Spring til indhold</a>
   {mobileOpen&&<button className="lx-scrim" type="button" tabIndex={-1} aria-label="Luk navigation" onClick={()=>setMobileOpen(false)}/>}
@@ -89,7 +109,7 @@ function Shell({ initialModel,initialPrefs }) {
    <a className="lx-brand" href={model.nav.find(n=>n.label==='Forside')?.href || (model.base?model.base+'default.aspx':'/')} title="Lectiomizer"><BookOpen className="lx-brand-icon" size={25} aria-hidden="true"/><span>lectiomizer<span className="lx-brand-dot">.</span></span></a>
    <div className="lx-school" title={model.school}><span>{model.school}</span>{term&&<span className="lx-term">{term.selectedOptions?.[0]?.textContent}</span>}</div>
    <button className="lx-mobile-close lx-icon-button" type="button" aria-label="Luk navigation" onClick={()=>{setMobileOpen(false);menuButton.current?.focus();}}><X size={20}/></button>
-   <nav className="lx-navigation" aria-label="Sider">{primary.map((item,i)=><React.Fragment key={item.href}>{i>0&&item.label==='Studieplan'&&<div className="lx-navdivider"/>}{link(item)}</React.Fragment>)}</nav>
+   <nav className="lx-navigation" aria-label="Sider">{primary.map((item,i)=><React.Fragment key={item.href}>{i===chatAt&&chatLink}{i>0&&item.label==='Studieplan'&&<div className="lx-navdivider"/>}{link(item)}</React.Fragment>)}{chatAt<0&&chatLink}</nav>
    <div className="lx-sidebar-bottom">
     {isMobile&&term&&!term.disabled&&<label className="lx-sidebar-year">Skoleår<select aria-label="Skoleår i sidepanel" value={term.value} onChange={e=>{term.value=e.target.value;term.dispatchEvent(new Event('change',{bubbles:true}));setModel(readModel());}}>{Array.from(term.options).map(o=><option key={o.value} value={o.value}>{o.textContent}</option>)}</select></label>}
     <div className="lx-utilities">{utility.map(item=>link(item,'lx-utility'))}</div>
@@ -98,16 +118,17 @@ function Shell({ initialModel,initialPrefs }) {
    </div>
   </aside>
   <header className="lx-topbar">
-   <div className="lx-title-group"><button ref={menuButton} type="button" className="lx-mobile-toggle lx-icon-button" aria-label="Åbn navigation" aria-controls="lx-sidebar" aria-expanded={mobileOpen} onClick={()=>setMobileOpen(o=>!o)}><Menu size={21}/></button><h1>{model.title}</h1></div>
+   <div className="lx-title-group"><button ref={menuButton} type="button" className="lx-mobile-toggle lx-icon-button" aria-label="Åbn navigation" aria-controls="lx-sidebar" aria-expanded={mobileOpen} onClick={()=>setMobileOpen(o=>!o)}><Menu size={21}/></button><h1>{showChat?'Chat':model.title}</h1></div>
    <div className="lx-topbar-actions">
     {term&&!term.disabled&&<select className="lx-year-select" aria-label="Skoleår" value={term.value} onChange={e=>{term.value=e.target.value;term.dispatchEvent(new Event('change',{bubbles:true}));setModel(readModel());}}>{Array.from(term.options).map(o=><option key={o.value} value={o.value}>{o.textContent}</option>)}</select>}
     <div className="lx-search-area" ref={searchArea}>
      <div className="lx-searchbox"><Search size={18}/><input ref={searchRef} aria-label="Søg i navigation og på denne side" placeholder="Søg i Lectio…" value={query} onFocus={()=>setSearchOpen(true)} onChange={e=>{setQuery(e.target.value);setSearchOpen(true);}} aria-expanded={searchOpen} aria-controls="lx-search-results" onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setActiveResult(i=>Math.min(i+1,results.length-1));}if(e.key==='ArrowUp'){e.preventDefault();setActiveResult(i=>Math.max(i-1,0));}if(e.key==='Enter'&&results[activeResult]){e.preventDefault();searchArea.current?.querySelector(`[data-result="${activeResult}"]`)?.click();}}}/><kbd>⌘ K</kbd></div>
      {searchOpen&&<div id="lx-search-results" className="lx-search-results"><div className="lx-result-caption">{query?'Søgeresultater':'Gå direkte til'}</div>{results.length?results.map((item,i)=><a data-result={i} key={item.href+item.label} className={`lx-result ${i===activeResult?'lx-result-selected':''}`} href={item.href} onClick={e=>{setSearchOpen(false);followSource(e,item);}}><span>{item.label}</span><small>{item.group}</small><ArrowUpRight size={16}/></a>):<p className="lx-empty">Ingen resultater. Prøv et andet ord.</p>}{nativeSearch&&<button type="button" className="lx-native-search" onClick={()=>{setSearchOpen(false);nativeSearch.click();}}>Søg i beskeder og dokumenter <ArrowUpRight size={15}/></button>}</div>}
     </div>
-    <div ref={settingsArea} className="lx-settings-area"><button className="lx-icon-button" type="button" aria-label="Lectiomizer indstillinger" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(o=>!o)}><SlidersHorizontal size={20}/></button>{settingsOpen&&<section className="lx-settings-panel" aria-labelledby="lx-settings-title"><h2 id="lx-settings-title">Dit Lectiomizer</h2><label className="lx-setting"><span><strong>Afstand</strong><small>Vælg hvor tæt indholdet står</small></span><select value={prefs.density} onChange={e=>update({density:e.target.value})}><option value="compact">Kompakt</option><option value="comfortable">Luftig</option></select></label><label className="lx-setting"><span><strong>Lille sidepanel</strong><small>Vis kun ikoner på større skærme</small></span><input type="checkbox" role="switch" checked={prefs.collapsed} onChange={e=>update({collapsed:e.target.checked})}/></label><CalendarPanel embedded/><div className="lx-settings-footer"><button type="button" className="lx-show-original" onClick={()=>update({enabled:false})}>Vis Lectios oprindelige design</button><p>Skolens indhold og handlinger kommer fra Lectio.</p></div></section>}</div>
+    <div ref={settingsArea} className="lx-settings-area"><button className="lx-icon-button" type="button" aria-label="Lectiomizer indstillinger" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(o=>!o)}><SlidersHorizontal size={20}/></button>{settingsOpen&&<section className="lx-settings-panel" aria-labelledby="lx-settings-title"><h2 id="lx-settings-title">Dit Lectiomizer</h2><label className="lx-setting"><span><strong>Afstand</strong><small>Vælg hvor tæt indholdet står</small></span><select value={prefs.density} onChange={e=>update({density:e.target.value})}><option value="compact">Kompakt</option><option value="comfortable">Luftig</option></select></label><label className="lx-setting"><span><strong>Lille sidepanel</strong><small>Vis kun ikoner på større skærme</small></span><input type="checkbox" role="switch" checked={prefs.collapsed} onChange={e=>update({collapsed:e.target.checked})}/></label><CalendarPanel embedded/>{chatAvailable&&<ChatPanel embedded/>}<div className="lx-settings-footer"><button type="button" className="lx-show-original" onClick={()=>update({enabled:false})}>Vis Lectios oprindelige design</button><p>Skolens indhold og handlinger kommer fra Lectio.</p></div></section>}</div>
    </div>
   </header>
+  {showChat&&<ChatPage model={model}/>}
   <span className="lx-live-status" role="status">{status}</span>
  </>;
 }
@@ -120,6 +141,13 @@ export async function boot() {
  const model=readModel();
  // Calendar sync runs whether or not the redesign is switched on.
  if(model.authenticated)watchSchedule(()=>readModel().nav.find(n=>n.label==='Skema')?.href);
+ // The chat's answers run in the background script, which hands the model's
+ // tool calls to an open Lectio tab of the same school: it has the session.
+ if(model.authenticated&&model.base)api?.runtime?.onMessage.addListener(message=>{
+  if(message?.type!=='chat:tool')return;
+  try{if(new URL(message.root).href!==new URL(model.base,location.origin).href)return;}catch{return;}
+  return createTools({root:message.root,scheduleHref:message.scheduleHref}).run(message.call);
+ });
  document.body.classList.toggle('lx-enabled',initialPrefs.enabled);
  const host=document.createElement('div');host.id='lectiomizer-root';document.body.append(host);
  document.documentElement.classList.add('lx-ready');

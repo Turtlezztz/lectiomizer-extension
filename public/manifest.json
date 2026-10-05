@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Lectiomizer",
   "version": "1.0.0",
-  "description": "A compact new Lectio interface with sidebar navigation, readable schedules and a consistent design system.",
+  "description": "A compact new Lectio interface with sidebar navigation, readable schedules, a ChatGPT assistant and a consistent design system.",
   "browser_specific_settings": {
     "gecko": {
       "id": "lectiomizer@local.extension",
@@ -12,20 +12,26 @@
           "none"
         ],
         "optional": [
-          "websiteContent"
+          "websiteContent",
+          "personalCommunications"
         ]
       }
     }
   },
   "permissions": [
     "storage",
-    "identity"
+    "identity",
+    "webRequest",
+    "webRequestBlocking"
   ],
   "host_permissions": [
     "https://www.lectio.dk/*",
     "https://lectio.dk/*",
     "https://www.googleapis.com/*",
-    "https://oauth2.googleapis.com/*"
+    "https://oauth2.googleapis.com/*",
+    "https://auth.openai.com/*",
+    "https://api.openai.com/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "scripts": [

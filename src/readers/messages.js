@@ -1,7 +1,9 @@
-// Reads the message list on beskeder2.aspx. An open thread is a different
-// panel; the reader rejects it so that view keeps Lectio's own layout.
+// Reads beskeder2.aspx: the folders, and the message list, an open thread
+// (thread.js) or a new message (compose.js), which Lectio renders in its place.
 import { text } from '../page-data.js';
 import { ReaderError, headerRow, nativeCells } from './util.js';
+import { readThread } from './thread.js';
+import { readCompose } from './compose.js';
 
 function readFolders(tree, current) {
   const hidden = el => el.hidden || /display:\s*none/.test(el.getAttribute('style') || '');
@@ -22,18 +24,21 @@ function readFolders(tree, current) {
 }
 
 export function readMessages(doc) {
-  if (doc.querySelector('[id$="ViewThreadPagePanel"]')) throw new ReaderError('En besked er åben');
+  const current = new URL(doc.location?.href || doc.URL).searchParams.get('mappeid');
+  const folders = () => readFolders(doc.querySelector('[id$="ListGridSelectionTree"]'), current);
+  const open = doc.querySelector('[id$="ViewThreadPagePanel"]');
+  // A new message is the thread panel before anything has been sent in it.
+  if (open) return { folders: folders(), ...(open.querySelector('.message-thread-message-sender') ? { thread: readThread(doc, open) } : { compose: readCompose(doc, open) }) };
   const panel = doc.querySelector('[id$="ThreadListPanel"]');
   const table = panel?.querySelector('table[id$="threadGV_ctl00"]') || panel?.querySelector('table.lf-grid');
   if (!panel || !table) throw new ReaderError('Beskedlisten blev ikke fundet');
   const head = headerRow(table);
   const labels = head ? nativeCells(head).map(cell => text(cell)) : [];
   const col = (cells, name) => cells[labels.indexOf(name)];
-  const current = new URL(doc.location?.href || doc.URL).searchParams.get('mappeid');
   const search = panel.querySelector('[id$="SPSearchText_tb"]');
   return {
     folder: text(panel.querySelector('[id$="MessageFolderLabel"]')),
-    folders: readFolders(doc.querySelector('[id$="ListGridSelectionTree"]'), current),
+    folders: folders(),
     actions: {
       compose: panel.querySelector('[id$="NewMessageLnk"]'),
       markAllRead: panel.querySelector('[id$="MarkReadButton"]'),

@@ -49,6 +49,7 @@ colors:
   status-done-bg: "#eef2ee"
   status-done-ink: "#2f5a35"
   note-bg: "#fff8e8"
+  bubble: "#e9eaec"
 typography:
   headline:
     fontFamily: "Source Sans 3, sans-serif"
@@ -301,6 +302,7 @@ The palette is a white utility surface with dark ink, cool gray rules and red ac
 - **Profile Neutral** (`avatar-bg`, `avatar-ink`): circular profile initials; the same background value is also the embedded school-list rule. **Keyboard Hint** (`keyboard-hint-bg`): search shortcut key fill.
 - **Table Heading Ink** (`table-heading-ink`), **Timetable Info** (`timetable-info-bg`) and **Timetable Rule** (`timetable-rule`): native comparison/table headings and timetable context divisions. **Lesson Hover** (`lesson-hover`): neutral event hover fill.
 - **Drawer Scrim** (`drawer-scrim`): translucent ink behind mobile navigation.
+- **Bubble Grey** (`bubble`): other people's messages in an open thread; the student's own are Utility Red.
 
 **The Utility Red Rule.** Use red for identity, selected navigation, links, section accents and meaningful action or error states; use Lesson Grey with a subject dot for ordinary timetable lessons.
 
@@ -355,7 +357,7 @@ Persistent content uses white ground and thin borders rather than shadows. Searc
 
 ### Shadow Vocabulary
 
-- **Overlay:** `0 10px 32px #171c251c` for search results and settings panels.
+- **Overlay:** `0 10px 32px #171c251c` for search results, settings panels and message-thread menus.
 - **Lesson hover:** `0 3px 10px #171c2514` for a hovered timetable event, together with a raised stacking order.
 - **Re-enable action:** `0 5px 18px #0002` for the floating control shown when the redesign is disabled.
 
@@ -409,11 +411,25 @@ At 720px the two-column arrangement gives titles full width and keeps selection 
 
 ### Rebuilt Views
 
-Forside, Karakterer, Aktivitet, Opgaver, Opgaveaflevering, Fraværsårsager and the Beskeder list are rendered from data instead of reflowed. A reader in `src/readers/` extracts the page into plain data and a React view in `src/views/` renders it in a `.lx-view` container at the top of `#contenttable`; Lectio's original nodes remain in the form, hidden with `.lx-view-active`. A **Lectios visning** button reveals the original page (print, export, language) and a soft-red bar returns to the view. Readers throw on unexpected markup and the page then falls back to native presentation. Optional sections that fail render a quiet notice with a link to the original.
+Forside, Karakterer, Aktivitet, Opgaver, Opgaveaflevering, Fraværsårsager and Beskeder (the list and an open thread) are rendered from data instead of reflowed. A reader in `src/readers/` extracts the page into plain data and a React view in `src/views/` renders it in a `.lx-view` container at the top of `#contenttable`; Lectio's original nodes remain in the form, hidden with `.lx-view-active`. A **Lectios visning** button reveals the original page (print, export, language) and a soft-red bar returns to the view. Readers throw on unexpected markup and the page then falls back to native presentation. Optional sections that fail render a quiet notice with a link to the original.
 
 The grades view uses the record vocabulary: a quiet-surface summary of exam averages (36px/700 values, 12px labels); one row per subject with 17px/600 subject names and per-form progressions of grade steps (12px type label, 19px/650 value, 23px at 720px); final grades marked by Lectio carry a 1.5px ink outline on white instead of colour, so no grade reads as good or bad. Diploma lines use the data-table frame; protocol lines sit in a closed disclosure grouped by term. Other rebuilt views share one vocabulary: secondary chip buttons and a red primary button, status pills (soft red for missing, quiet blue for upcoming, quiet green for delivered), 10px-padded compact rows on fine rules instead of reflowed tables, a quiet-surface sidebar for folders and outlines, and rich text (lesson content, entries) at 15px/1.7 with a 76ch measure. Teacher-authored HTML passes through an allowlist renderer: no scripts, styles, forms or attributes besides safe links and images. Actions are buttons that click Lectio's own hidden controls, so postbacks, dialogs and uploads behave as before.
 
 The Native Record Rule applies to restyled pages; rebuilt views copy values only into their own rendering and never store them.
+
+### Message Thread
+
+Beskeder fills the whole content width, with no maximum, like a mail app: the folder pane on the left and the list, thread or new message reaching the right edge. An open thread renders as a chat in a bordered 12px-radius panel beside the folder pane. The panel fills the window below the toolbar (its top is measured into `--lx-thread-top`; at least 460px tall) and only its log scrolls, opening at the newest message. A 64px header holds a red **Beskeder** back link, up to three overlapping photos (30px with a 2px white ring; a single other person at 36px), the subject at 17px/650 and a 13px muted participant line ("Lene Madsen, Anna Andersen og Mikkel Holm"; more than three become "og N andre") that opens the full list with photos on Quiet Surface. Flag and a more menu (Lectio's thread actions plus **Lectios visning**) sit at the right. Menus are white overlay panels with 10px corners and the Overlay shadow; they open upward in the lower half of the window.
+
+Messages from others sit on the left in **Bubble Grey** (`bubble`) with ink; the student's own sit on the right in Utility Red with white text and white underlined links. Bubbles are 18px-radius capsules, 15px/1.4 with 7px by 13px padding, up to 78% of the log and 640px (84% at 640px). Consecutive messages from one sender form a run 3px apart; the last bubble of a run carries an iMessage-style tail cut from the white log, and others' runs have the sender's 30px photo beside that last bubble. When more than two people take part, a 12px muted name opens each run of others. A centred 12px muted time ("I dag 14.33", "I går 16.40", a weekday within the week, then a date) opens the thread and every new day or pause of an hour. A message title shows in weight 650 only when it is more than the subject or "Re: subject". Attachments are file chips under their bubble. Hover shows a message's actions beside it; on touch screens a tap on the bubble shows its full time and actions.
+
+Photos come from each person's Lectio context card, fetched with the student's own session four at a time and remembered for the browser session. People without a photo show their initials on Profile Neutral; classes and groups a Lucide users icon.
+
+The composer is one field with a 20px radius, a Field Edge border and the soft-focus ring, a muted paperclip that opens Lectio's attachment dialog, and a 30px red circular send button (Switch Off grey while empty). Enter sends and Shift+Enter starts a new line; touch screens send with the button. The text goes into Lectio's own hidden reply form and its Send is pressed; meanwhile the message shows at 60% opacity with "Sender …", until Lectio's answer contains it. Editing a message or the thread, and writing a new thread, use Lectio's page. At 900px the folder pane hides; at 640px the panel goes edge to edge without side borders or radius and the back link keeps only its chevron.
+
+A new message (**Ny besked**) uses the same panel. Under the header, a 48px **Til:** row holds the chosen recipients as Soft Red capsules with Utility Red 14px/600 names, a 22px photo and a remove cross, followed by a borderless search field; an **Emne:** row (600 weight) sits beneath on a fine rule, with Lectio's limit as a 12px muted "maks. 100 tegn" at its right. The fields keep Lectio's length limits themselves, so its "Teksten må maksimalt være … tegn lang" validators are never shown as errors; other validators that Lectio shows appear above the composer. The focused row gets a 2px red underline. Search results drop down as an overlay panel (10px corners, Overlay shadow, at most eight rows of 30px photo or initials, a 15px/600 title and a 12px muted kind: Lærer, Elev, Hold, Gruppe); the active row is Quiet Surface. They come from the same recipient lists Lectio's own search loads, rank names that start with what was typed first, and leave out the student and anyone already chosen. The middle shows who the message reaches, as up to four overlapping 52px photos (a "+N" circle beyond that), the names at 17px/650 and the subject in muted 14px, or, with nobody chosen yet, a users icon and "Hvem skal beskeden til?". The composer is the thread's, with a 240px growth limit, Lectio's "Skal ikke kunne besvares" switch when it is offered, and a 13px muted "Enter sender · Shift+Enter giver ny linje" (hidden on touch screens). Adding or removing a recipient fades its chip to 55% until Lectio answers, and the cursor returns to the search field. Sending asks for a recipient, a subject and the text first.
+
+**The Two Sides Rule.** Side and colour say who wrote a message. In the log, red fills only the student's own bubbles; everyone else's stay grey.
 
 ### Folder Navigation and Report Disclosures
 
@@ -436,6 +452,18 @@ Retain native clickable event geometry. Lectio places modules and lessons in em,
 The popup repeats the same type, red action and fine-rule vocabulary. Preference rows use 15px vertical padding, 14px/600 labels and 12px helper text. Switches are 34px by 20px with 14px white thumbs inset 3px; checked state turns red and translates the thumb 14px. Both background and thumb use 140ms ease-out. Loading switches are disabled with opacity .5. Popup selects use small-select corners and 6px by 8px padding. Save errors appear as Deep Utility Red status text. A visible red focus ring and reduced-motion override apply here too.
 
 The settings card in Lectio pages repeats these rows at 320px wide, and both surfaces share one stylesheet (`src/settings-ui.css`). Google Kalender settings sit under the calendar heading and account line in labelled groups: a 12px/600 muted label above a white box with a fine-rule border and 8px corners, 12px side padding and rules between 11px-padded rows. **Synkronisering** holds the last-sync status (13px/600, with 12px muted detail and Deep Utility Red for errors), a 36px bordered refresh button whose icon spins while syncing, and the automatic-fetch interval; **I kalenderen** holds what gets synced.
+
+### Chat
+
+The Chat page belongs to Lectiomizer, not Lectio: a fixed surface below the toolbar and right of the rail, over an inert Lectio page. A 264px quiet-surface column holds **Ny samtale** (secondary chip, full width), a 12px/600 muted "Samtaler" label, conversation rows (14px title with ellipsis, 12px time; the open one is white with a fine-rule inset and weight 600; delete appears on hover or focus) and the account line pinned to the bottom. The conversation column has a 56px bar with the 15px/600 title, a log whose content keeps a 760px measure, and the composer.
+
+The student's messages sit right-aligned on Quiet Surface with a 14px radius (4px on the speaking corner). Assistant answers are open Markdown at 15px/1.65: 19px/17px headings, red underlined links, compact tables in the data-table frame with a quiet header, code on Quiet Surface. Tool use reads as quiet 13px lines with a 14px Lucide icon (page, calendar, file) that link to what was read; errors in those lines use Deep Utility Red. Thinking shows a spinning 14px loader with muted text. The composer is one field with a 14px radius and a Field Edge border that turns red with the soft-focus ring; the send action is a 36px red circle that becomes an ink stop square while answering. Model, reasoning and the **Bruger din ChatGPT-plan · Administrer forbrug** line sit beneath at 12px.
+
+Signed out, a centred 440px column offers **Fortsæt med ChatGPT** as a 240px ink capsule: OpenAI's sign-in button is black, and Dense Ink is this palette's black. The same ink button appears in the popup and settings card under a ChatGPT heading that reuses the Google Kalender panel's layout (`.lx-integration`). The first answer view carries a one-time note on Note Yellow (`#fff8e8`) with **Administrer forbrug** and a red **Forstået**. At 720px the conversation column becomes a 300px drawer over a scrim, opened from a history icon in the bar; it takes focus and closes on Escape.
+
+Answers run in the background, so the sidebar's Chat link carries an 8px dot at the end of the row: Secondary Ink pulsing (1.2s, to 35% opacity) while an answer is on its way, Utility Red when one finished while the student was elsewhere (white on the active red row). On the icon rail the dot sits at the icon's top right. Conversation rows replace their time with "Svarer…" and a spinning 11px loader, or "Nyt svar" with the red dot.
+
+**The Quiet Assistant Rule.** The assistant's own chrome stays neutral; red marks only actions, links and errors, as everywhere else.
 
 ## Do's and Don'ts
 
