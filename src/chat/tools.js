@@ -75,10 +75,16 @@ function filename(response, url) {
   return name.trim();
 }
 
-export function toBase64(bytes) {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
+// Firefox hands content scripts a download's bytes from another compartment,
+// where typed-array methods are off limits ('Permission denied to access
+// property "constructor"'). FileReader encodes the Blob natively instead.
+function base64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => { const data = String(reader.result); resolve(data.slice(data.indexOf(',') + 1)); };
+    reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 const parse = (html, url) => {
@@ -95,7 +101,8 @@ const loginPage = (response, doc) => pageKind(response.url || 'https://x/') === 
 // `root` is the school's Lectio address, e.g. https://www.lectio.dk/lectio/123/.
 export function createTools({ root, scheduleHref, fetch = (...args) => globalThis.fetch(...args), now = () => new Date() }) {
   async function get(url) {
-    const response = await fetch(url.href, { credentials: 'same-origin' });
+    let response;
+    try { response = await fetch(url.href, { credentials: 'same-origin' }); } catch (error) { throw new ToolError(`Lectio kunne ikke nås (${error?.message || error}).`); }
     if (!response.ok) throw new ToolError(`Lectio svarede ${response.status}.`);
     return response;
   }
@@ -119,21 +126,21 @@ export function createTools({ root, scheduleHref, fetch = (...args) => globalThi
     const name = filename(response, url);
     const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
     const type = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const blob = await response.blob();
     const label = `Hentede ${name}`;
-    if (bytes.length > MAX_FILE) throw new ToolError(`${name} er for stor (${Math.round(bytes.length / 1048576)} MB); grænsen er 20 MB.`);
-    const intro = { type: 'input_text', text: `Dokument: ${name} (${Math.max(1, Math.round(bytes.length / 1024))} kB) fra ${shortUrl(url.href, root)}` };
+    if (blob.size > MAX_FILE) throw new ToolError(`${name} er for stor (${Math.round(blob.size / 1048576)} MB); grænsen er 20 MB.`);
+    const intro = { type: 'input_text', text: `Dokument: ${name} (${Math.max(1, Math.round(blob.size / 1024))} kB) fra ${shortUrl(url.href, root)}` };
     if (IMAGE_TYPES[ext] || /^image\/(png|jpeg|gif|webp)$/.test(type)) {
-      return { output: [intro, { type: 'input_image', image_url: `data:${IMAGE_TYPES[ext] || type};base64,${toBase64(bytes)}`, detail: 'auto' }], label, href: url.href, file: true };
+      return { output: [intro, { type: 'input_image', image_url: `data:${IMAGE_TYPES[ext] || type};base64,${await base64(blob)}`, detail: 'auto' }], label, href: url.href, file: true };
     }
     if (TEXT_TYPES.has(ext) || /^text\/plain|^text\/csv/.test(type)) {
-      let content = new TextDecoder().decode(bytes);
+      let content = await blob.text();
       if (content.length > PAGE_LIMIT) content = content.slice(0, PAGE_LIMIT) + '\n[… afkortet]';
       return { output: `${intro.text}\n\n${content}`, label, href: url.href };
     }
     const mime = FILE_TYPES[ext] || (type === 'application/pdf' ? type : '');
     if (!mime) throw new ToolError(`${name} er en filtype, der ikke kan læses (${ext || type || 'ukendt'}).`);
-    return { output: [intro, { type: 'input_file', filename: /\.[a-z0-9]+$/i.test(name) ? name : `${name}.pdf`, file_data: `data:${mime};base64,${toBase64(bytes)}` }], label, href: url.href, file: true };
+    return { output: [intro, { type: 'input_file', filename: /\.[a-z0-9]+$/i.test(name) ? name : `${name}.pdf`, file_data: `data:${mime};base64,${await base64(blob)}` }], label, href: url.href, file: true };
   }
 
   async function readDocument({ url: value }) {
@@ -178,7 +185,8 @@ export function createTools({ root, scheduleHref, fetch = (...args) => globalThi
   const handlers = { read_page: readPage, read_document: readDocument, get_schedule: getSchedule };
 
   // A function_call item → { output, label, href, ok }. Errors become output
-  // the model can explain, not exceptions.
+  // the model can explain, not exceptions. Unexpected ones keep their own
+  // text, so the chat shows what actually failed.
   async function run(call) {
     const handler = handlers[call.name];
     let args = {};
@@ -187,7 +195,7 @@ export function createTools({ root, scheduleHref, fetch = (...args) => globalThi
     try {
       return { ...await handler(args), ok: true };
     } catch (error) {
-      const message = error instanceof ToolError ? error.message : 'Lectio kunne ikke nås.';
+      const message = error instanceof ToolError ? error.message : `Uventet fejl (${error?.name || 'Error'}: ${error?.message || error}).`;
       if (!(error instanceof ToolError)) console.warn('Lectiomizer:', error);
       return { output: `Fejl: ${message}`, label: `${RUNNING[call.name]}: ${message}`, ok: false };
     }

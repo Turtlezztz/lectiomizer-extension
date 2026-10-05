@@ -7,6 +7,7 @@ import { routeKey } from './lectio.js';
 import { preparePages, restorePages } from './pages.jsx';
 import { mountView, unmountView } from './views/index.jsx';
 import { watchSchedule } from './calendar/scrape.js';
+import { markNow, clearNow } from './schedule-now.js';
 import { CalendarPanel } from './calendar/CalendarPanel.jsx';
 import { ChatPage } from './chat/ChatPage.jsx';
 import { ChatPanel } from './chat/ChatPanel.jsx';
@@ -162,7 +163,9 @@ export async function boot() {
  const content=document.querySelector('#contenttable');
  const observed=document.querySelector('[id$="outerContentFrameDiv"]')||content;
  if(observed)observer.observe(observed,{subtree:true,childList:true});
- window.addEventListener('pagehide',event=>{if(event.persisted)return;observer.disconnect();clearTimeout(timer);unmountView();restorePages();reactRoot.unmount();},{once:true});
+ // Moves the schedule's current-time line along while the page stays open.
+ const clock=setInterval(()=>{const table=document.querySelector('#contenttable');if(table&&document.body.classList.contains('lx-enabled'))markNow(table);},30000);
+ window.addEventListener('pagehide',event=>{if(event.persisted)return;observer.disconnect();clearTimeout(timer);clearInterval(clock);unmountView();restorePages();reactRoot.unmount();},{once:true});
 }
 
 export function prepareNative() {
@@ -184,6 +187,7 @@ export function prepareNative() {
    let hash=0;for(const char of text.trim())hash=(hash*31+char.charCodeAt(0))|0;
    block.dataset.lxSubject=String(Math.abs(hash)%8);
  }
+ markNow(content);
  const dashboard=content.querySelector('.ls-dashboard');
  if(dashboard){
    const nodes=Array.from(dashboard.querySelectorAll('[id$="_pa"]')).filter(el=>el.closest('.ls-std-island-layout-col'));
@@ -202,4 +206,5 @@ export function restoreNative(){
  restorePages();
  for(const wrap of document.querySelectorAll('.lx-table-scroll'))wrap.replaceWith(...wrap.childNodes);
  for(const cols of document.querySelectorAll('[data-lx-columns]'))cols.remove();
+ clearNow(document);
 }

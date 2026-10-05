@@ -177,6 +177,12 @@ body.lx-enabled .s2skema td.s2infoHeader .s2skemabrik{font-size:11px!important;c
 body.lx-enabled .s2skema td.s2infoHeader .s2skemabrik::before{content:none}
 body.lx-enabled .s2skema .s2module-bg{border-color:#e8eaed!important;background:transparent!important;color:var(--lx-muted)!important}
 body.lx-enabled .s2skema .s2skemabrikcontainer{background:transparent!important}
+/* Current time: under the other days' lessons, over today's, with the time in the time column. */
+body.lx-enabled .s2skema .lx-now-line{position:absolute;left:0;right:0;height:1px;background:var(--lx-accent);opacity:.3;pointer-events:none}
+body.lx-enabled .s2skema .lx-now-line.lx-now-today{height:2px;margin-top:-1px;opacity:1;z-index:5}
+body.lx-enabled .s2skema .lx-now-line.lx-now-today::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--lx-accent)}
+body.lx-enabled .s2skema .lx-now-time{position:absolute;right:4px;transform:translateY(-50%);padding:0 5px;border-radius:4px;background:var(--lx-accent);color:#fff;font-weight:650;line-height:1.5;font-variant-numeric:tabular-nums;z-index:5;pointer-events:none}
+@media print{body.lx-enabled .s2skema :is(.lx-now-line,.lx-now-time){display:none}}
 body.lx-enabled .grid-area-navigation,body.lx-enabled .grid-area-additional{background:transparent!important}
 body.lx-enabled .ls-datepicker{font-size:14px!important}
 body.lx-enabled .ls-datepicker a,body.lx-enabled .grid-area-navigation a{color:var(--lx-ink)!important;text-decoration:none!important}

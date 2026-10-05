@@ -12,6 +12,8 @@ import {ChatError,inputFromTurns,runTurn,savedParts,withoutFiles} from '../src/c
 import {parseBlocks} from '../src/chat/markdown.js';
 
 globalThis.DOMParser=new JSDOM('').window.DOMParser;
+// Node has no FileReader; read_document encodes files with it in the browser.
+globalThis.FileReader=class{readAsDataURL(blob){blob.arrayBuffer().then(b=>{this.result=`data:${blob.type};base64,${Buffer.from(b).toString('base64')}`;this.onload();},e=>{this.error=e;this.onerror();});}};
 const root='https://www.lectio.dk/lectio/123/';
 const page=(html,url=root+'x.aspx')=>new JSDOM(`<!doctype html><html><head><title>Eleven Demo Elev - Lectio</title></head><body><div id="contenttable">${html}</div></body></html>`,{url}).window.document;
 
@@ -186,6 +188,13 @@ test('read_page, read_document and get_schedule return Markdown or files for the
  const outside=await call('read_page',{url:'https://www.lectio.dk/lectio/999/forside.aspx'});
  assert.equal(outside.ok,false);
  assert.ok(!calls.some(u=>u.includes('/999/')));
+
+ // Failures name their cause instead of a blanket "Lectio kunne ikke nås".
+ const offline=createTools({root,scheduleHref:root+'SkemaNy.aspx',fetch:async()=>{throw new TypeError('NetworkError when attempting to fetch resource.');}});
+ const lost=await offline.run({name:'read_document',arguments:JSON.stringify({url:'ExerciseFileGet.aspx?type=opgavedef&exercisefileid=1'})});
+ assert.equal(lost.label,'Henter dokument: Lectio kunne ikke nås (NetworkError when attempting to fetch resource.).');
+ const broken=createTools({root,scheduleHref:root+'SkemaNy.aspx',fetch:async()=>({ok:true,url:root+'x',headers:new Headers({'content-type':'application/pdf'}),blob:async()=>{throw new RangeError('too big');}})});
+ assert.match((await broken.run({name:'read_document',arguments:JSON.stringify({url:'x'})})).output,/Uventet fejl \(RangeError: too big\)/);
  assert.match(instructions({name:'Demo Elev',school:'Demo Gymnasium',pages:[{label:'Opgaver',url:'OpgaverElev.aspx'}],now:new Date(2026,9,5,9)}),/- Opgaver: OpgaverElev\.aspx/);
 });
 
