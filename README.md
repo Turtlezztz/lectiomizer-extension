@@ -11,7 +11,7 @@ A Firefox extension that gives Lectio a compact white-and-red interface, a React
 
 This development installation remains until Firefox restarts. Normal permanent installation requires Mozilla signing; the ZIP is an unsigned development build. Firefox 142 or newer is required.
 
-The toolbar popup and the page's top-right settings button let you disable the redesign, change spacing and collapse the sidebar. Disabling restores the original presentation. `Ctrl+K` / `Cmd+K` opens navigation and page-link search; Lectio's original message/document search is also available through that panel.
+The toolbar popup and the page's top-right settings button both let you disable the redesign, change spacing, collapse the sidebar and manage the Google Kalender sync. Disabling restores the original presentation. `Ctrl+K` / `Cmd+K` opens navigation and page-link search; Lectio's original message/document search is also available through that panel.
 
 ## Included
 
@@ -43,10 +43,12 @@ To rebuild another page, add a reader that throws `ReaderError` on unexpected ma
 
 ## Google Kalender
 
-Once connected, Lectiomizer reads the coming weeks of your Skema (this week and 1–8 weeks ahead, set in the popup) at most once an hour while you have Lectio open, plus whenever you press **Synkronisér nu**. It writes them to a calendar named **Lectio** that it creates in your Google account.
+Once connected, Lectiomizer reads the coming weeks of your Skema (this week and 1–8 weeks ahead) while you have Lectio open, plus whenever you press the refresh button (**Synkronisér nu**). It writes them to a calendar named **Lectio** that it creates in your Google account.
+
+The calendar settings sit in the popup and in the page's settings card, grouped as **Synkronisering** (status, refresh and **Hent automatisk**) and **I kalenderen** (weeks ahead and cancelled lessons). **Hent automatisk** sets how often an open Lectio tab fetches the Skema on its own: every 15 minutes up to once a day, hourly by default. The timer keeps running while you stay on one page, and with several Lectio tabs open only one of them fetches each time. After a failed fetch it tries again at the same interval.
 
 - Each lesson keeps its Lectio id, so a changed room, time or teacher updates the same event instead of adding a new one. Lessons removed from Lectio are removed from the calendar for the weeks that were read; a week that fails to load is left untouched.
-- Changed lessons are green, cancelled lessons are red, start with "Aflyst:" and don't show you as busy. Cancelled lessons can be hidden in the popup.
+- Changed lessons are green, cancelled lessons are red, start with "Aflyst:" and don't show you as busy. Cancelled lessons can be hidden in the settings.
 - The description holds the teacher, the tooltip's homework/note text and a link back to the lesson in Lectio.
 - Google access uses the `calendar.app.created` scope: Lectiomizer can only see and change calendars it created itself, never your other calendars. Events you add to the Lectio calendar yourself are left alone; Lectiomizer's own events there get overwritten.
 - **Afbryd** signs out and revokes the token. The Lectio calendar stays in Google until you delete it; connecting again reuses it.

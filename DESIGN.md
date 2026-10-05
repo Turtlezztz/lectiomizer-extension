@@ -435,6 +435,8 @@ Retain native clickable event geometry. Lectio places modules and lessons in em,
 
 The popup repeats the same type, red action and fine-rule vocabulary. Preference rows use 15px vertical padding, 14px/600 labels and 12px helper text. Switches are 34px by 20px with 14px white thumbs inset 3px; checked state turns red and translates the thumb 14px. Both background and thumb use 140ms ease-out. Loading switches are disabled with opacity .5. Popup selects use small-select corners and 6px by 8px padding. Save errors appear as Deep Utility Red status text. A visible red focus ring and reduced-motion override apply here too.
 
+The settings card in Lectio pages repeats these rows at 320px wide, and both surfaces share one stylesheet (`src/settings-ui.css`). Google Kalender settings sit under the calendar heading and account line in labelled groups: a 12px/600 muted label above a white box with a fine-rule border and 8px corners, 12px side padding and rules between 11px-padded rows. **Synkronisering** holds the last-sync status (13px/600, with 12px muted detail and Deep Utility Red for errors), a 36px bordered refresh button whose icon spins while syncing, and the automatic-fetch interval; **I kalenderen** holds what gets synced.
+
 ## Do's and Don'ts
 
 ### Do:

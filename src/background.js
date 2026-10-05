@@ -1,7 +1,9 @@
 // Background script: owns the Google token and every call to Google. Content
-// scripts send it lessons they read from Lectio; the popup connects and
-// disconnects. Nothing is sent to Google until the user connects.
-import { api, GOOGLE_CLIENT_ID, loadCalendar, saveCalendar, saveCalendarStatus } from './settings.js';
+// scripts send it lessons they read from Lectio; the popup connects, and the
+// popup or the page's settings card disconnects. Nothing is sent to Google
+// until the user connects.
+import { api } from './settings.js';
+import { GOOGLE_CLIENT_ID, loadCalendar, saveCalendar, saveCalendarStatus } from './calendar/store.js';
 import { GoogleError, authorize, createClient, ensureCalendar, syncCalendar } from './calendar/google.js';
 
 const LECTIO = ['https://www.lectio.dk/*', 'https://lectio.dk/*'];
@@ -79,7 +81,7 @@ function sync(weeks, unread) {
       return { ok: true, ...result };
     } catch (error) {
       const known = error instanceof GoogleError;
-      await finish({ state: 'error', message: known ? error.message : 'Synkroniseringen fejlede. Prøver igen om en time.', reconnect: known && error.reconnect });
+      await finish({ state: 'error', message: known ? error.message : 'Synkroniseringen fejlede.', reconnect: known && error.reconnect });
       if (!known) console.error('Lectiomizer:', error);
       return { ok: false, message: error.message };
     }
@@ -101,15 +103,26 @@ async function requestSync() {
   return { ok: false, message: 'Åbn Lectio og log ind, så synkroniseres skemaet.' };
 }
 
+// Firefox asks for data consent only on extension pages, so the settings card
+// in a Lectio page connects through the popup, opened as a small window.
+async function openSettings() {
+  if (!api.windows) return { ok: false, message: 'Åbn Lectiomizer fra værktøjslinjen for at forbinde.' };
+  await api.windows.create({ type: 'popup', url: api.runtime.getURL('popup.html'), width: 380, height: 680 });
+  return { ok: true };
+}
+
 api.runtime.onMessage.addListener((message, sender) => {
-  // Only extension pages (the popup) may connect, disconnect or start a sync.
+  // Only extension pages (the popup) may connect. Lectio pages' settings card
+  // may disconnect, start a sync, or open the popup to connect.
   const fromExtension = !sender.tab && sender.id === api.runtime.id;
+  const fromLectio = !!sender.tab && isLectio(sender.url);
   switch (message?.type) {
     case 'calendar:sync':
-      if (sender.tab && isLectio(sender.url) && Array.isArray(message.weeks)) return sync(message.weeks, Number(message.unread) || 0);
+      if (fromLectio && Array.isArray(message.weeks)) return sync(message.weeks, Number(message.unread) || 0);
       return;
     case 'calendar:connect': if (fromExtension) return connect(); return;
-    case 'calendar:disconnect': if (fromExtension) return disconnect(); return;
-    case 'calendar:sync-now': if (fromExtension) return requestSync(); return;
+    case 'calendar:disconnect': if (fromExtension || fromLectio) return disconnect(); return;
+    case 'calendar:sync-now': if (fromExtension || fromLectio) return requestSync(); return;
+    case 'calendar:open-settings': if (fromLectio) return openSettings(); return;
   }
 });

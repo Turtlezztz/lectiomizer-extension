@@ -10,7 +10,8 @@ import {ReaderError} from '../src/readers/util.js';
 // settings.js reads the browser global when it loads, so scrape.js is imported after the fake exists.
 const store={};
 globalThis.browser={storage:{local:{get:async key=>({[key]:store[key]}),set:async values=>Object.assign(store,values)}}};
-const {syncSchedule}=await import('../src/calendar/scrape.js');
+const {syncSchedule,nextAttempt}=await import('../src/calendar/scrape.js');
+const {intervalOf,nextSyncAt}=await import('../src/calendar/store.js');
 
 const url='https://www.lectio.dk/lectio/123/SkemaNy.aspx?type=elev&elevid=9';
 const page=(html=schedulePage(),at=url)=>new JSDOM(`<div id="contenttable">${html}</div>`,{url:at}).window.document;
@@ -153,4 +154,23 @@ test('the content script reads the coming weeks once an hour and skips weeks it 
  store.calendarStatus={};
  const failed=await syncSchedule({scheduleHref:url,now,load:async()=>page('<form>Log ind</form>'),send});
  assert.deepEqual([failed.ok,store.calendarStatus.state,store.calendarStatus.checkedAt],[false,'error',now]);
+});
+
+test('the user picks how often an open Lectio tab fetches, and each tab waits for the next turn',async()=>{
+ const now=new Date(2026,9,5,12).getTime();const min=60000;
+ const load=async href=>page(schedulePage(),href);const send=async()=>({ok:true});
+ store.calendar={connected:true,weeks:1,interval:15};
+ store.calendarStatus={state:'ok',checkedAt:now};
+ assert.deepEqual(await syncSchedule({scheduleHref:url,now:now+14*min,load,send}),{started:false});
+ assert.equal((await syncSchedule({scheduleHref:url,now:now+15*min,load,send})).started,true);
+ // A value this version doesn't offer falls back to hourly.
+ assert.equal(intervalOf({interval:7}).minutes,60);
+ const settings={interval:180};
+ assert.equal(nextSyncAt(settings,{}),0);
+ assert.equal(nextAttempt(settings,{checkedAt:now},now),now+180*min);
+ // Never checked or overdue: soon, but only after Lectio's page settles.
+ assert.equal(nextAttempt(settings,{},now),now+2000);
+ assert.equal(nextAttempt(settings,{checkedAt:now-200*min},now),now+2000);
+ // Another tab's sync holds this one back until its lock runs out.
+ assert.equal(nextAttempt(settings,{state:'syncing',startedAt:now,checkedAt:now-200*min},now),now+3*min);
 });

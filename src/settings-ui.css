@@ -1,0 +1,48 @@
+/* Setting rows, switches, buttons and the Google Kalender panel, shared by the toolbar popup and the settings card in Lectio pages. Each page defines the --lx-* colours. Every rule carries a class so Lectio's own element styles can't win; font sizes on controls are !important because the shell gives #lectiomizer-root controls font:inherit. */
+.lx-setting{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 0;border-top:1px solid var(--lx-rule);color:var(--lx-ink)}
+.lx-setting>span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.lx-setting strong{font-size:14px;font-weight:600}
+.lx-setting small{font-size:12px;line-height:1.35;color:var(--lx-muted)}
+.lx-setting select{flex-shrink:0;font:inherit;font-size:13px!important;padding:6px 8px;border:1px solid #c7cbd1;border-radius:6px;background:#fff;color:var(--lx-ink)}
+.lx-setting input[type=checkbox]{appearance:none;position:relative;flex-shrink:0;width:34px;height:20px;margin:0;border:0;border-radius:12px;background:#d5d8dc;cursor:pointer;transition:background-color 140ms ease-out}
+.lx-setting input[type=checkbox]::before{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform 140ms ease-out}
+.lx-setting input[type=checkbox]:checked{background:var(--lx-accent)}
+.lx-setting input[type=checkbox]:checked::before{transform:translateX(14px)}
+.lx-setting input[type=checkbox]:disabled{opacity:.5;cursor:wait}
+.lx-button{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;font:inherit;font-size:14px!important;font-weight:600;padding:9px 14px;border-radius:7px;cursor:pointer;transition:background-color 140ms ease-out}
+.lx-button-primary{background:var(--lx-accent);color:#fff;border:0}
+.lx-button-primary:hover{background:var(--lx-accent-hover)}
+.lx-button-secondary{background:#fff;color:var(--lx-ink);border:1px solid #c7cbd1}
+.lx-button-secondary:hover{background:var(--lx-surface)}
+.lx-text-button{font:inherit;font-size:12px!important;padding:4px;border:0;background:none;color:var(--lx-muted);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.lx-text-button:hover{color:var(--lx-ink)}
+.lx-button:disabled,.lx-text-button:disabled{opacity:.6;cursor:wait}
+/* Google Kalender: a heading with the account, then labelled groups of rows. */
+.lx-calendar{border-top:1px solid var(--lx-rule);padding:15px 0 18px}
+.lx-calendar-head{display:flex;align-items:flex-start;gap:8px;color:var(--lx-accent)}
+.lx-calendar-head>svg{margin-top:1px}
+.lx-calendar-heading{flex:1;min-width:0}
+.lx-calendar .lx-calendar-title{margin:0;font-family:inherit;font-size:14px;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.lx-calendar .lx-calendar-account{margin:1px 0 0;font-size:12px;line-height:1.35;color:var(--lx-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lx-calendar .lx-calendar-text{margin:6px 0 12px;font-size:12px;line-height:1.45;color:var(--lx-muted)}
+.lx-calendar-text code{display:block;margin-top:6px;padding:6px 8px;border-radius:6px;background:var(--lx-surface);font-size:11px;color:var(--lx-ink);word-break:break-all;user-select:all}
+.lx-group{margin-top:14px}
+.lx-calendar .lx-group-label{margin:0 0 6px;font-size:12px;font-weight:600;line-height:1.3;color:var(--lx-muted)}
+.lx-group-box{padding:0 12px;border:1px solid var(--lx-rule);border-radius:8px;background:#fff}
+.lx-group-box>*{border-top:1px solid var(--lx-rule)}
+.lx-group-box>:first-child{border-top:0}
+.lx-group-box .lx-setting{padding:11px 0}
+.lx-sync{padding:11px 0}
+.lx-sync-row{display:flex;align-items:center;gap:12px}
+.lx-calendar .lx-sync-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;margin:0}
+.lx-sync-text strong{font-size:13px;font-weight:600;line-height:1.35;color:var(--lx-ink)}
+.lx-sync-text[data-state=error] strong{color:var(--lx-accent-hover)}
+.lx-sync-text small{font-size:12px;line-height:1.35;color:var(--lx-muted)}
+.lx-sync-button{display:grid;place-items:center;flex-shrink:0;width:36px;height:36px;padding:0;border:1px solid #c7cbd1;border-radius:7px;background:#fff;color:var(--lx-ink);cursor:pointer;transition:background-color 140ms ease-out}
+.lx-sync-button:hover{background:var(--lx-surface)}
+.lx-sync-button:disabled{color:var(--lx-muted);cursor:wait}
+.lx-sync .lx-button{margin-top:10px}
+.lx-spin{animation:lx-spin 1s linear infinite}
+@keyframes lx-spin{to{transform:rotate(360deg)}}
+.lx-calendar .lx-calendar-notice{margin:10px 0 0;font-size:12px;line-height:1.45;color:var(--lx-accent-hover)}
+@media(prefers-reduced-motion:reduce){.lx-spin{animation:none}}

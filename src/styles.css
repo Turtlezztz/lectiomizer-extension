@@ -72,13 +72,12 @@ body.lx-enabled .ls-subnav2 a[current-page],body.lx-enabled .ls-subnav3 a[curren
 .lx-native-search{border:0;border-top:1px solid var(--lx-rule);margin-top:5px;display:flex;align-items:center;justify-content:space-between;padding:12px 10px;background:#fff;width:100%;color:var(--lx-accent);text-align:left;font-size:13px}
 .lx-empty{padding:14px 10px;color:var(--lx-muted);margin:0;font-size:14px}
 .lx-settings-area{position:relative}
-.lx-settings-panel{position:absolute;z-index:1300;top:46px;right:0;width:280px;padding:20px;border-radius:12px;background:#fff;border:1px solid var(--lx-rule);box-shadow:0 10px 32px #171c251c}
-.lx-settings-panel h2{font-size:18px;color:var(--lx-ink);margin:0 0 16px;font-weight:650}
-.lx-settings-panel label{font-size:14px;color:var(--lx-ink);display:flex;align-items:center;justify-content:space-between;gap:16px}
-.lx-settings-panel select{padding:6px 9px;border:1px solid var(--lx-rule);border-radius:6px;background:#fff;color:var(--lx-ink)}
-.lx-settings-panel button{padding:10px 12px;margin-top:18px;border:1px solid var(--lx-rule);border-radius:7px;background:#fff;color:var(--lx-accent);width:100%;font-size:13px}
-.lx-settings-panel button:hover{background:var(--lx-soft)}
-.lx-settings-panel p{font-size:12px;color:var(--lx-muted);margin:12px 0 0;line-height:1.45}
+.lx-settings-panel{position:absolute;z-index:1300;top:46px;right:0;width:320px;max-height:calc(100vh - var(--lx-toolbar) - 16px);overflow-y:auto;overscroll-behavior:contain;padding:20px 20px 18px;border-radius:12px;background:#fff;border:1px solid var(--lx-rule);box-shadow:0 10px 32px #171c251c;scrollbar-width:thin}
+.lx-settings-panel h2{font-size:18px;color:var(--lx-ink);margin:0 0 8px;font-weight:650}
+.lx-settings-footer{border-top:1px solid var(--lx-rule);padding-top:14px}
+.lx-show-original{padding:10px 12px;border:1px solid var(--lx-rule);border-radius:7px;background:#fff;color:var(--lx-accent);width:100%;font-size:13px!important}
+.lx-show-original:hover{background:var(--lx-soft)}
+.lx-settings-footer p{font-size:12px;color:var(--lx-muted);margin:10px 0 0;line-height:1.45}
 .lx-skip{position:fixed;top:-100px;left:calc(var(--lx-rail) + 12px);z-index:99999;padding:10px 16px;background:#fff;color:var(--lx-accent)!important;border:1px solid var(--lx-rule);border-radius:7px}
 .lx-skip:focus{top:10px}
 .lx-live-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
