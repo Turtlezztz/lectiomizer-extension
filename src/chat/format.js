@@ -186,7 +186,7 @@ function formatAssignment(data, base) {
     out.push('', '### Elever og status');
     for (const s of data.students) out.push(`- ${s.name}: ${[s.status, s.awaiting && `afventer ${s.awaiting}`, s.finished != null && (s.finished ? 'afsluttet' : 'ikke afsluttet'), s.grade && `karakter ${s.grade}`, s.gradeNote && `karakternote: ${s.gradeNote}`, s.studentNote && `elevnote: ${s.studentNote}`].filter(Boolean).join(' · ')}`);
   }
-  if (data.group.length) out.push('', `Gruppe: ${data.group.join(', ')}`);
+  if (data.group?.members.length) out.push('', `Gruppe: ${data.group.members.map(m => m.full).join(', ')}`);
   out.push('', `### Indlæg (${data.entries.length})`);
   for (const e of data.entries) {
     out.push(`- ${e.time ? formatDate(e.time) : e.timeText} · ${e.user}`);

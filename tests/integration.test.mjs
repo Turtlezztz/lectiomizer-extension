@@ -132,12 +132,34 @@ test('assignments render grouped records while native filters stay in charge',as
  assert.equal(view.querySelectorAll('.lx-assignment').length,1);await close(dom);
 });
 
+test('assignment group shows the members and adds and removes through Lectio\'s own controls',async()=>{
+ let added=null,removed=0;
+ const dom=await mount('/lectio/123/ElevAflevering.aspx?elevid=1&exerciseid=1',doc=>{doc.querySelector('#m_Content_groupStudentAddBtn').addEventListener('click',e=>{e.preventDefault();added=doc.querySelector('#m_Content_groupStudentAddDD').value;});doc.querySelector('#m_Content_groupMembersGV a').addEventListener('click',e=>{e.preventDefault();removed++;});});
+ const doc=dom.window.document;const group=doc.querySelector('.lx-view .lx-group');
+ assert.equal(group.querySelector('.lx-count').textContent,'2');
+ assert.deepEqual(Array.from(group.querySelectorAll('.lx-group-name'),n=>[n.querySelector('strong').textContent,n.querySelector('small').textContent]),[['Demo Elev','Dig · 3a 12'],['Anna Andersen','3a 01']]);
+ const removeButtons=group.querySelectorAll('.lx-group-remove');assert.equal(removeButtons.length,1);assert.equal(removeButtons[0].getAttribute('aria-label'),'Fjern Anna Andersen fra gruppen');
+ removeButtons[0].click();assert.equal(removed,1);
+ const select=group.querySelector('#lx-group-add');const add=Array.from(group.querySelectorAll('button')).find(b=>b.textContent.includes('Tilføj'));
+ assert.deepEqual(Array.from(select.options,o=>o.textContent),['Vælg elev …','Bjørn Lund (3a 05)','Helene Ravn (3a 02)','José Holm (3b 04)']);
+ assert.equal(add.disabled,true);
+ select.value='4';select.dispatchEvent(new dom.window.Event('change',{bubbles:true}));await delay(20);
+ assert.equal(add.disabled,false);add.click();await delay(20);
+ assert.equal(added,'4');assert.match(group.querySelector('.lx-pending').textContent,/Helene Ravn.*Tilføjer/);
+ await close(dom);
+});
+
+test('assignment without a group shows no group, and a group of one says so',async()=>{
+ let dom=await mount('/lectio/123/ElevAflevering.aspx?gruppe=none');assert.equal(dom.window.document.querySelector('.lx-view .lx-group'),null);await close(dom);
+ dom=await mount('/lectio/123/ElevAflevering.aspx?gruppe=alone');const group=dom.window.document.querySelector('.lx-view .lx-group');
+ assert.equal(group.querySelectorAll('.lx-group-members li').length,1);assert.match(group.querySelector('.lx-group-hint').textContent,/Du afleverer alene/);await close(dom);
+});
+
 test('assignment detail shows entries and hands in through the native form',async()=>{
  let sent=0,upload=0;
  const dom=await mount('/lectio/123/ElevAflevering.aspx',doc=>{doc.querySelector('#m_Content_AddEntryBtn').addEventListener('click',e=>{e.preventDefault();sent++;});doc.querySelector('#m_Content_choosedocument_choosedocBtn').addEventListener('click',e=>{e.preventDefault();upload++;});});const doc=dom.window.document;const view=doc.querySelector('.lx-view[data-lx-view="assignment"]');
  assert.equal(view.querySelector('.lx-assignment-head h2').textContent,'Novelleanalyse');assert.equal(view.querySelectorAll('.lx-timeline > li').length,2);
  assert.equal(view.querySelector('.lx-timeline-body').textContent,'God start!Uddyb analysen af synsvinkel.');assert.ok(view.querySelector('.lx-file[href*="exercisefileid"]'));
- assert.deepEqual(Array.from(view.querySelectorAll('.lx-assignment-side li')).map(li=>li.textContent),['Demo Elev, 3a 12','Anna Andersen, 3a 01']);
  const box=view.querySelector('#lx-hand-in-comment');const setValue=Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype,'value').set;setValue.call(box,'Her er min aflevering');box.dispatchEvent(new dom.window.Event('input',{bubbles:true}));await delay(20);
  assert.equal(doc.querySelector('#m_Content_CommentsTB_tb').value,'Her er min aflevering');
  Array.from(view.querySelectorAll('button')).find(b=>b.textContent.includes('Send kun kommentar')).click();Array.from(view.querySelectorAll('button')).find(b=>b.textContent.includes('Vælg dokument')).click();

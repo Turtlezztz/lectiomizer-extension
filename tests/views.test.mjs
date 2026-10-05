@@ -53,6 +53,18 @@ test('assignment detail reads info, student status, entries and the hand-in form
  assert.equal(readAssignment(page(assignmentPage({closed:true}))).handIn,null);
 });
 
+test('assignment group reads members, who the student is and the native add and remove controls',()=>{
+ const {group}=readAssignment(page(assignmentPage(),'https://www.lectio.dk/lectio/123/ElevAflevering.aspx?elevid=1&exerciseid=1'));
+ assert.deepEqual(group.members.map(m=>[m.id,m.name,m.className,m.me,!!m.remove]),[['S1','Demo Elev','3a 12',true,false],['S2','Anna Andersen','3a 01',false,true]]);
+ assert.match(group.members[1].remove.getAttribute('onclick'),/DEL\$1/);
+ assert.deepEqual(group.add.options.map(o=>[o.value,o.label]),[['3','Bjørn Lund (3a 05)'],['4','Helene Ravn (3a 02)'],['5','José Holm (3b 04)']]);
+ assert.equal(group.add.select.id,'m_Content_groupStudentAddDD');assert.equal(group.add.button.id,'m_Content_groupStudentAddBtn');
+ // Without elevid in the address, the student is the one "Afleveres af" lists.
+ assert.deepEqual(readAssignment(page(assignmentPage({group:'alone'}))).group.members.map(m=>[m.name,m.me]),[['Demo Elev',true]]);
+ assert.equal(readAssignment(page(assignmentPage({closed:true}))).group.add,null);
+ assert.equal(readAssignment(page(assignmentPage({group:'none'}))).group,null);
+});
+
 test('absence reads totals and treats Lectio placeholders as missing causes',()=>{
  const data=readAbsence(page(absencePage()));
  assert.deepEqual(data.totals,[{value:'6,9%',label:'Almindeligt fravær'},{value:'1,1%',label:'Skriftligt fravær'}]);

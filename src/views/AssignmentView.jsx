@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ArrowUpRight, FileText, Paperclip, Send, Upload } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowUpRight, FileText, Paperclip, Send, Upload, UserPlus, X } from 'lucide-react';
 import { Action, Empty, RichText, formatDeadline, relativeDay } from './shared.jsx';
+import { Avatar, usePhotos } from './avatars.jsx';
+import { useStalled } from './ThreadView.jsx';
+import { personName } from '../readers/thread.js';
 
 const detailOrder = ['Hold', 'Ansvarlig', 'Afleveringsfrist', 'Elevtid', 'Karakterskala', 'I undervisningsbeskrivelse'];
 
@@ -16,6 +19,64 @@ function HandIn({ handIn }) {
       {handIn.upload && <Action source={handIn.upload} className="lx-primary-button"><Upload size={16} aria-hidden="true" /> Vælg dokument og aflever</Action>}
       {handIn.send && <Action source={handIn.send} className="lx-chip-button" disabled={!comment.trim()}><Send size={16} aria-hidden="true" /> Send kun kommentar</Action>}
     </div>
+  </section>;
+}
+
+// Who hands in together. Adding picks a classmate in Lectio's own list and
+// presses its Tilføj; removing presses Lectio's remove button, which asks first.
+// Either way Lectio loads the page again with the new group.
+function Group({ group, base }) {
+  const [choice, setChoice] = useState('');
+  // {value, name} while Lectio adds someone.
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState('');
+  const { members, add } = group;
+  const photos = usePhotos(base, [...members.map(m => m.id), pending && `S${pending.value}`].filter(Boolean));
+  const count = members.length;
+  const seen = useRef(count);
+  useEffect(() => {
+    if (count === seen.current) return;
+    seen.current = count;
+    setPending(null);
+    setChoice('');
+  }, [count]);
+  useStalled(pending, () => { setPending(null); setError('Lectio svarede ikke. Prøv igen, eller brug Lectios visning.'); });
+
+  const submit = () => {
+    const option = add.options.find(o => o.value === choice);
+    if (!option || pending || !add.button.isConnected) return;
+    add.select.value = option.value;
+    setError('');
+    setPending({ value: option.value, name: personName(option.label) });
+    add.button.click();
+  };
+  const remove = member => { if (!pending && member.remove.isConnected) member.remove.click(); };
+
+  return <section className="lx-group" aria-labelledby="lx-group">
+    <h3 id="lx-group">Gruppe <span className="lx-count">{count}</span></h3>
+    <ul className="lx-group-members">
+      {members.map(m => <li key={m.id || m.full}>
+        <Avatar person={m} photo={photos[m.id]} size={32} />
+        <span className="lx-group-name"><strong title={m.full}>{m.name}</strong>{(m.className || m.me) && <small>{[m.me && 'Dig', m.className].filter(Boolean).join(' · ')}</small>}</span>
+        {m.remove && <button type="button" className="lx-icon-chip lx-group-remove" aria-label={`Fjern ${m.name} fra gruppen`} title={`Fjern ${m.name} fra gruppen`} disabled={!!pending} onClick={() => remove(m)}><X size={16} aria-hidden="true" /></button>}
+      </li>)}
+      {pending && <li className="lx-pending" role="status">
+        <Avatar person={{ id: `S${pending.value}`, name: pending.name }} photo={photos[`S${pending.value}`]} size={32} />
+        <span className="lx-group-name"><strong>{pending.name}</strong><small>Tilføjer …</small></span>
+      </li>}
+    </ul>
+    {add && count <= 1 && !pending && <p className="lx-quiet lx-group-hint">Du afleverer alene, indtil du tilføjer dem, du skal aflevere sammen med.</p>}
+    {add && (add.options.length ? <div className="lx-group-add">
+      <label className="lx-field-label" htmlFor="lx-group-add">Tilføj til gruppen</label>
+      <div className="lx-group-add-row">
+        <select id="lx-group-add" className="lx-select" value={choice} disabled={!!pending} onChange={e => { setChoice(e.target.value); setError(''); }}>
+          <option value="">Vælg elev …</option>
+          {add.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <button type="button" className="lx-chip-button" disabled={!choice || !!pending} onClick={submit}><UserPlus size={16} aria-hidden="true" /> Tilføj</button>
+      </div>
+      {error && <p className="lx-group-error" role="alert">{error}</p>}
+    </div> : <p className="lx-quiet lx-group-hint">Der er ikke flere elever, du kan tilføje.</p>)}
   </section>;
 }
 
@@ -58,6 +119,7 @@ export function AssignmentView({ data, showOriginal }) {
         <Entries entries={data.entries} />
         {data.handIn ? <HandIn handIn={data.handIn} /> : <p className="lx-view-notice">Afleveringen er afsluttet. Der kan ikke skrives flere indlæg.</p>}
       </div>
+      {data.group && <Group group={data.group} base={data.base} />}
       <aside className="lx-assignment-side">
         <dl className="lx-details">{detailOrder.filter(k => data.info[k]?.text).map(k => <div key={k}><dt>{k}</dt><dd>{data.info[k].text}</dd></div>)}</dl>
         {me && (me.grade || me.gradeNote || me.studentNote || absence) && <dl className="lx-details">
@@ -66,7 +128,6 @@ export function AssignmentView({ data, showOriginal }) {
           {me.gradeNote && <div><dt>Karakternote</dt><dd>{me.gradeNote}</dd></div>}
           {me.studentNote && <div><dt>Elevnote</dt><dd>{me.studentNote}</dd></div>}
         </dl>}
-        {data.group.length > 0 && <div className="lx-side-block"><h3>Gruppe</h3><ul>{data.group.map(name => <li key={name}>{name}</li>)}</ul></div>}
       </aside>
     </div>
   </div>;

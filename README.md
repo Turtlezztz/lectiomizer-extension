@@ -25,7 +25,7 @@ The toolbar popup and the page's top-right settings button both let you disable 
 - Studieplan: select a single course for a readable timeline or compare the original course matrix in a contained horizontal scroller.
 - Bøger: title, course and return deadline first; loan details available on demand.
 - Aktivitet (rebuilt view): lesson header, my/hold previous–next navigation, tabs, course, the lesson note, homework and materials rendered as sanitised rich text, and an "I denne lektion" outline.
-- Opgaveaflevering (rebuilt view): details, deadline and status, assignment documents, the entry timeline, and a hand-in box that drives Lectio's own comment and "Vælg dokument" upload.
+- Opgaveaflevering (rebuilt view): details, deadline and status, assignment documents, the entry timeline, and a hand-in box that drives Lectio's own comment and "Vælg dokument" upload. On a group hand-in, **Gruppe** lists the members with their photos (top of the side column, or right under the title on narrow screens); adding a classmate and removing a member press Lectio's own Tilføj and remove buttons.
 - Chat (optional, off until you sign in with ChatGPT): an assistant that answers questions about your Skema, assignments, grades and absence by reading your own Lectio pages and the documents attached to assignments and lessons. See below.
 - Google Kalender (optional, off until you connect): your Skema is copied into a separate "Lectio" calendar in Google Calendar and kept up to date while you use Lectio. See below.
 - Shared native schedule, form and secondary-navigation styles.

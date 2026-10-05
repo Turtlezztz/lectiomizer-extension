@@ -10,7 +10,7 @@ const assignments=[['Dansk','Skriftlig aflevering — analyse af en novelle','Fr
 const messageData=[['Lene Madsen','Praktisk information om ekskursion','6/10'],['Thomas Nielsen','Opgavevejledning i matematik','5/10'],['Mette Sørensen','Retningslinjer for skriftlig aflevering','4/10'],['Administration','Ny lokation på fredag','2/10']];
 export function pageFixture(p){
  if(p.endsWith('forside.aspx'))return homePage();
- if(p.includes('elevaflevering'))return assignmentPage();
+ if(p.includes('elevaflevering'))return assignmentPage({group:p.match(/gruppe=(\w+)/)?.[1]||'pair'});
  if(p.includes('opgaverelev'))return assignmentsPage();
  if(p.includes('beskeder'))return messagesPage({thread:p.includes('demo=traad'),compose:p.includes('demo=ny')?(p.match(/til=([^&]*)/)?.[1]||'').toUpperCase().split(',').filter(Boolean):null});
  if(p.includes('fravaersaarsager'))return absencePage();

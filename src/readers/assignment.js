@@ -1,7 +1,9 @@
-// Reads ElevAflevering.aspx: assignment details, who hands in, the entry
-// timeline and the native hand-in controls.
+// Reads ElevAflevering.aspx: assignment details, who hands in, the group, the
+// entry timeline and the native hand-in controls.
 import { text } from '../page-data.js';
+import { schoolBase } from '../lectio.js';
 import { ReaderError, iconLink, nativeCells, headerRow, parseLectioDate, readRows } from './util.js';
+import { cardId } from './thread.js';
 
 const label = cell => text(cell).replace(/:$/, '');
 const links = node => Array.from(node?.querySelectorAll('a[href]') || []).filter(a => !a.getAttribute('href').startsWith('#') && !/^javascript:/i.test(a.getAttribute('href'))).map(a => ({ label: text(a), href: a.href }));
@@ -52,19 +54,52 @@ function readEntries(table) {
   });
 }
 
+// A group hand-in has a Gruppeaflevering island: the members (each with Lectio's
+// remove button, except the student themselves) and, while the group can still
+// change, a list of classmates and Lectio's Tilføj button. Only on group assignments.
+function readGroup(doc) {
+  const table = doc.querySelector('[id$="groupMembersGV"]');
+  if (!table) return null;
+  // The student whose page this is; "Afleveres af" lists them too.
+  const student = new URL(doc.URL).searchParams.get('elevid');
+  const me = student ? `S${student}` : cardId(doc.querySelector('[id$="StudentGV"] [data-lectiocontextcard]'));
+  const members = Array.from(table.rows).flatMap(row => {
+    const card = row.querySelector('[data-lectiocontextcard]');
+    const full = text(card || row.querySelector('li'));
+    if (!full) return [];
+    // "Anna Andersen, 3a 01"
+    const [, name = full, className = ''] = full.match(/^(.*),\s*([^,]+)$/) || [];
+    const id = cardId(card);
+    const remove = Array.from(row.querySelectorAll('a')).find(a => /__doPostBack/.test(a.getAttribute('onclick') || a.getAttribute('href') || '')) || null;
+    return [{ id, full, name, className, me: !!me && id === me, remove }];
+  });
+  const select = doc.querySelector('select[id$="groupStudentAddDD"]');
+  const button = doc.querySelector('[id$="groupStudentAddBtn"]');
+  return {
+    members,
+    add: select && button ? {
+      select, button,
+      // "Anna Andersen (3a 01)"
+      options: Array.from(select.options).filter(o => o.value).map(o => ({ value: o.value, label: text(o) })),
+    } : null,
+  };
+}
+
 export function readAssignment(doc) {
   const infoTable = doc.querySelector('[id$="registerAfl_pa"] .ls-std-table-inputlist') || doc.querySelector('.ls-elevaflevering-page .ls-std-table-inputlist');
   const info = readInfo(infoTable);
   if (!info.Opgavetitel) throw new ReaderError('Opgavens oplysninger blev ikke fundet');
   const form = doc.querySelector('[id$="ElectronicHandInPanel"]');
+  const school = schoolBase(doc.URL);
   return {
     title: info.Opgavetitel.text,
     info,
     deadline: parseLectioDate(info.Afleveringsfrist?.text),
     back: iconLink(doc.querySelector('#contenttable'), 'arrow_back'),
-    group: Array.from(doc.querySelectorAll('[id$="groupMembersGV"] li')).map(li => text(li)),
+    group: readGroup(doc),
     students: readStudents(doc.querySelector('[id$="StudentGV"]')),
     entries: readEntries(doc.querySelector('[id$="RecipientGV"]')),
+    base: school ? new URL(school, doc.URL).href : null,
     handIn: form ? {
       comment: form.querySelector('textarea'),
       send: form.querySelector('[id$="AddEntryBtn"]'),
