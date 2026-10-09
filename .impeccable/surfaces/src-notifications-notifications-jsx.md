@@ -1,0 +1,22 @@
+---
+version: 1
+slug: "src-notifications-notifications-jsx"
+primary_target: "src/notifications/Notifications.jsx"
+related_targets: ["src/notifications.css", "src/content.jsx", "src/notifications/context.js", "src/notifications/changes.js", "src/notifications/store.js"]
+---
+
+# Lectio notifications
+
+Mode: Operate. Scope: a shared notification centre in the Lectiomizer toolbar, beside settings, for students tracking lesson changes, Lectio messages and assignments. Preserve the approved Compact world: white surfaces, utility red, Source Sans 3, fine neutral rules and Lucide outline icons. This brief records the new surface without changing the global design contract.
+
+Content: changed, cancelled, removed and restored modules; newly received messages, including replies visible on Forside; and new assignments. Records show kind, arrival time, unread marker, title/link and lesson or source context. Lesson changes expose before → after values for time, room, teacher, group and title; homework/note changes receive an explicit update notice. History retains the latest 100 notifications from the last 90 days. Danish labels and Copenhagen timestamps follow the existing interface.
+
+Hierarchy: the bell's red count (visually capped at 9+, with the full unread count in its accessible label) leads to a nonmodal labelled section. A 19px heading and close action precede unread status and “Markér alle som læst”, followed by a ruled, scrollable list. Each row places kind/time above a 15px title, 13px context and 14px change details. Quiet fill and a red dot distinguish unread rows; text labels accompany cancellation and change colours. The footer groups last-check/loading status, refresh, errors, interval selection and the local-storage explanation. Empty history explains either the initial silent baseline or that the student is up to date.
+
+Interactions: opening from the bell or “Se notifikationer” focuses the panel heading and closes settings/search. Close returns focus to the bell; Escape closes the panel and toast, returning focus when it was inside the panel. Outside pointer activation dismisses the panel. Each unread row has a read action; following a valid same-school Lectio link marks that entry read. Mark-all applies to the displayed history and affects only Lectiomizer's read state. Refresh disables while checking; interval save and read/check failures have inline status feedback. A new unread arrival produces a 12-second status toast with a panel action, close action and count of additional arrivals. Initial history loading stays silent.
+
+Responsive behavior: desktop uses a 420px panel anchored below the bell, constrained to the viewport, with a separately scrolling history. At ≤640px the panel becomes fixed below the toolbar with 12px side insets; tools wrap and notification icon buttons, panel text actions and the interval selector provide 44px targets. The toast sits at the lower right (14px insets on mobile). Below 500px viewport height the whole panel can scroll so footer controls remain reachable. Long titles, context and details wrap.
+
+Data boundaries: each source establishes a silent baseline on its first successful read. History and snapshots belong to the signed-in student and school through stable Lectio identity; an invalid or missing scope renders no bell. Source failures preserve their baselines independently. Automatic checks run while an authenticated Lectio tab is open, hourly by default, covering at least four schedule weeks. Google connection is optional; the shared interval also serves calendar fetching. Delivered or overdue assignments and past lessons do not generate new alerts. Disappearing lessons are labelled removed rather than presumed cancelled.
+
+Evidence and limits (2026-10-05): final source and README Notifications section checked for this brief. Finish-review handoff: **ship**; null-scope safety, toast-to-panel focus and the mobile interval target were scored resolved. The implementation handoff reports all **107 tests passed**. Synthetic populated preview: `/lectio/123/SkemaNy.aspx?notifications=demo`; fixture data does not ship. Live authenticated Firefox behavior remains user validation. Forside entries disappearing between checks can be missed; assignments reflect the current Opgaver list. Data stays in this Firefox installation, is not synced across devices, and clearing extension storage resets baselines.

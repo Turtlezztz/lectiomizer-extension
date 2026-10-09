@@ -4,6 +4,18 @@
 // the preview reads the fixture pages exactly like the extension would.
 // Storage lasts for the browser tab, so the preview remembers chats across pages.
 const store=(()=>{try{return JSON.parse(sessionStorage.getItem('lectiomizer-demo-store'))||{};}catch{return {};}})();
+// Explicit synthetic notification preview. Never part of the extension package.
+if(new URLSearchParams(location.search).get('notifications')==='demo'){
+ const now=Date.now();const date=new Date().toLocaleDateString('sv-SE');
+ const lesson={id:'absid:101',holds:['3a Da'],title:'',start:date+'T08:15',end:date+'T09:45',rooms:['A14'],teachers:['Lene Madsen (lm)'],status:'changed',href:location.origin+'/lectio/123/aktivitet/aktivitetforside2.aspx?absid=101'};
+ const messages=[
+  {id:'demo-assignment',kind:'assignment',item:{title:'Rapport om energi',description:'3a Fy · Frist: 12/10 kl. 23:59',href:location.origin+'/lectio/123/ElevAflevering.aspx?exerciseid=3'},createdAt:now,read:false},
+  {id:'demo-message',kind:'message',item:{title:'Ekskursion fredag',description:'Lene Madsen (lm)',href:location.origin+'/lectio/123/beskeder2.aspx?type=visbesked&id=1'},createdAt:now-60000,read:false},
+  {id:'demo-changed',kind:'changed',lesson,before:{...lesson,rooms:['A12'],status:'normal'},createdAt:now-120000,read:false},
+  {id:'demo-cancelled',kind:'cancelled',lesson:{...lesson,id:'absid:102',holds:['3a En'],rooms:['C03'],status:'cancelled'},before:null,createdAt:now-180000,read:true},
+ ];
+ store.scheduleHistory={accounts:{'123:S9':{messages,status:{state:'ok',checkedAt:now}}}};
+}
 const changes=new Set();
 const set=values=>{const diff={};for(const [key,value] of Object.entries(values)){diff[key]={oldValue:store[key],newValue:value};if(value===undefined)delete store[key];else store[key]=value;}try{sessionStorage.setItem('lectiomizer-demo-store',JSON.stringify(store));}catch{}for(const listener of changes)listener(diff,'local');};
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -59,6 +71,13 @@ async function answer(id,question,context){
 }
 
 async function message(m){
+ if(m?.type?.startsWith('schedule:')){
+  const jobs=await import('/src/notifications/store.js');
+  if(m.type==='schedule:claim')return jobs.claimSchedule(m.context,{force:m.force});
+  if(m.type==='schedule:sync')return jobs.observeSchedule(m.context,m.weeks,m.token,m.unread,Date.now(),m.feeds);
+  if(m.type==='schedule:read')return jobs.markScheduleRead(m.context,m.ids);
+  if(m.type==='schedule:failed')return jobs.failSchedule(m.context,m.token,'Demo-skemaet kunne ikke læses.');
+ }
  switch(m?.type){
   case 'chat:connect':account({pending:true,message:''});await wait(900);account({pending:false,connected:true,planEnabled:true,email:'demo.elev@example.com',models:demoModels,modelsAt:Date.now()});return {ok:true,started:true};
   case 'chat:cancel':account({pending:false});return {ok:true};

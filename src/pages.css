@@ -1,5 +1,5 @@
 /* Page workspaces replace the content topology; the approved shell stays. */
-body.lx-enabled #contenttable.lx-page-workspace{max-width:1440px!important;margin:0 auto!important;container-type:inline-size}
+body.lx-enabled #contenttable.lx-page-workspace{max-width:none!important;margin:0!important;container-type:inline-size}
 body.lx-enabled .lx-page-intro{padding:8px 0 28px;max-width:72ch}
 body.lx-enabled #contenttable .lx-page-intro h2{font-size:23px!important;margin:0 0 6px!important;letter-spacing:-.025em;color:var(--lx-ink)!important}
 body.lx-enabled .lx-page-intro p{font-size:15px!important;line-height:1.5!important;color:var(--lx-muted);margin:0}

@@ -8,6 +8,7 @@ export const GOOGLE_CLIENT_ID = typeof __GOOGLE_CLIENT_ID__ === 'string' ? __GOO
 export const WEEK_CHOICES = [1, 2, 4, 8];
 // How often an open Lectio tab fetches the Skema on its own.
 export const INTERVALS = [
+  { minutes: 3, label: 'Hvert 3. minut' },
   { minutes: 15, label: 'Hvert kvarter' },
   { minutes: 30, label: 'Hver halve time' },
   { minutes: 60, label: 'Hver time' },

@@ -118,7 +118,7 @@ async function visit(path,{newTab=false}={}){
  return {window,doc:window.document};
 }
 const chatLink=doc=>doc.querySelector('.lx-navigation a[href="#lectiomizer-chat"]');
-const clickSuggestion=(doc,pattern)=>Array.from(doc.querySelectorAll('.lx-chat-suggestions button')).find(b=>pattern.test(b.textContent)).click();
+const clickSuggestion=async(doc,pattern)=>{const button=()=>Array.from(doc.querySelectorAll('.lx-chat-suggestions button')).find(b=>pattern.test(b.textContent));await until(button);button().click();};
 const assistantText=(doc,i=0)=>doc.querySelectorAll('.lx-chat-assistant')[i]?.textContent||'';
 
 test('the Chat page answers with Lectio data the model read through a tool in the tab',async()=>{
@@ -132,7 +132,7 @@ test('the Chat page answers with Lectio data the model read through a tool in th
  assert.equal(doc.querySelector('.lx-topbar h1').textContent,'Chat');
  assert.equal(doc.getElementById('masterContent').inert,true);
 
- clickSuggestion(doc,/opgaver/);
+ await clickSuggestion(doc,/opgaver/);
  await until(()=>doc.querySelector('.lx-chat-assistant .lx-md')&&!doc.querySelector('.lx-chat-stop'));
  assert.equal(bodies[0].model,'gpt-test');
  assert.equal(bodies[0].tools[0].type,'namespace');
@@ -171,7 +171,7 @@ test('an answer keeps running while the student browses Lectio, and is there whe
  );
  rounds.push(slow.round);
  let {doc}=await visit('/lectio/123/forside.aspx#lectiomizer-chat');
- clickSuggestion(doc,/i morgen/);
+ await clickSuggestion(doc,/i morgen/);
  await until(()=>/Først det ene/.test(assistantText(doc)));
 
  // Off to Opgaver: the Chat page is gone, the answer is not.
@@ -197,7 +197,7 @@ test('an answer that finishes elsewhere is marked new until the student opens it
  const slow=gated([{type:'response.output_item.added',item:{type:'message',id:'m',phase:'final_answer'}}],answer('m','Færdig.').slice(1));
  rounds.push(slow.round);
  let {doc}=await visit('/lectio/123/forside.aspx#lectiomizer-chat');
- clickSuggestion(doc,/fravær/);
+ await clickSuggestion(doc,/fravær/);
  await until(()=>doc.querySelector('.lx-chat-stop'));
  ({doc}=await visit('/lectio/123/OpgaverElev.aspx'));
  slow.open();
@@ -216,7 +216,7 @@ test('a failed answer offers Prøv igen, which asks again and replaces it',async
  const warn=console.warn;console.warn=()=>{};
  try{
   const {doc}=await visit('/lectio/123/forside.aspx#lectiomizer-chat');
-  clickSuggestion(doc,/i morgen/);
+  await clickSuggestion(doc,/i morgen/);
   await until(()=>doc.querySelector('.lx-chat-error'));
   assert.match(doc.querySelector('.lx-chat-error').textContent,/ChatGPT svarede: Something went wrong/);
   assert.equal(doc.querySelector('.lx-chat-error-info').textContent,'kode invalid_prompt');

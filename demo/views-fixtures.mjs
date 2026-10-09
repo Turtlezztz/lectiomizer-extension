@@ -151,7 +151,11 @@ export function contextCard(cardId) {
   const person = [...Object.values(threadPeople), ...Object.values(recipientLists).flat().map(([title, key]) => [key, title])].find(([candidate]) => candidate === cardId);
   if (!person || !/^[UST]/.test(cardId)) return '<div>Ukendt</div>';
   const src = [threadPeople.mikkel[0], 'S300003'].includes(cardId) ? '/lectio/img/defaultfoto_small.jpg' : `/lectio/123/GetImage.aspx?pictureid=${cardId.slice(1)}`;
-  return `<table><tr><td><img src="${src}" alt=""></td><td>${person[1]}</td></tr></table>`;
+  const title = person[1];
+  const name = title.replace(/\s*\([^()]*\)$/, '');
+  const teacher = /\([a-z]+\)$/i.test(title);
+  const extra = teacher ? '<tr><td>Initialer:</td><td>lm</td></tr>' : '<tr><td>Stamklasse:</td><td>3a</td></tr>';
+  return `<span class="lcc-title" style="display:none">${teacher ? 'Lærer' : 'Elev'} - ${name}</span><table><tr><td><img src="${src}" alt=""></td><td><table>${extra}</table></td></tr></table><ul><li><a href="/lectio/123/beskeder2.aspx?type=nybesked&amp;sendids=${cardId}">Send besked</a></li><li><a href="/lectio/123/SkemaNy.aspx?${teacher ? 'laererid' : 'elevid'}=${cardId.slice(1)}">Skema</a></li></ul>`;
 }
 export function portrait(pictureId) {
   const hues = { 100001: 18, 100002: 200, 100004: 150, 200001: 18, 200002: 330, 200003: 45, 300001: 200, 300004: 150, 300005: 280 };

@@ -18,7 +18,7 @@ test('the time column\'s modules give the schedule its scale',()=>{
  assert.ok(Math.abs(scale(minutes(14,30))-24.73)<.15);
 });
 
-test('now is a line through today\'s column and the time in the time column',()=>{
+test('now is a line through today\'s column with no time label',()=>{
  const doc=page(schedule());
  markNow(doc,new Date(2026,9,7,10,0));
  const all=lines(doc);
@@ -27,19 +27,16 @@ test('now is a line through today\'s column and the time in the time column',()=
  assert.equal(today.closest('td').cellIndex,3);
  assert.ok(top(today)>5.09&&top(today)<9.55);
  assert.ok(all.every(line=>line.style.top===today.style.top&&line.getAttribute('aria-hidden')==='true'));
- const label=doc.querySelector('.lx-now-time');
- assert.equal(label.closest('td').cellIndex,0);
- assert.equal(label.textContent,'10:00');
+ assert.equal(doc.querySelector('.lx-now-time'),null);
 
  // Later the same markers move down; nothing is added.
  markNow(doc,new Date(2026,9,7,13,0));
- assert.deepEqual([lines(doc).length,doc.querySelectorAll('.lx-now-time').length],[5,1]);
+ assert.equal(lines(doc).length,5);
  assert.equal(doc.querySelector('.lx-now-today'),today);
  assert.ok(top(today)>15.82&&top(today)<20.27);
- assert.equal(label.textContent,'13:00');
 
  clearNow(doc);
- assert.equal(doc.querySelectorAll('.lx-now-line,.lx-now-time').length,0);
+ assert.equal(doc.querySelectorAll('.lx-now-line').length,0);
 });
 
 test('no line on days and times the week does not show',()=>{
@@ -48,7 +45,7 @@ test('no line on days and times the week does not show',()=>{
  assert.equal(lines(doc).length,0);
  markNow(doc,new Date(2026,9,7,10,0));
  markNow(doc,new Date(2026,9,7,4,0)); // before the first module
- assert.equal(doc.querySelectorAll('.lx-now-line,.lx-now-time').length,0);
+ assert.equal(doc.querySelectorAll('.lx-now-line').length,0);
  markNow(doc,new Date(2026,9,7,23,30)); // after the day's last em
  assert.equal(lines(doc).length,0);
 });
@@ -65,8 +62,6 @@ test('lesson tooltips give the scale and keep another year\'s week unmarked',()=
  const today=doc.querySelector('.lx-now-today');
  assert.equal(today.closest('td').cellIndex,1);
  assert.ok(Math.abs(top(today)-45*k)<.01);
- // The fixture has no time column, so there is no label.
- assert.equal(doc.querySelector('.lx-now-time'),null);
 
  // 5/10 in 2025 is the same day and month in week 40.
  markNow(doc,new Date(2025,9,5,9,0));

@@ -96,6 +96,9 @@ export function readSchedule(doc) {
   const lessons = new Map();
   for (const brick of doc.querySelectorAll('table.s2skema .s2skemabrik')) {
     const lesson = readScheduleLesson(brick);
+    // A partly unreadable timetable is not an empty/removed lesson. Preserve
+    // its previous snapshot (and Google events) until the entire week is read.
+    if (!lesson && brick.hasAttribute('href')) throw new ReaderError('Et modul i skemaet kunne ikke læses');
     if (lesson && !lessons.has(lesson.id)) lessons.set(lesson.id, lesson);
   }
   return Array.from(lessons.values());

@@ -331,7 +331,7 @@ The palette is a white utility surface with dark ink, cool gray rules and red ac
 
 ## Layout
 
-The desktop shell fixes a left rail (216px) and toolbar (76px), with native content below and to their right. The default workspace inset is 24px; native content begins 18px below its frame. The nine page workspaces are centered within a 1440px maximum width. The shared fallback retains 18px panel gaps; open workspace sections use 28px separation, and page introductions use 8px top / 28px bottom padding. Compact table cells use the frontmatter spacing tokens; the comfortable setting changes workspace spacing to 32px and ordinary table vertical padding to 15px.
+The desktop shell fixes a left rail (216px) and toolbar (76px), with native content below and to their right. The default workspace inset is 24px; native content begins 18px below its frame. React views and native page workspaces fill the available shell width, including when the sidebar is collapsed. The native `#contenttable.ls-content` is explicitly a block, overriding Lectio’s shrink-wrapping table-cell layout; contextual Help remains above it. Reading limits apply to individual paragraphs, not whole pages. Assignment details and homepage side columns grow within bounded widths on large screens; their existing mobile stacking remains. The shared fallback retains 18px panel gaps; open workspace sections use 28px separation, and page introductions use 8px top / 28px bottom padding. Compact table cells use the frontmatter spacing tokens; the comfortable setting changes workspace spacing to 32px and ordinary table vertical padding to 15px.
 
 Responsive behavior follows the built CSS cascade:
 

@@ -14,6 +14,20 @@ export function cleanLabel(value = '') {
   return value.replace(/\b(search|calendar_month|keyboard_arrow_left|keyboard_arrow_right|login|logout|fiber_manual_record)\b/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// Lectio's GetImage.aspx returns a small thumbnail unless asked for the full
+// picture; avatars and profile cards are shown far larger than that.
+export function fullPhoto(href) {
+  if (!href) return href;
+  try {
+    const url = new URL(href);
+    if (!/\/GetImage\.aspx$/i.test(url.pathname)) return href;
+    url.searchParams.delete('maxwidth');
+    url.searchParams.delete('maxheight');
+    url.searchParams.set('fullsize', '1');
+    return url.href;
+  } catch { return href; }
+}
+
 export function schoolBase(url) {
   const match = new URL(url).pathname.match(/^\/lectio\/(\d+)\//i);
   return match ? `/lectio/${match[1]}/` : null;

@@ -4,7 +4,7 @@ import {JSDOM} from 'jsdom';
 import {readFile} from 'node:fs/promises';
 import {fixture} from '../demo/fixtures.mjs';
 import {readModel} from '../src/model.js';
-import {contextCard,dropDown,recipientRow} from '../demo/views-fixtures.mjs';
+import {contextCard,dropDown,recipientRow,homePage} from '../demo/views-fixtures.mjs';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const opened=new Set();
 after(()=>{for(const dom of opened)dom.window.close();});
@@ -268,7 +268,7 @@ test('a new message picks recipients from Lectio\'s lists and writes into Lectio
  for(let i=0;i<40&&view.querySelector('.lx-pending');i++)await delay(10);
  assert.deepEqual(Array.from(view.querySelectorAll('.lx-recipient > span:not(.lx-avatar)'),c=>c.textContent),['Lene Madsen','3a Da']);assert.ok(view.querySelectorAll('.lx-recipient')[1].querySelector('.lx-avatar svg'));
  assert.equal(doc.activeElement,to);
- view.querySelector('.lx-recipient button').click();assert.equal(removed,1);
+ view.querySelector('.lx-recipient button[aria-label^="Fjern"]').click();assert.equal(removed,1);
  doc.querySelector('[id$="ThreadRecipientsGV"] tr:nth-child(2)').remove();
  for(let i=0;i<40&&view.querySelectorAll('.lx-recipient').length!==1;i++)await delay(10);
  assert.deepEqual(Array.from(view.querySelectorAll('.lx-recipient > span:not(.lx-avatar)'),c=>c.textContent),['3a Da']);assert.equal(view.querySelector('.lx-pending'),null);
@@ -293,7 +293,12 @@ test('a thread Lectiomizer can\'t read, one being edited, or a new message witho
 });
 
 test('home leads with the running lesson, ranks what needs you and keeps today beside it',async()=>{
- const dom=await mount('/lectio/123/forside.aspx');const doc=dom.window.document;const view=doc.querySelector('.lx-view[data-lx-view="home"]');
+ // Fix the clock so relative fixture lessons cannot spill across midnight.
+ const fixed=new Date(2026,9,5,12);
+ const dom=await mount('/lectio/123/forside.aspx',doc=>{
+  doc.querySelector('#contenttable').replaceChildren(...JSDOM.fragment(homePage(fixed)).childNodes);
+  const NativeDate=doc.defaultView.Date;doc.defaultView.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:[fixed.getTime()]));}static now(){return fixed.getTime();}};
+ });const doc=dom.window.document;const view=doc.querySelector('.lx-view[data-lx-view="home"]');
  assert.ok(view.previousSibling?.nodeType===8&&/THESIS:/.test(view.previousSibling.data));
  const now=view.querySelector('.lx-now');assert.equal(now.querySelector('h2').textContent,'3a Da');assert.equal(now.querySelector('.lx-now-state').textContent,'Nu');assert.ok(now.querySelector('[role="progressbar"]'));
  assert.match(now.querySelector('.lx-now-meta').textContent,/lm · lokale A12/);
@@ -309,4 +314,55 @@ test('home leads with the running lesson, ranks what needs you and keeps today b
  const side=view.querySelector('.lx-home-side');assert.equal(side.querySelectorAll('.lx-day-row').length,5);assert.equal(side.querySelectorAll('.lx-day-past').length,0);assert.equal(side.querySelectorAll('.lx-day-live').length,1);
  assert.ok(side.querySelector('.lx-day-changed'));assert.equal(side.querySelectorAll('.lx-groups a').length,4);
  await disable(dom);assert.equal(doc.querySelector('.lx-view'),null);assert.equal(Array.from(doc.querySelector('#contenttable').childNodes).some(n=>n.nodeType===8&&/THESIS:/.test(n.data)),false);await close(dom);
+});
+
+test('profile photos open one card with native details and holds, reuse photo requests and restore focus',async()=>{
+ const asked=[];
+ const dom=await mount('/lectio/123/beskeder2.aspx?mappeid=-70&demo=traad',doc=>{
+  doc.defaultView.fetch=async href=>{
+   const u=new URL(href);asked.push(href);
+   if(u.pathname.endsWith('SkemaNy.aspx'))return {ok:true,text:async()=>'<table class="s2skema"></table><a href="/lectio/123/SkemaNy.aspx?holdid=1">3a Da</a><a href="/lectio/123/SkemaNy.aspx?holdid=2">3a En</a>'};
+   return {ok:true,text:async()=>contextCard(u.searchParams.get('lectiocontextcard'))};
+  };
+ });
+ const doc=dom.window.document;
+ const trigger=doc.querySelector('.lx-thread-log [aria-label="Vis profil for Anna Andersen"]');
+ trigger.click();await delay(30);
+ const card=doc.querySelector('#lx-person-card');assert.ok(card);
+ assert.equal(card.querySelector('h2').textContent,'Anna Andersen');
+ assert.match(card.textContent,/Stamklasse3a/);assert.match(card.textContent,/3a Da/);
+ assert.equal(card.querySelector('.lx-person-photo img').alt,'Profilbillede af Anna Andersen');
+ assert.equal(trigger.getAttribute('aria-expanded'),'true');
+ assert.equal(asked.filter(href=>href.includes('lectiocontextcard=U100002')).length,1);
+ assert.equal(doc.activeElement.getAttribute('aria-label'),'Luk profilkort');
+ doc.activeElement.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await delay(10);
+ assert.equal(doc.querySelector('#lx-person-card'),null);assert.equal(doc.activeElement,trigger);
+ trigger.click();await delay(10);
+ doc.querySelector('.lx-thread-log [aria-label="Vis profil for Mikkel Holm"]').click();await delay(20);
+ assert.equal(doc.querySelectorAll('#lx-person-card').length,1);assert.equal(doc.querySelector('#lx-person-name').textContent,'Mikkel Holm');
+ assert.match(doc.querySelector('#lx-person-card').textContent,/Intet profilbillede/);
+ doc.querySelector('.lx-topbar').dispatchEvent(new dom.window.Event('pointerdown',{bubbles:true}));await delay(10);
+ assert.equal(doc.querySelector('#lx-person-card'),null);
+ await close(dom);
+});
+
+test('profile card retains the name on network failure and can retry successfully',async()=>{
+ let fail=true;
+ const dom=await mount('/lectio/123/beskeder2.aspx?mappeid=-70&demo=traad',doc=>{
+  doc.defaultView.fetch=async href=>{
+   if(fail)throw new Error('offline');
+   const u=new URL(href);
+   if(u.pathname.endsWith('SkemaNy.aspx'))return {ok:true,text:async()=>'<table class="s2skema"></table>'};
+   return {ok:true,text:async()=>contextCard(u.searchParams.get('lectiocontextcard'))};
+  };
+ });
+ const doc=dom.window.document;
+ doc.querySelector('.lx-thread-log [aria-label="Vis profil for Anna Andersen"]').click();await delay(20);
+ assert.equal(doc.querySelector('#lx-person-name').textContent,'Anna Andersen');
+ assert.match(doc.querySelector('#lx-person-card').textContent,/Oplysningerne kunne ikke hentes/);
+ fail=false;doc.querySelector('.lx-person-status button').click();await delay(30);
+ assert.match(doc.querySelector('#lx-person-card').textContent,/Stamklasse3a/);
+ assert.doesNotMatch(doc.querySelector('#lx-person-card').textContent,/Oplysningerne kunne ikke hentes/);
+ await disable(dom);assert.equal(doc.querySelector('#lx-person-card'),null);
+ await close(dom);
 });

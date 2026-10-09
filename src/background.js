@@ -7,6 +7,10 @@ import { cancelSignIn, hasChatConsent, onCallbackRequest, onTabRemoved, onTabUpd
 import { resetActivity, retryAnswer, send, stop, watch } from './chat/jobs.js';
 import { GOOGLE_CLIENT_ID, loadCalendar, saveCalendar, saveCalendarStatus } from './calendar/store.js';
 import { GoogleError, authorize, createClient, ensureCalendar, syncCalendar } from './calendar/google.js';
+import { claimSchedule, observeSchedule, failSchedule, markScheduleRead } from './notifications/store.js';
+import { scheduleScope } from './notifications/changes.js';
+import { lessonToEvent } from './calendar/events.js';
+import { weeksFrom } from './readers/schedule.js';
 
 const LECTIO = ['https://www.lectio.dk/*', 'https://lectio.dk/*'];
 const isLectio = url => /^https:\/\/(www\.)?lectio\.dk\//.test(url || '');
@@ -114,12 +118,55 @@ async function openSettings() {
   return { ok: true };
 }
 
+function validSchedule(context, sender) {
+  if (!scheduleScope(context)) return false;
+  return new URL(context.scheduleHref).pathname.split('/')[2] === new URL(sender.url).pathname.split('/')[2];
+}
+
+function validWeeks(weeks) {
+  return Array.isArray(weeks) && weeks.length <= 8 && weeks.every(week =>
+    Array.isArray(week.dates) && week.dates.length === 7 && week.dates.every(date => /^\d{4}-\d{2}-\d{2}$/.test(date)) &&
+    Array.isArray(week.lessons) && week.lessons.every(lesson => lessonToEvent(lesson) && week.dates.includes(lesson.start.slice(0, 10))));
+}
+
+function validFeeds(feeds) {
+  if (!feeds || typeof feeds !== 'object') return false;
+  return ['lectioMessages', 'assignments'].every(key => feeds[key] === null || (Array.isArray(feeds[key]) && feeds[key].length <= 2000 && feeds[key].every(item =>
+    item && typeof item.id === 'string' && typeof item.title === 'string' && typeof item.href === 'string')));
+}
+
+async function readAndSync(message) {
+  // Commit local changes before contacting Google; expired sign-in or a
+  // Google outage must never stop the student's notifications.
+  const local = await observeSchedule(message.context, message.weeks, message.token, Number(message.unread) || 0, Date.now(), message.feeds);
+  if (!local.ok) return local;
+  const settings = await loadCalendar();
+  if (!settings.connected) return local;
+  const wanted = new Set(weeksFrom(new Date(), settings.weeks).map(week => week.dates[0]));
+  const calendarWeeks = message.weeks.filter(week => wanted.has(week.dates[0]));
+  if (!calendarWeeks.length) return local;
+  await saveCalendarStatus({ state: 'syncing', startedAt: Date.now(), message: '' });
+  return { ...local, calendar: await sync(calendarWeeks, settings.weeks - calendarWeeks.length) };
+}
+
 api.runtime.onMessage.addListener((message, sender) => {
   // Only extension pages (the popup) may connect. Lectio pages' settings card
   // may disconnect, start a sync, or open the popup to connect.
   const fromExtension = !sender.tab && sender.id === api.runtime.id;
   const fromLectio = !!sender.tab && isLectio(sender.url);
   switch (message?.type) {
+    case 'schedule:claim':
+      if (fromLectio && validSchedule(message.context, sender)) return claimSchedule(message.context, { force: !!message.force });
+      return;
+    case 'schedule:sync':
+      if (fromLectio && validSchedule(message.context, sender) && validWeeks(message.weeks) && validFeeds(message.feeds)) return readAndSync(message);
+      return;
+    case 'schedule:failed':
+      if (fromLectio && validSchedule(message.context, sender)) return failSchedule(message.context, message.token, 'Skemaet kunne ikke læses fra Lectio. Prøv igen.');
+      return;
+    case 'schedule:read':
+      if (fromLectio && validSchedule(message.context, sender)) return markScheduleRead(message.context, message.ids);
+      return;
     case 'calendar:sync':
       if (fromLectio && Array.isArray(message.weeks)) return sync(message.weeks, Number(message.unread) || 0);
       return;

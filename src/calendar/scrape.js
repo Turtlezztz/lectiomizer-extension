@@ -1,12 +1,12 @@
-// Content-script side of the calendar sync: while the student uses Lectio,
-// fetch the coming weeks of SkemaNy.aspx with their own session and hand the
-// lessons to the background script, which talks to Google.
+// Read Skema with the student's session for local notifications and, when
+// connected, Google Calendar. The background owns the shared read lock.
 import { api } from '../settings.js';
-import { loadCalendar, loadCalendarStatus, nextSyncAt, saveCalendarStatus } from './store.js';
+import { loadCalendar, nextSyncAt } from './store.js';
 import { readSchedule, weekUrl, weeksFrom } from '../readers/schedule.js';
+import { accountState, loadScheduleState, SCHEDULE_STATE } from '../notifications/store.js';
+import { LOCK, scheduleScope } from '../notifications/changes.js';
+import { readFeeds, assertAccount } from '../notifications/feeds.js';
 
-// Another tab may be syncing; after this long its attempt is presumed dead.
-const LOCK = 3 * 60 * 1000;
 // Let Lectio's own page settle before fetching more of it.
 const SETTLE = 2000;
 
@@ -21,9 +21,11 @@ export async function fetchPage(url) {
   return doc;
 }
 
-async function readWeek(week, scheduleHref, load) {
+async function readWeek(week, context, load) {
   try {
-    const lessons = readSchedule(await load(weekUrl(scheduleHref, week)));
+    const doc = await load(weekUrl(context.scheduleHref, week));
+    assertAccount(doc, context);
+    const lessons = readSchedule(doc);
     const inWeek = lessons.filter(lesson => week.dates.includes(lesson.start.slice(0, 10)));
     // Lectio falls back to another week on a bad ?week=; don't sync that as this one.
     if (lessons.length && !inWeek.length) throw new Error('Lectio viste en anden uge');
@@ -33,25 +35,28 @@ async function readWeek(week, scheduleHref, load) {
   }
 }
 
-export async function syncSchedule({ scheduleHref, force = false, now = Date.now(), load = fetchPage, send = message => api.runtime.sendMessage(message) }) {
+export async function syncSchedule({ scheduleHref, accountId, force = false, now = Date.now(), load = fetchPage, send = message => api.runtime.sendMessage(message) }) {
+  const context = { scheduleHref, accountId };
+  if (!scheduleScope(context)) return { started: false };
   const settings = await loadCalendar();
-  if (!settings.connected || !scheduleHref) return { started: false };
-  const status = await loadCalendarStatus();
-  if (status.state === 'syncing' && now - status.startedAt < LOCK) return { started: false, busy: true };
-  if (!force && now < nextSyncAt(settings, status)) return { started: false };
-  await saveCalendarStatus({ state: 'syncing', startedAt: now, message: '' });
-  const weeks = await Promise.all(weeksFrom(new Date(now), settings.weeks).map(week => readWeek(week, scheduleHref, load)));
-  const read = weeks.filter(week => !week.error);
-  if (!read.length) {
-    const message = 'Skemaet kunne ikke læses fra Lectio.';
-    await saveCalendarStatus({ state: 'error', checkedAt: now, message });
-    return { started: true, ok: false, message };
-  }
+  let token;
   try {
-    return { started: true, ...await send({ type: 'calendar:sync', weeks: read, unread: weeks.length - read.length }) };
+    const claim = await send({ type: 'schedule:claim', context, force });
+    if (!claim?.started) return claim || { started: false };
+    token = claim.token;
+    // Notifications always cover at least four weeks, even if Google only
+    // receives one. Both consumers share these exact reads.
+    const count = Math.max(4, Number(settings.weeks) || 4);
+    const [weeks, feeds] = await Promise.all([
+      Promise.all(weeksFrom(new Date(now), count).map(week => readWeek(week, context, load))),
+      readFeeds(context, load),
+    ]);
+    const read = weeks.filter(week => !week.error);
+    if (!read.length && !Array.isArray(feeds.lectioMessages) && !Array.isArray(feeds.assignments)) return { started: true, ...await send({ type: 'schedule:failed', context, token }) };
+    return { started: true, ...await send({ type: 'schedule:sync', context, token, weeks: read, feeds, unread: weeks.length - read.length }) };
   } catch {
-    const message = 'Lectiomizer kunne ikke nå Google-synkroniseringen. Genindlæs siden og prøv igen.';
-    await saveCalendarStatus({ state: 'error', checkedAt: now, message });
+    const message = 'Lectiomizer kunne ikke tjekke skemaet. Genindlæs siden og prøv igen.';
+    if (token) await send({ type: 'schedule:failed', context, token }).catch(() => {});
     return { started: true, ok: false, message };
   }
 }
@@ -65,22 +70,28 @@ export function nextAttempt(settings, status, now = Date.now()) {
 // Called once per authenticated top-level page. Every open Lectio tab keeps a
 // timer for the next fetch; whichever fires first syncs, and the new status
 // moves every tab's timer on.
-export function watchSchedule(scheduleHref) {
+export function watchSchedule(getContext) {
   if (!api?.runtime?.onMessage) return;
-  api.runtime.onMessage.addListener(message => {
-    if (message?.type === 'calendar:sync-now') return syncSchedule({ scheduleHref: scheduleHref(), force: true });
-  });
+  const onMessage = message => {
+    if (message?.type === 'calendar:sync-now') return syncSchedule({ ...getContext(), force: true });
+  };
+  api.runtime.onMessage.addListener(onMessage);
   let timer;
-  const run = () => syncSchedule({ scheduleHref: scheduleHref() })
-    .catch(error => console.warn('Lectiomizer: kalendersynkronisering fejlede:', error))
+  let stopped = false;
+  const run = () => syncSchedule({ ...getContext() })
+    .catch(error => console.warn('Lectiomizer: skematjek fejlede:', error))
     .finally(plan);
   async function plan() {
-    const [settings, status] = await Promise.all([loadCalendar(), loadCalendarStatus()]);
+    const [settings, state] = await Promise.all([loadCalendar(), loadScheduleState()]);
     clearTimeout(timer);
-    if (settings.connected) timer = setTimeout(run, nextAttempt(settings, status) - Date.now());
+    const context = getContext();
+    const scope = scheduleScope(context);
+    if (!stopped && scope) timer = setTimeout(run, nextAttempt(settings, accountState(state, scope).status || {}) - Date.now());
   }
-  api.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && (changes.calendar || changes.calendarStatus)) plan();
-  });
+  const onStorage = (changes, area) => {
+    if (area === 'local' && (changes.calendar || changes[SCHEDULE_STATE])) plan();
+  };
+  api.storage.onChanged.addListener(onStorage);
   plan();
+  return () => { stopped = true; clearTimeout(timer); api.storage.onChanged.removeListener(onStorage); api.runtime.onMessage.removeListener?.(onMessage); };
 }

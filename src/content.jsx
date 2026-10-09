@@ -13,6 +13,11 @@ import { ChatPage } from './chat/ChatPage.jsx';
 import { ChatPanel } from './chat/ChatPanel.jsx';
 import { ACTIVITY, loadActivity } from './chat/store.js';
 import { createTools } from './chat/tools.js';
+import { scheduleContext } from './notifications/context.js';
+import { Notifications } from './notifications/Notifications.jsx';
+import { Avatar } from './views/avatars.jsx';
+import { ProfileCards } from './views/ProfileCard.jsx';
+import { readMe } from './readers/thread.js';
 
 const directionContract = `THESIS: Compact makes Lectio's daily tasks scannable through one persistent sidebar and aligned native content.
 OWN-WORLD: White ground, utility-red selection, Source Sans 3, fine rules, quiet lesson fills and Lucide icons.
@@ -96,7 +101,8 @@ function Shell({ initialModel,initialPrefs }) {
  const profile=model.nav.find(n=>n.label==='Profil');
  const nativeSearch=document.querySelector('[id$="mastersearchbtn"]');
  const term=document.querySelector('[id$="ChooseTerm_term"]');
- const initials=model.name==='Lectio'?'L':model.name.split(' ').filter(Boolean).slice(0,2).map(n=>n[0]).join('');
+ const me=readMe(document);
+ const ownPerson={id:me.ids[0],name:model.name,own:true};
  if(!prefs.enabled) return <button type="button" className="lx-reenable" onClick={()=>update({enabled:true})}><BookOpen size={18}/> Aktivér Lectiomizer</button>;
  const link=(item,extra='')=>{const Icon=iconFor[item.label]||LayoutGrid;const active=!showChat&&(routeKey(item.href)===routeKey(model.url)||(!model.nav.some(n=>routeKey(n.href)===routeKey(model.url))&&({assignments:'Opgaver',assignment:'Opgaver',activity:'Skema',messages:'Beskeder',absence:'Fravær',grades:'Karakterer',documents:'Dokumenter',study:'Studieplan',homework:'Lektier'})[model.kind]===item.label));return <a key={item.href} className={`lx-navlink ${active?'lx-active':''} ${extra}`} href={item.href} aria-current={active?'page':undefined} title={prefs.collapsed?item.label:undefined} onClick={e=>{setMobileOpen(false);followSource(e,item);}}><Icon size={20} strokeWidth={1.8} aria-hidden="true"/><span>{item.label}</span></a>;};
  // Chat closes the daily group, just above the divider before Studieplan.
@@ -104,6 +110,7 @@ function Shell({ initialModel,initialPrefs }) {
  const chatAt=studyAt>0?studyAt:-1;
  const chatLink=chatAvailable&&<a key="lx-chat" className={`lx-navlink ${showChat?'lx-active':''}`} href={CHAT_HASH} aria-current={showChat?'page':undefined} title={prefs.collapsed?'Chat':undefined} onClick={()=>setMobileOpen(false)}><MessagesSquare size={20} strokeWidth={1.8} aria-hidden="true"/><span>Chat</span>{chatActivity.running.length>0?<i className="lx-chat-dot lx-chat-dot-running" title="Svarer…" aria-label="Et svar er på vej"/>:chatActivity.unread.length>0&&!showChat?<i className="lx-chat-dot" title="Nyt svar" aria-label="Nyt svar"/>:null}</a>;
  return <>
+  <ProfileCards />
   <a className="lx-skip" href="#contenttable">Spring til indhold</a>
   {mobileOpen&&<button className="lx-scrim" type="button" tabIndex={-1} aria-label="Luk navigation" onClick={()=>setMobileOpen(false)}/>}
   <aside ref={sidebar} id="lx-sidebar" inert={isMobile&&!mobileOpen} className={`lx-sidebar ${mobileOpen?'lx-open':''}`} aria-label="Lectio navigation">
@@ -115,7 +122,7 @@ function Shell({ initialModel,initialPrefs }) {
     {isMobile&&term&&!term.disabled&&<label className="lx-sidebar-year">Skoleår<select aria-label="Skoleår i sidepanel" value={term.value} onChange={e=>{term.value=e.target.value;term.dispatchEvent(new Event('change',{bubbles:true}));setModel(readModel());}}>{Array.from(term.options).map(o=><option key={o.value} value={o.value}>{o.textContent}</option>)}</select></label>}
     <div className="lx-utilities">{utility.map(item=>link(item,'lx-utility'))}</div>
     <button type="button" className="lx-collapse lx-navlink" onClick={()=>update({collapsed:!prefs.collapsed})} aria-label={prefs.collapsed?'Udvid sidepanel':'Minimer sidepanel'} title={prefs.collapsed?'Udvid sidepanel':undefined}>{prefs.collapsed?<PanelLeftOpen size={20}/>:<PanelLeftClose size={20}/>}<span>Minimer sidepanel</span></button>
-    <a className="lx-profile" href={profile?.href||model.nav.find(n=>n.label==='Log ind')?.href||'#'} onClick={e=>profile&&followSource(e,profile)} title={model.name}><span className="lx-avatar">{model.photo?<img src={model.photo} alt="" onError={e=>{e.currentTarget.hidden=true;}}/>:initials}</span><span className="lx-profile-text"><strong>{model.name}</strong><small>{model.authenticated?'Min profil':'Velkommen'}</small></span><ChevronRight size={16}/></a>
+    <div className="lx-profile"><Avatar person={ownPerson} photo={model.photo} size={34} /><a className="lx-profile-link" href={profile?.href||model.nav.find(n=>n.label==='Log ind')?.href||'#'} onClick={e=>profile&&followSource(e,profile)} title={model.name}><span className="lx-profile-text"><strong>{model.name}</strong><small>{model.authenticated?'Min profil':'Velkommen'}</small></span><ChevronRight size={16}/></a></div>
    </div>
   </aside>
   <header className="lx-topbar">
@@ -126,6 +133,7 @@ function Shell({ initialModel,initialPrefs }) {
      <div className="lx-searchbox"><Search size={18}/><input ref={searchRef} aria-label="Søg i navigation og på denne side" placeholder="Søg i Lectio…" value={query} onFocus={()=>setSearchOpen(true)} onChange={e=>{setQuery(e.target.value);setSearchOpen(true);}} aria-expanded={searchOpen} aria-controls="lx-search-results" onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setActiveResult(i=>Math.min(i+1,results.length-1));}if(e.key==='ArrowUp'){e.preventDefault();setActiveResult(i=>Math.max(i-1,0));}if(e.key==='Enter'&&results[activeResult]){e.preventDefault();searchArea.current?.querySelector(`[data-result="${activeResult}"]`)?.click();}}}/><kbd>⌘ K</kbd></div>
      {searchOpen&&<div id="lx-search-results" className="lx-search-results"><div className="lx-result-caption">{query?'Søgeresultater':'Gå direkte til'}</div>{results.length?results.map((item,i)=><a data-result={i} key={item.href+item.label} className={`lx-result ${i===activeResult?'lx-result-selected':''}`} href={item.href} onClick={e=>{setSearchOpen(false);followSource(e,item);}}><span>{item.label}</span><small>{item.group}</small><ArrowUpRight size={16}/></a>):<p className="lx-empty">Ingen resultater. Prøv et andet ord.</p>}{nativeSearch&&<button type="button" className="lx-native-search" onClick={()=>{setSearchOpen(false);nativeSearch.click();}}>Søg i beskeder og dokumenter <ArrowUpRight size={15}/></button>}</div>}
     </div>
+    <Notifications context={scheduleContext(model)} onOpen={()=>{setSettingsOpen(false);setSearchOpen(false);}}/>
     <div ref={settingsArea} className="lx-settings-area"><button className="lx-icon-button" type="button" aria-label="Lectiomizer indstillinger" aria-expanded={settingsOpen} onClick={()=>setSettingsOpen(o=>!o)}><SlidersHorizontal size={20}/></button>{settingsOpen&&<section className="lx-settings-panel" aria-labelledby="lx-settings-title"><h2 id="lx-settings-title">Dit Lectiomizer</h2><label className="lx-setting"><span><strong>Afstand</strong><small>Vælg hvor tæt indholdet står</small></span><select value={prefs.density} onChange={e=>update({density:e.target.value})}><option value="compact">Kompakt</option><option value="comfortable">Luftig</option></select></label><label className="lx-setting"><span><strong>Lille sidepanel</strong><small>Vis kun ikoner på større skærme</small></span><input type="checkbox" role="switch" checked={prefs.collapsed} onChange={e=>update({collapsed:e.target.checked})}/></label><CalendarPanel embedded/>{chatAvailable&&<ChatPanel embedded/>}<div className="lx-settings-footer"><button type="button" className="lx-show-original" onClick={()=>update({enabled:false})}>Vis Lectios oprindelige design</button><p>Skolens indhold og handlinger kommer fra Lectio.</p></div></section>}</div>
    </div>
   </header>
@@ -140,8 +148,8 @@ export async function boot() {
  if(window.top!==window){document.body.classList.toggle('lx-embedded',initialPrefs.enabled);document.dispatchEvent(new Event('lectiomizer:ready'));api?.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.preferences)document.body.classList.toggle('lx-embedded',changes.preferences.newValue?.enabled!==false);});return;}
  document.body.prepend(document.createComment(directionContract));
  const model=readModel();
- // Calendar sync runs whether or not the redesign is switched on.
- if(model.authenticated)watchSchedule(()=>readModel().nav.find(n=>n.label==='Skema')?.href);
+ // Local change detection and calendar sync also run with the original design.
+ const stopSchedule=model.authenticated?watchSchedule(()=>scheduleContext(readModel())):null;
  // The chat's answers run in the background script, which hands the model's
  // tool calls to an open Lectio tab of the same school: it has the session.
  if(model.authenticated&&model.base)api?.runtime?.onMessage.addListener(message=>{
@@ -165,7 +173,7 @@ export async function boot() {
  if(observed)observer.observe(observed,{subtree:true,childList:true});
  // Moves the schedule's current-time line along while the page stays open.
  const clock=setInterval(()=>{const table=document.querySelector('#contenttable');if(table&&document.body.classList.contains('lx-enabled'))markNow(table);},30000);
- window.addEventListener('pagehide',event=>{if(event.persisted)return;observer.disconnect();clearTimeout(timer);clearInterval(clock);unmountView();restorePages();reactRoot.unmount();},{once:true});
+ window.addEventListener('pagehide',event=>{if(event.persisted)return;stopSchedule?.();observer.disconnect();clearTimeout(timer);clearInterval(clock);unmountView();restorePages();reactRoot.unmount();},{once:true});
 }
 
 export function prepareNative() {

@@ -1,0 +1,41 @@
+/* The shared Lectio notification centre inherits the Compact shell. */
+.lx-notifications-area{position:relative}
+.lx-notifications-bell{position:relative}
+.lx-notifications-count{position:absolute;top:0;right:0;min-width:18px;height:18px;display:grid;place-items:center;padding:0 3px;background:var(--lx-accent);color:var(--lx-bg);border-radius:999px;font-size:12px;font-weight:650;line-height:1}
+.lx-notifications-panel{position:absolute;z-index:1300;top:46px;right:0;width:420px;max-width:calc(100vw - 24px);max-height:calc(100dvh - var(--lx-toolbar) - 16px);display:flex;flex-direction:column;overflow:hidden;background:var(--lx-bg);color:var(--lx-ink);border:1px solid var(--lx-rule);border-radius:12px}
+.lx-notifications-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px 0}
+.lx-notifications-heading h2{margin:0;font-size:19px;font-weight:650}
+.lx-notifications-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 16px 12px;border-bottom:1px solid var(--lx-rule);font-size:13px;color:var(--lx-muted)}
+.lx-notifications-tools .lx-text-button{display:flex;align-items:center;gap:5px;font-size:13px!important}
+.lx-notifications-list{margin:0;padding:0;list-style:none;overflow-y:auto;overscroll-behavior:contain;min-height:0;flex:1}
+.lx-notification{padding:16px;border-bottom:1px solid var(--lx-rule)}
+.lx-notification:last-child{border-bottom:0}
+.lx-notification-unread{background:var(--lx-surface)}
+.lx-notification-meta{display:flex;gap:8px;align-items:center;margin-bottom:7px;color:var(--lx-muted);font-size:12px}
+.lx-notification-meta time{margin-left:auto}
+.lx-notification-kind{font-weight:600;color:var(--lx-ink)}
+.lx-notification-kind[data-kind="cancelled"],.lx-notification-kind[data-kind="removed"]{color:#98242a}
+.lx-notification-kind[data-kind="changed"],.lx-notification-kind[data-kind="restored"]{color:#1f5b2c}
+.lx-notification-dot{width:7px;height:7px;background:var(--lx-accent);border-radius:50%;flex-shrink:0}
+.lx-notification-title{display:block;font-size:15px;line-height:1.45;font-weight:600;overflow-wrap:anywhere;color:var(--lx-ink)!important;text-decoration:none}
+a.lx-notification-title:hover{text-decoration:underline;color:var(--lx-accent)!important}
+.lx-notification-time{margin:5px 0 0;color:var(--lx-muted);font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.lx-notification-detail{margin:9px 0 0;font-size:14px;line-height:1.5;white-space:pre-line;overflow-wrap:anywhere}
+.lx-notification-read{margin-top:9px;font-size:13px!important}
+.lx-notifications-empty{padding:32px 24px;text-align:center;overflow:auto}
+.lx-notifications-empty>svg{display:block;margin:0 auto 12px;color:var(--lx-muted)}
+.lx-notifications-empty strong{font-size:17px;font-weight:600}
+.lx-notifications-empty p{margin:8px auto 0;max-width:32ch;line-height:1.5;color:var(--lx-muted)}
+.lx-notifications-footer{padding:8px 16px 16px;border-top:1px solid var(--lx-rule);flex-shrink:0}
+.lx-notifications-check{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lx-notifications-check p{margin:0;font-size:13px;color:var(--lx-muted)}
+.lx-notifications-interval{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;font-size:14px}
+#lectiomizer-root .lx-notifications-interval select{font-size:14px;max-width:180px;padding:7px;border:1px solid var(--lx-rule);border-radius:7px;background:var(--lx-bg);color:var(--lx-ink)}
+.lx-notifications-note{font-size:12px;line-height:1.45;color:var(--lx-muted);margin:12px 0 0}
+.lx-notifications-error{font-size:13px;line-height:1.45;color:var(--lx-accent);margin:4px 0 8px}
+.lx-notification-toast{position:fixed;z-index:1400;right:24px;bottom:24px;width:380px;max-width:calc(100vw - 28px);padding:16px;border:1px solid var(--lx-rule);border-radius:12px;background:var(--lx-bg);color:var(--lx-ink);overflow-wrap:anywhere}
+.lx-notification-toast strong{font-weight:600;font-size:15px;line-height:1.45}
+.lx-notification-toast p{margin:5px 0 0;font-size:13px;color:var(--lx-muted);line-height:1.45}
+.lx-notification-toast-actions{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+@media(max-width:640px){.lx-notifications-panel{position:fixed;top:62px;right:12px;left:12px;width:auto;max-height:calc(100dvh - 76px)}.lx-notifications-area .lx-icon-button{width:44px;height:44px}.lx-notifications-count{top:2px;right:2px}.lx-notifications-tools{flex-wrap:wrap;gap:4px}.lx-notifications-panel .lx-text-button{min-height:44px}#lectiomizer-root .lx-notifications-interval select{min-height:44px}.lx-notifications-heading{padding-top:8px}.lx-notification-toast{right:14px;bottom:14px}.lx-topbar-actions{flex-shrink:0}}
+@media(max-height:500px){.lx-notifications-panel{overflow-y:auto}.lx-notifications-list{flex:none;overflow:visible}}

@@ -10,7 +10,8 @@ body.lx-enabled :focus-visible,body.lx-embedded :focus-visible{outline:2px solid
 body.lx-enabled #masterContent,body.lx-enabled .ls-master-container1,body.lx-enabled .ls-master-container2{display:block!important;width:auto!important;max-width:none!important;min-width:0!important;margin:0!important;background:#fff!important;padding:0!important;height:auto!important}
 body.lx-enabled #aspnetForm{min-width:0!important;margin:0!important}
 body.lx-enabled [id$="outerContentFrameDiv"]{width:auto!important;max-width:none!important;min-width:0!important;margin:0!important;padding:18px var(--lx-gap) 32px!important;background:#fff!important;border:0!important}
-body.lx-enabled #contenttable{min-width:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:transparent!important;line-height:1.45}
+/* Lectio's ls-content is a table cell: width:100% alone still shrink-wraps it. */
+body.lx-enabled #contenttable{display:block!important;min-width:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:transparent!important;line-height:1.45}
 body.lx-enabled [id$="masterHeaderDiv"],body.lx-enabled [id$="mastermenu"],body.lx-enabled .ls-master-header-container,body.lx-enabled [id$="subnavigator_generic_tr"],body.lx-enabled .ls-mobil-menu,body.lx-enabled .ls-mobil-bottom-menu,body.lx-enabled [id$="mobilBottomMenu"],body.lx-enabled #mobilMereSheetMenuList,body.lx-enabled [id$="MainTitle"],body.lx-enabled #MainTitle,body.lx-enabled [id$="picctrlthumbimage"],body.lx-enabled .ls-pull-to-refresh{display:none!important}
 body.lx-enabled [id$="masterFooter"],body.lx-enabled .ls-master-footer{font-size:12px!important;color:var(--lx-muted)!important;background:transparent!important;border-top:1px solid var(--lx-rule)!important;margin:28px var(--lx-gap) 0!important;padding:16px 0!important;position:static!important;width:auto!important}
 body.lx-enabled [id$="masterFooter"] a,body.lx-enabled .ls-master-footer a{color:var(--lx-muted)!important}
@@ -181,8 +182,7 @@ body.lx-enabled .s2skema .s2skemabrikcontainer{background:transparent!important}
 body.lx-enabled .s2skema .lx-now-line{position:absolute;left:0;right:0;height:1px;background:var(--lx-accent);opacity:.3;pointer-events:none}
 body.lx-enabled .s2skema .lx-now-line.lx-now-today{height:2px;margin-top:-1px;opacity:1;z-index:5}
 body.lx-enabled .s2skema .lx-now-line.lx-now-today::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--lx-accent)}
-body.lx-enabled .s2skema .lx-now-time{position:absolute;right:4px;transform:translateY(-50%);padding:0 5px;border-radius:4px;background:var(--lx-accent);color:#fff;font-weight:650;line-height:1.5;font-variant-numeric:tabular-nums;z-index:5;pointer-events:none}
-@media print{body.lx-enabled .s2skema :is(.lx-now-line,.lx-now-time){display:none}}
+@media print{body.lx-enabled .s2skema .lx-now-line{display:none}}
 body.lx-enabled .grid-area-navigation,body.lx-enabled .grid-area-additional{background:transparent!important}
 body.lx-enabled .ls-datepicker{font-size:14px!important}
 body.lx-enabled .ls-datepicker a,body.lx-enabled .grid-area-navigation a{color:var(--lx-ink)!important;text-decoration:none!important}

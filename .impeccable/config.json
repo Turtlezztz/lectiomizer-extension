@@ -1,1 +1,117 @@
-{"buildPath":"comp"}
+{
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-radius",
+        "value": "18px",
+        "files": [
+          "src/views.css"
+        ],
+        "createdAt": "2026-10-05T19:58:27.281Z",
+        "reason": "Agent review: existing message bubbles explicitly use 18px radii in DESIGN.md; no radius changed in the desktop width fix."
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "20px",
+        "files": [
+          "src/views.css"
+        ],
+        "createdAt": "2026-10-05T19:58:27.312Z",
+        "reason": "Agent review: existing thread composer explicitly uses a 20px radius in DESIGN.md; no radius changed in the desktop width fix."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fff1da",
+        "files": [
+          "src/views.css"
+        ],
+        "createdAt": "2026-10-05T19:58:27.339Z",
+        "reason": "Agent review: retain existing amber status badges and changed lesson treatment; this desktop width refinement preserves incumbent status colors."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#704509",
+        "files": [
+          "src/views.css"
+        ],
+        "createdAt": "2026-10-05T19:58:27.366Z",
+        "reason": "Agent review: retain existing readable amber status and callout foreground; the desktop width refinement preserves incumbent status colors."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#b68b43",
+        "files": [
+          "src/views.css"
+        ],
+        "createdAt": "2026-10-05T19:58:27.393Z",
+        "reason": "Agent review: retain existing dashed amber changed-lesson outline; desktop width refinement preserves incumbent status colors."
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "4px",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-05T20:06:23.294Z",
+        "reason": "Agent review: Existing keyboard hint, now-line, and re-enable details in the Compact shell; unchanged by the table-cell fix."
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "8px",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-05T20:06:23.375Z",
+        "reason": "Agent review: Existing re-enable button and native form table corners; preserved by this layout-only refinement."
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "6px!important",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-05T20:06:23.452Z",
+        "reason": "Agent review: Existing timetable lesson corners; preserved with native event geometry."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "11px",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-05T20:06:23.545Z",
+        "reason": "Agent review: Existing keyboard hints and timetable metadata described in DESIGN.md; unchanged by the content display fix."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "25px",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-05T20:06:23.623Z",
+        "reason": "Agent review: DESIGN.md explicitly specifies a 25px toolbar heading at the icon-rail breakpoint."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "10px",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-05T20:06:23.701Z",
+        "reason": "Agent review: Existing compact print timetable type; unchanged by the on-screen layout fix."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#8a919c",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-05T20:06:23.780Z",
+        "reason": "Agent review: Existing fallback subject dot color for native timetable lessons; unchanged by this layout-only refinement."
+      }
+    ]
+  }
+}

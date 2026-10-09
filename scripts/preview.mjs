@@ -6,6 +6,7 @@ const assets={'/content.js':['dist/content.js','text/javascript'],'/styles.css':
 const server=createServer(async(req,res)=>{
  const url=new URL(req.url,'http://127.0.0.1');
  try{
+  if(/^\/src\/[a-zA-Z/-]+\.js$/.test(url.pathname)){res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(await readFile('.'+url.pathname));return;}
   if(url.pathname==='/lectio/123/contextcard/contextcard.aspx'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(contextCard(url.searchParams.get('lectiocontextcard')||''));return;}
   if(url.pathname==='/lectio/123/cache/DropDown.aspx'){res.setHeader('Content-Type','application/json; charset=utf-8');res.end(dropDown(url.searchParams.get('type')));return;}
   if(url.pathname==='/lectio/123/GetImage.aspx'){res.setHeader('Content-Type','image/svg+xml');res.end(portrait(url.searchParams.get('pictureid')));return;}

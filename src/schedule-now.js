@@ -1,5 +1,5 @@
 // Marks the current time in Lectio's week schedule: a line through today's
-// column, a faint one through the other days and the time in the time column.
+// column and a faint one through the other days.
 // Lectio places modules and lessons in em from the top of the day, so the
 // scale is read from their own times instead of assumed.
 import { isoWeek, parseTooltip } from './readers/schedule.js';
@@ -25,7 +25,7 @@ function timesOf(el) {
     if (!tip || tip.start.slice(0, 10) !== tip.end.slice(0, 10)) return null;
     return [tip.start, tip.end].map(stamp => Number(stamp.slice(11, 13)) * 60 + Number(stamp.slice(14, 16)));
   }
-  if (el.matches('.s2skemabrik, .lx-now-time')) return null;
+  if (el.matches('.s2skemabrik')) return null;
   const times = Array.from(el.textContent.matchAll(CLOCK), ([, h, m]) => Number(h) * 60 + Number(m)).filter(t => t < 24 * 60);
   return times.length ? [times[0], times[1] ?? times[0]] : null;
 }
@@ -108,22 +108,16 @@ export function markNow(root, now = new Date()) {
       clearNow(table);
       continue;
     }
-    const [times, ...days] = containers(table);
+    const [, ...days] = containers(table);
     days.forEach((container, i) => {
       if (!container) return;
       const line = marker(container, 'lx-now-line');
       line.classList.toggle('lx-now-today', i + 1 === at.column);
       setTop(line, at.top);
     });
-    if (!times) continue;
-    const label = marker(times, 'lx-now-time');
-    const text = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    if (!label.firstChild) label.append(text);
-    else if (label.firstChild.nodeValue !== text) label.firstChild.nodeValue = text;
-    setTop(label, at.top);
   }
 }
 
 export function clearNow(root) {
-  for (const el of root.querySelectorAll('.lx-now-line, .lx-now-time')) el.remove();
+  for (const el of root.querySelectorAll('.lx-now-line')) el.remove();
 }

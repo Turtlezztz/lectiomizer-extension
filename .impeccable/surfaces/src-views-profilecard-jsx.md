@@ -1,0 +1,22 @@
+---
+version: 1
+slug: "src-views-profilecard-jsx"
+primary_target: "src/views/ProfileCard.jsx"
+related_targets: ["src/views/avatars.jsx", "src/readers/profile.js", "src/views.css", "src/content.jsx"]
+---
+
+# Person cards
+
+Mode: Operate. Scope: a shared person card opened from an individual avatar in the sidebar, message threads, selected message recipients and assignment groups. Preserve the approved Compact world: white surfaces, utility red, Source Sans 3, fine neutral rules and Lucide outline icons. PRODUCT.md and DESIGN.md remain the global authority; this brief records the narrow shipped surface.
+
+Purpose and content: inspect a person without leaving the current task, then follow Lectio's own shortcuts. The card shows a larger photo, full name, role and the actual labelled fields available from Lectio's context card, including Stamklasse. Known person data supplies missing class/initials information and marks the current student as “Dig”. “Hold og grupper” displays the count and linked list from the person's native SkemaNy schedule when the context card does not already supply a Hold field. Both `holdid` and `holdelementid` destinations are recognised, so native groups are included with holds. Available native links, including “Send besked” and “Skema”, follow their original destinations.
+
+Hierarchy and material: a quiet photo area leads a narrow, single-column card (300px wide, 12px corners, fine border, no decorative shadow). The image keeps its proportions inside a 128 × 160px frame. The information area uses 18px padding, a 23px full-name heading, a muted 13px role, 12px field labels and 15px values. Holds and groups are wrapping text links, followed by red shortcut links below a fine rule. Long names and values wrap. Missing or broken photos show initials and “Intet profilbillede”.
+
+Interactions: an avatar is a labelled button with dialog semantics. Clicking it opens one anchored, nonmodal card shared between the shell and independent page roots; clicking the same trigger toggles it closed and selecting another person switches the card. Opening focuses the close button. X or Escape closes and restores focus to the trigger. Outside pointer activation or focus closes without taking focus away from the next task. No focus trap or backdrop is added. Page refresh events and hash navigation clear the selection; an anchor removed from the document also dismisses it. The sidebar's adjacent profile link remains a separate native navigation action.
+
+Responsive behavior: the fixed card prefers the trigger's right side, flips left when needed, and moves below it if neither side fits. Position and maximum height track the viewport, scroll and content resizing. A 12px viewport inset and width cap keep it reachable on narrow screens; the card scrolls internally for long lists or short viewports. Photo and information hierarchy stay the same on mobile. Focus-visible controls use the shared utility-red outline.
+
+Data and failure boundaries: parse context-card text, field labels, photos and same-origin destinations into plain data; never mount the fetched HTML or its scripts/native handlers. Profiles share the avatar request cache and four-request queue, while photos are remembered for the browser session. The schedule list is fetched on demand and cached separately. Requests use the existing same-origin Lectio session and a 12-second timeout. Failed cache entries are removed so “Prøv igen” can retry. Profile and schedule failures have separate inline loading/error states; existing name/photo context remains visible while details load. An empty successful read explains that Lectio shows no more information.
+
+Evidence and limits (2026-10-06): finish reviewer disposition **ship**, with no material findings. Synthetic captures with invented data: `.impeccable/review/profile-desktop.png` (1280 × 800) and `.impeccable/review/profile-mobile.png` (390 × 844). The implementation handoff reports **112/112 serial tests passed**, successful build/package, and Firefox lint with zero errors, zero notices and four pre-existing warnings from bundled React. The existing ZIP installation was reloaded in authenticated Firefox; a live avatar click verified title, class, photo, the full holds-and-groups list and native shortcuts. No real personal records were saved to the repository or review captures. This live check covers the observed account and page, not every school's context-card variant.

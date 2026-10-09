@@ -12,6 +12,13 @@ const store={};
 globalThis.browser={storage:{local:{get:async key=>({[key]:store[key]}),set:async values=>Object.assign(store,values)}}};
 const {syncSchedule,nextAttempt}=await import('../src/calendar/scrape.js');
 const {intervalOf,nextSyncAt}=await import('../src/calendar/store.js');
+const {claimSchedule,observeSchedule,failSchedule}=await import('../src/notifications/store.js');
+const context={scheduleHref:'https://www.lectio.dk/lectio/123/SkemaNy.aspx?type=elev&elevid=9',accountId:'S9'};
+const dispatcher=(now,sent=[])=>async message=>{
+ if(message.type==='schedule:claim')return claimSchedule(message.context,{now,force:message.force});
+ if(message.type==='schedule:failed')return failSchedule(message.context,message.token,'Skemaet kunne ikke læses fra Lectio.',now);
+ sent.push(message);return observeSchedule(message.context,message.weeks,message.token,message.unread,now,message.feeds);
+};
 
 const url='https://www.lectio.dk/lectio/123/SkemaNy.aspx?type=elev&elevid=9';
 const page=(html=schedulePage(),at=url)=>new JSDOM(`<div id="contenttable">${html}</div>`,{url:at}).window.document;
@@ -138,31 +145,33 @@ test('Google sign-in asks for the calendar scope and refuses a partial grant',as
 test('the content script reads the coming weeks once an hour and skips weeks it cannot read',async()=>{
  const now=new Date(2026,9,5,12).getTime();const sent=[];const loaded=[];
  const load=async href=>{loaded.push(new URL(href).searchParams.get('week'));if(href.includes('week=422026'))throw new Error('Lectio svarede 500');return page(schedulePage(),href);};
- const send=async message=>{sent.push(message);return {ok:true};};
+ const send=dispatcher(now,sent);
  assert.deepEqual(await syncSchedule({scheduleHref:url,now,load,send}),{started:false});
- store.calendar={connected:true,weeks:3};
- const result=await syncSchedule({scheduleHref:url,now,load,send});
+ // Stable identity, not a Google connection, enables the reader.
+ store.calendar={connected:false,weeks:3};
+
+ const result=await syncSchedule({...context,now,load,send});
  assert.deepEqual([result.started,result.ok],[true,true]);
- assert.deepEqual(loaded.sort(),['412026','422026','432026']);
+ assert.deepEqual(loaded.sort(),['412026','422026','432026','442026',null,null]);
  // Week 43 got week 41's page back, so only week 41 is synced.
- assert.deepEqual([sent[0].weeks.length,sent[0].unread,sent[0].weeks[0].lessons.length],[1,2,4]);
- assert.equal(store.calendarStatus.state,'syncing');
- assert.deepEqual(await syncSchedule({scheduleHref:url,now:now+1000,load,send}),{started:false,busy:true});
- store.calendarStatus={state:'ok',checkedAt:now};
- assert.deepEqual(await syncSchedule({scheduleHref:url,now:now+60000,load,send}),{started:false});
- assert.equal((await syncSchedule({scheduleHref:url,now:now+60000,load,send,force:true})).started,true);
- store.calendarStatus={};
- const failed=await syncSchedule({scheduleHref:url,now,load:async()=>page('<form>Log ind</form>'),send});
- assert.deepEqual([failed.ok,store.calendarStatus.state,store.calendarStatus.checkedAt],[false,'error',now]);
+ assert.deepEqual([sent[0].weeks.length,sent[0].unread,sent[0].weeks[0].lessons.length],[1,3,4]);
+ assert.equal(store.scheduleHistory.accounts['123:S9'].status.state,'ok');
+ assert.deepEqual(await syncSchedule({...context,now:now+1000,load,send}),{started:false});
+ store.scheduleHistory.accounts['123:S9'].status={state:'ok',checkedAt:now};
+ assert.deepEqual(await syncSchedule({...context,now:now+60000,load,send}),{started:false});
+ assert.equal((await syncSchedule({...context,now:now+60000,load,send,force:true})).started,true);
+ store.scheduleHistory.accounts['123:S9'].status={};
+ const failed=await syncSchedule({...context,now,load:async()=>page('<form>Log ind</form>'),send});
+ assert.deepEqual([failed.ok,store.scheduleHistory.accounts['123:S9'].status.state,store.scheduleHistory.accounts['123:S9'].status.checkedAt],[false,'error',now]);
 });
 
 test('the user picks how often an open Lectio tab fetches, and each tab waits for the next turn',async()=>{
  const now=new Date(2026,9,5,12).getTime();const min=60000;
- const load=async href=>page(schedulePage(),href);const send=async()=>({ok:true});
- store.calendar={connected:true,weeks:1,interval:15};
- store.calendarStatus={state:'ok',checkedAt:now};
- assert.deepEqual(await syncSchedule({scheduleHref:url,now:now+14*min,load,send}),{started:false});
- assert.equal((await syncSchedule({scheduleHref:url,now:now+15*min,load,send})).started,true);
+ const load=async href=>page(schedulePage(),href);
+ store.calendar={connected:true,weeks:1,interval:3};
+ store.scheduleHistory.accounts['123:S9'].status={state:'ok',checkedAt:now};
+ assert.deepEqual(await syncSchedule({...context,now:now+2*min,load,send:dispatcher(now+2*min)}),{started:false});
+ assert.equal((await syncSchedule({...context,now:now+3*min,load,send:dispatcher(now+3*min)})).started,true);
  // A value this version doesn't offer falls back to hourly.
  assert.equal(intervalOf({interval:7}).minutes,60);
  const settings={interval:180};

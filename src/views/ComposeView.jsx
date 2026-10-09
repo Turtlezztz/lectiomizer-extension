@@ -133,7 +133,7 @@ export function ComposeView({ compose, showOriginal }) {
             : directory.status === 'error' ? <li className="lx-recipient-note">Modtagerne kunne ikke hentes. Brug Lectios visning for at vælge dem.</li>
             : results.length ? results.map((item, i) => <li key={item.key} id={`lx-compose-result-${i}`} role="option" aria-selected={i === active} className="lx-recipient-option"
               onMouseDown={e => { e.preventDefault(); add(item); }} onMouseEnter={() => setActive(i)}>
-              <Avatar person={{ id: item.key, name: personName(item.title) }} size={30} />
+              <Avatar person={{ id: item.key, name: personName(item.title) }} size={30} interactive={false} />
               <span><strong>{item.title}</strong>{item.kind && <small>{item.kind}</small>}</span>
             </li>)
             : <li className="lx-recipient-note">Ingen modtagere matcher „{query.trim()}“.</li>}

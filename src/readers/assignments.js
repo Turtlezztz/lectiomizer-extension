@@ -12,6 +12,12 @@ export function statusKind(cell) {
   return 'other';
 }
 
+// Lectio writes the assignment absence as "100 %", "0%" or leaves it empty.
+export function absencePercent(value) {
+  const match = String(value || '').match(/(\d+(?:[.,]\d+)?)\s*%/);
+  return match ? Number(match[1].replace(',', '.')) : null;
+}
+
 export function readAssignments(doc) {
   const table = doc.querySelector('[id$="ExerciseGV"]');
   if (!table) throw new ReaderError('Opgavelisten blev ikke fundet');
@@ -31,7 +37,7 @@ export function readAssignments(doc) {
         deadlineText: value(cells, 'Frist'), deadline: parseLectioDate(deadline),
         studentTime: value(cells, 'Elevtid'),
         status: value(cells, 'Status'), statusKind: statusKind(cells.Status),
-        absence: value(cells, 'Fravær'), awaiting: value(cells, 'Afventer'),
+        absence: value(cells, 'Fravær'), absencePercent: absencePercent(value(cells, 'Fravær')), awaiting: value(cells, 'Afventer'),
         note: value(cells, 'Opgavenote'), grade: value(cells, 'Karakter'), studentNote: value(cells, 'Elevnote'),
       };
     }),

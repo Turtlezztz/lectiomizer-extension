@@ -4,7 +4,7 @@ import {JSDOM} from 'jsdom';
 import {activityPage,assignmentsPage,assignmentPage,absencePage,messagesPage,homePage} from '../demo/views-fixtures.mjs';
 import {readHome,parseLessonTime,parseAssignmentTitle} from '../src/readers/home.js';
 import {readActivity} from '../src/readers/activity.js';
-import {readAssignments} from '../src/readers/assignments.js';
+import {readAssignments,absencePercent} from '../src/readers/assignments.js';
 import {readAssignment} from '../src/readers/assignment.js';
 import {readAbsence} from '../src/readers/absence.js';
 import {readMessages} from '../src/readers/messages.js';
@@ -40,6 +40,8 @@ test('assignments keep status, deadline and the native filters',()=>{
  assert.deepEqual(data.assignments[0].deadline,new Date(2026,9,9,23,59));
  assert.equal(data.assignments[0].studentTime,'4,00');assert.equal(data.assignments[3].awaiting,'Lærer');
  assert.deepEqual(data.filters.map(f=>[f.label,f.checked]),[['Vis kun aktuelle',true],['Vis kun for indeværende skoleår',true]]);
+ assert.deepEqual(data.assignments.map(a=>a.absencePercent),[null,null,100,0]);
+ assert.deepEqual([absencePercent('12,5 %'),absencePercent('Fravær: 0%'),absencePercent('')],[12.5,0,null]);
  assert.equal(readAssignments(page(assignmentsPage([]))).assignments.length,0);
 });
 
@@ -93,7 +95,7 @@ test('an open thread reads its people, messages, own messages and Lectio\'s repl
  assert.equal(thread.subject,'Ekskursion fredag');
  assert.equal(thread.base,'https://www.lectio.dk/lectio/123/');
  assert.equal(thread.back,threadUrl);
- assert.deepEqual(thread.me,{ids:['U100004','S900'],name:'Demo Elev',photo:'https://www.lectio.dk/lectio/123/GetImage.aspx?pictureid=7'});
+ assert.deepEqual(thread.me,{ids:['U100004','S900'],name:'Demo Elev',photo:'https://www.lectio.dk/lectio/123/GetImage.aspx?pictureid=7&fullsize=1'});
  assert.deepEqual(thread.recipients.map(r=>[r.id,r.name,r.own]),[['U100001','Lene Madsen',false],['U100002','Anna Andersen',false],['U100003','Mikkel Holm',false],['U100004','Demo Elev',true]]);
  assert.deepEqual(thread.messages.map(m=>[m.sender.name,m.own]),[['Lene Madsen',false],['Lene Madsen',false],['Anna Andersen',false],['Demo Elev',true],['Demo Elev',true],['Lene Madsen',false],['Mikkel Holm',false]]);
  const [first,,,mine]=thread.messages;

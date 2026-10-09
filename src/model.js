@@ -1,4 +1,4 @@
-import { cleanLabel, navigationFromDOM, pageKind, routeKey, schoolBase, selectors } from './lectio.js';
+import { cleanLabel, fullPhoto, navigationFromDOM, pageKind, routeKey, schoolBase, selectors } from './lectio.js';
 
 const studentPaths = [
   ['Forside','forside.aspx'], ['Skema','SkemaNy.aspx'], ['Opgaver','OpgaverElev.aspx'],
@@ -36,7 +36,7 @@ export function readModel(doc = document, url = location.href) {
   const studentMatch = rawTitle.match(/^Eleven\s+(.+?)(?:,|\s+-)/);
   const name = studentMatch?.[1] || (authenticated ? 'Min profil' : 'Lectio');
   const photoElement=doc.querySelector('[id$="picctrlthumbimage"]');
-  let photo=null;try{const u=new URL(photoElement?.getAttribute('src')||'',url);if(photoElement?.getAttribute('src')&&u.origin===new URL(url).origin)photo=u.href;}catch{}
+  let photo=null;try{const u=new URL(photoElement?.getAttribute('src')||'',url);if(photoElement?.getAttribute('src')&&u.origin===new URL(url).origin)photo=fullPhoto(u.href);}catch{}
   return { photo,nav, title, school:school || 'Lectio', name, authenticated, base, kind:pageKind(url), url };
 }
 

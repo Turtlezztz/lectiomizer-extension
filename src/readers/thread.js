@@ -2,7 +2,7 @@
 // with its sender, and Lectio's own reply form at the bottom. Editing a message
 // or the thread, and writing a new thread, stay on Lectio's own page.
 import { text } from '../page-data.js';
-import { schoolBase } from '../lectio.js';
+import { fullPhoto, schoolBase } from '../lectio.js';
 import { ReaderError, iconLabel } from './util.js';
 
 // "Jonathan Hansen(k) (1x 17)" → "Jonathan Hansen", "Lene Madsen (lm)" → "Lene Madsen"
@@ -40,7 +40,7 @@ export function readMe(doc) {
   let src = null;
   try {
     const url = new URL(photo?.getAttribute('src') || '', doc.URL);
-    if (photo?.getAttribute('src') && url.origin === new URL(doc.URL).origin && !/defaultfoto/i.test(url.pathname)) src = url.href;
+    if (photo?.getAttribute('src') && url.origin === new URL(doc.URL).origin && !/defaultfoto/i.test(url.pathname)) src = fullPhoto(url.href);
   } catch {}
   return { ids: [user && `U${user}`, student && `S${student}`, cardId(title)].filter(Boolean), name: personName(name), photo: src };
 }
