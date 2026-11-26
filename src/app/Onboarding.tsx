@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Check, ExternalLink, LogIn, Search } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight, Check, ExternalLink, LogIn, RotateCw, Search } from 'lucide-react';
 import { fetchSchools } from '@/lib/lectio/schools';
 import { loginUrl } from '@/lib/lectio/paths';
 import { useSettings, type School } from '@/lib/settings';
@@ -18,6 +18,10 @@ function Frame({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+// Set when the school was chosen in this tab, so the login prompt can tell a
+// first sign-in from a returning student whose Lectio session ran out.
+let pickedNow = false;
 
 export function SchoolPicker() {
   const { update } = useSettings();
@@ -42,7 +46,10 @@ export function SchoolPicker() {
           {schools.isPending && <div className="space-y-2 p-2">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-8" />)}</div>}
           {schools.isError && <p className="p-4 text-sm text-danger">Kunne ikke hente skolelisten fra Lectio.</p>}
           {filtered.map((s) => (
-            <button key={s.id} type="button" onClick={() => update({ school: s })} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-surface-2">
+            <button key={s.id} type="button" onClick={() => {
+                pickedNow = true;
+                update({ school: s });
+              }} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-surface-2">
               <span className="truncate">{s.name}</span>
               <ArrowRight className="size-4 text-fg-subtle" />
             </button>
@@ -53,14 +60,18 @@ export function SchoolPicker() {
   );
 }
 
-export function LoginGate({ school }: { school: School }) {
+export function LoginGate({ school, checking, onCheck }: { school: School; checking?: boolean; onCheck: () => void }) {
   const { update } = useSettings();
-  const client = useQueryClient();
   const [opened, setOpened] = useState(false);
+  const returning = !pickedNow;
   const open = () => {
     setOpened(true);
     if (isExtension) extApi.runtime.sendMessage({ type: 'open-login', url: loginUrl(school.id) });
     else window.open(loginUrl(school.id), '_blank');
+  };
+  const otherSchool = () => {
+    pickedNow = false;
+    update({ school: null });
   };
   return (
     <Frame>
@@ -68,20 +79,37 @@ export function LoginGate({ school }: { school: School }) {
         <div className="mx-auto mb-5 flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-soft-fg">
           <LogIn className="size-5" />
         </div>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Log ind på Lectio</h1>
-        <p className="mt-2 text-[14px] text-fg-muted">
-          Lectiomizer bruger dit eget Lectio-login hos <span className="font-medium text-fg">{school.name}</span>. Log ind i fanen der åbner – så kommer du automatisk tilbage hertil.
-        </p>
+        {returning ? (
+          <>
+            <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Du er logget ud af Lectio</h1>
+            <p className="mt-2 text-[14px] text-fg-muted">
+              Vil du logge ind på <span className="font-medium text-fg">{school.name}</span> igen? Log ind i fanen der åbner – så kommer du automatisk tilbage hertil.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Log ind på Lectio</h1>
+            <p className="mt-2 text-[14px] text-fg-muted">
+              Lectiomizer bruger dit eget Lectio-login hos <span className="font-medium text-fg">{school.name}</span>. Log ind i fanen der åbner – så kommer du automatisk tilbage hertil.
+            </p>
+          </>
+        )}
         <div className="mt-6 flex flex-col gap-2">
           <Button variant="primary" size="lg" onClick={open}>
-            Log ind med Lectio <ExternalLink />
+            {returning ? 'Ja, log ind igen' : 'Log ind med Lectio'} <ExternalLink />
           </Button>
-          <Button variant="ghost" onClick={() => client.invalidateQueries()} className={cn(!opened && 'hidden')}>
-            <Check /> Jeg er logget ind
+          <Button variant="ghost" onClick={onCheck} disabled={checking} className={cn(!opened && 'hidden')}>
+            {checking ? <RotateCw className="animate-spin" /> : <Check />} {checking ? 'Tjekker…' : 'Jeg er logget ind'}
           </Button>
-          <button type="button" onClick={() => update({ school: null })} className="mt-2 text-[13px] text-fg-subtle hover:text-fg">
-            Skift skole
-          </button>
+          {returning ? (
+            <Button variant="ghost" onClick={otherSchool}>
+              Nej, vælg en anden skole
+            </Button>
+          ) : (
+            <button type="button" onClick={otherSchool} className="mt-2 text-[13px] text-fg-subtle hover:text-fg">
+              Skift skole
+            </button>
+          )}
         </div>
       </div>
     </Frame>

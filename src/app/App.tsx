@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { createHashRouter, RouterProvider } from 'react-router';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { SettingsProvider, useSettings } from '@/lib/settings';
@@ -72,7 +72,13 @@ const router = createHashRouter([
   },
 ]);
 
-/** Checks the Lectio session once; any later NotLoggedInError sends us back here too. */
+/**
+ * Checks the Lectio session once, then keeps an eye on every page load and
+ * action: when one of them lands on Lectio's login page, the session is checked
+ * again and, if it really has expired, the app is swapped for the login prompt
+ * (rather than leaving each page with its own error). Once the student is back
+ * in, the failed pages are reloaded.
+ */
 function SessionGate() {
   const { settings } = useSettings();
   const school = settings.school!;
@@ -85,9 +91,49 @@ function SessionGate() {
     retry: false,
     staleTime: 5 * 60_000,
   });
-  const loggedOut = session.error instanceof NotLoggedInError || queryClient.getQueryCache().getAll().some((q) => q.state.error instanceof NotLoggedInError && q.state.status === 'error' && q.getObserversCount() > 0);
+  const loggedOut = session.error instanceof NotLoggedInError;
+
+  useEffect(() => {
+    const recheck = () => queryClient.refetchQueries({ queryKey: ['session', school.id], exact: true }, { cancelRefetch: false });
+    const offQueries = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== 'updated' || event.action.type !== 'error' || event.query.queryKey[0] === 'session') return;
+      if (event.action.error instanceof NotLoggedInError) recheck();
+    });
+    const offMutations = queryClient.getMutationCache().subscribe((event) => {
+      if (event.type === 'updated' && event.action.type === 'error' && event.action.error instanceof NotLoggedInError) recheck();
+    });
+    return () => {
+      offQueries();
+      offMutations();
+    };
+  }, [school.id]);
+
+  // The login happens in another tab; check again whenever the student comes back here.
+  useEffect(() => {
+    if (!loggedOut) return;
+    const recheck = () => {
+      if (document.visibilityState === 'visible') session.refetch({ cancelRefetch: false });
+    };
+    document.addEventListener('visibilitychange', recheck);
+    window.addEventListener('focus', recheck);
+    return () => {
+      document.removeEventListener('visibilitychange', recheck);
+      window.removeEventListener('focus', recheck);
+    };
+  }, [loggedOut, session.refetch]);
+
+  // Logged out → back in: reload everything that failed (or was cached) under the old session.
+  const wasLoggedOut = useRef(false);
+  useEffect(() => {
+    if (loggedOut) wasLoggedOut.current = true;
+    else if (session.isSuccess && wasLoggedOut.current) {
+      wasLoggedOut.current = false;
+      queryClient.resetQueries({ predicate: (q) => q.queryKey[0] !== 'session' });
+    }
+  }, [loggedOut, session.isSuccess]);
+
   if (session.isPending) return <Loading />;
-  if (loggedOut) return <LoginGate school={school} />;
+  if (loggedOut) return <LoginGate school={school} checking={session.isFetching} onCheck={() => session.refetch()} />;
   return <RouterProvider router={router} />;
 }
 
