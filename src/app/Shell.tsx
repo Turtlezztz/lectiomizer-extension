@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useIsFetching } from '@tanstack/react-query';
 import {
-  CalendarDays, ClipboardList, ExternalLink, GraduationCap, House, Mail, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, SunMoon, UserX, X,
+  CalendarDays, ClipboardList, DoorOpen, ExternalLink, GraduationCap, House, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, SunMoon, UserX, X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSettings } from '@/lib/settings';
@@ -21,6 +21,38 @@ export const NAV = [
   { to: '/grades', label: 'Karakterer', icon: GraduationCap },
   { to: '/absence', label: 'Fravær', icon: UserX },
 ] as const;
+
+/** The school's directories: people and rooms, each with their own schedule. */
+export const NAV_SCHOOL = [
+  { to: '/students', label: 'Elever', icon: Users },
+  { to: '/teachers', label: 'Lærere', icon: Presentation },
+  { to: '/rooms', label: 'Lokaler', icon: DoorOpen },
+] as const;
+
+function NavItem({ to, label, icon: Icon, end, collapsed, onNavigate }: { to: string; label: string; icon: typeof House; end?: boolean; collapsed: boolean; onNavigate?: () => void }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onNavigate}
+      title={collapsed ? label : undefined}
+      className={({ isActive }) =>
+        cn(
+          'group flex h-9 items-center gap-3 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors',
+          collapsed && 'justify-center px-0',
+          isActive ? 'bg-surface text-fg shadow-card ring-1 ring-border' : 'text-fg-muted hover:bg-surface-3/60 hover:text-fg',
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <Icon className={cn('size-[18px] shrink-0', isActive ? 'text-accent' : 'text-fg-subtle group-hover:text-fg-muted')} strokeWidth={isActive ? 2.2 : 1.9} />
+          {!collapsed && <span className="truncate">{label}</span>}
+        </>
+      )}
+    </NavLink>
+  );
+}
 
 function Logo({ compact }: { compact?: boolean }) {
   return (
@@ -53,28 +85,12 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
   return (
     <>
       <nav className="flex-1 space-y-0.5 px-3" aria-label="Hovedmenu">
-        {NAV.map(({ to, label, icon: Icon, ...rest }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={'end' in rest}
-            onClick={onNavigate}
-            title={collapsed ? label : undefined}
-            className={({ isActive }) =>
-              cn(
-                'group flex h-9 items-center gap-3 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors',
-                collapsed && 'justify-center px-0',
-                isActive ? 'bg-surface text-fg shadow-card ring-1 ring-border' : 'text-fg-muted hover:bg-surface-3/60 hover:text-fg',
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon className={cn('size-[18px] shrink-0', isActive ? 'text-accent' : 'text-fg-subtle group-hover:text-fg-muted')} strokeWidth={isActive ? 2.2 : 1.9} />
-                {!collapsed && <span className="truncate">{label}</span>}
-              </>
-            )}
-          </NavLink>
+        {NAV.map(({ to, label, icon, ...rest }) => (
+          <NavItem key={to} to={to} label={label} icon={icon} end={'end' in rest} collapsed={collapsed} onNavigate={onNavigate} />
+        ))}
+        {collapsed ? <div aria-hidden className="mx-auto my-2 h-px w-6 bg-border" /> : <div className="px-2.5 pt-4 pb-1 text-[11.5px] font-medium tracking-wide text-fg-subtle uppercase">Skolen</div>}
+        {NAV_SCHOOL.map(({ to, label, icon }) => (
+          <NavItem key={to} to={to} label={label} icon={icon} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
       </nav>
       <div className="space-y-0.5 px-3 pb-3">
@@ -143,7 +159,7 @@ export function Shell({ children }: { children?: ReactNode }) {
       }
       const target = e.target as HTMLElement;
       if (e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable) return;
-      const shortcut = { '1': '/', '2': '/schedule', '3': '/assignments', '4': '/messages', '5': '/grades', '6': '/absence' }[e.key];
+      const shortcut = { '1': '/', '2': '/schedule', '3': '/assignments', '4': '/messages', '5': '/grades', '6': '/absence', '7': '/students', '8': '/teachers', '9': '/rooms' }[e.key];
       if (shortcut) navigate(shortcut);
     };
     window.addEventListener('keydown', onKey);

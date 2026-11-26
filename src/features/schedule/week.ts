@@ -73,3 +73,12 @@ export function fmtRange(from: Date, to: Date): string {
 
 export const WEEKDAYS_SHORT = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'];
 export const WEEKDAYS_LONG = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag'];
+
+/** `base` with Lectio's ?week=WWYYYY (base may already carry ?type=…&elevid=…). */
+export function weekPath(base: string, ref: WeekRef | null): string {
+  if (!ref) return base;
+  const [path, query = ''] = base.split('?');
+  const params = new URLSearchParams(query);
+  params.set('week', weekParam(ref));
+  return `${path}?${params}`;
+}

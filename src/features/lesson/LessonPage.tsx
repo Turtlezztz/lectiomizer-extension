@@ -7,7 +7,8 @@ import {
 import { readActivity } from '@/lib/lectio/readers/activity.js';
 import { useLectioPage, useSchoolId, type Loaded } from '@/lib/lectio/query';
 import { activate, postbackTarget } from '@/lib/lectio/client';
-import { appRoute, pageUrl } from '@/lib/lectio/paths';
+import { pageUrl } from '@/lib/lectio/paths';
+import { canGoBack, useBack } from '@/lib/nav';
 import { subjectColor } from '@/lib/subjects';
 import { cn } from '@/lib/cn';
 import { Page } from '@/components/ui/page';
@@ -32,7 +33,7 @@ export default function LessonPage() {
     <Page>
       {query.isPending ? <LessonSkeleton /> : query.error ? (
         <>
-          <Button variant="ghost" size="sm" asChild className="-ml-2.5 mb-3 text-fg-muted"><Link to="/schedule"><ArrowLeft /> Skema</Link></Button>
+          <BackButton className="mb-3" />
           <Card><ErrorState error={query.error} onRetry={() => query.refetch()} href={href} /></Card>
         </>
       ) : loaded ? <LessonContent loaded={loaded} href={href} /> : null}
@@ -40,6 +41,16 @@ export default function LessonPage() {
   );
 }
 
+
+/** Back to where the lesson was opened from (schedule, overview, a person's schedule…), else the schedule. */
+function BackButton({ className }: { className?: string }) {
+  const back = useBack('/schedule');
+  return (
+    <Button variant="ghost" size="sm" asChild className={cn('-ml-2.5 text-fg-muted', className)}>
+      <Link to="/schedule" onClick={back}><ArrowLeft /> {canGoBack() ? 'Tilbage' : 'Skema'}</Link>
+    </Button>
+  );
+}
 
 /** Prev/next are postbacks: run them, find out which lesson Lectio answered with, and route there. */
 function useActivityNav(loaded: Loaded<ActivityData>) {
@@ -55,7 +66,8 @@ function useActivityNav(loaded: Loaded<ActivityData>) {
       if (id) {
         const url = pageUrl(school, activityPath(id));
         client.setQueryData(['lectio', url, readActivity.name], { doc, data, url });
-        navigate(`/lesson/${encodeURIComponent(id)}`);
+        // Replace, so "Tilbage" leaves the lesson instead of stepping through every lesson visited.
+        navigate(`/lesson/${encodeURIComponent(id)}`, { replace: true });
       } else {
         client.setQueryData(['lectio', loaded.url, readActivity.name], { doc, data, url: loaded.url });
       }
@@ -70,7 +82,6 @@ function LessonContent({ loaded, href }: { loaded: Loaded<ActivityData>; href: s
   const extras = feedback ? data.extras.filter((e) => !/elevfeedback/i.test(e.label)) : data.extras;
   const { lesson } = data;
   const nav = useActivityNav(loaded);
-  const backRoute = appRoute(data.back?.source.getAttribute('href') ? (data.back.source as HTMLAnchorElement).href : null);
   const color = subjectColor(lesson?.holds[0] || lesson?.title || '');
   const title = lesson?.title || lesson?.holds.join(', ') || 'Lektion';
 
@@ -92,9 +103,7 @@ function LessonContent({ loaded, href }: { loaded: Loaded<ActivityData>; href: s
   return (
     <div className="space-y-5">
       {/* Toolbar */}
-      <Button variant="ghost" size="sm" asChild className="-ml-2.5 text-fg-muted">
-        <Link to={backRoute ?? '/schedule'}><ArrowLeft /> {backRoute && backRoute !== '/schedule' ? 'Tilbage' : 'Skema'}</Link>
-      </Button>
+      <BackButton />
       {nav.error && (
         <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger-soft-fg">
           {nav.error instanceof Error ? nav.error.message : 'Kunne ikke skifte aktivitet'}

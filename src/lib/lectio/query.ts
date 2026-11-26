@@ -64,3 +64,24 @@ export function useLectioAction<T>(loaded: Loaded<T> | undefined, read: (doc: Do
     },
   });
 }
+
+/** The signed-in student's elevid, read from any Lectio page (null for teachers/other users). */
+export function readElevId(doc: Document): string | null {
+  const meta = doc.querySelector('meta[name="msapplication-starturl"]')?.getAttribute('content') || '';
+  const fromMeta = meta.match(/elevid=(\d+)/i)?.[1];
+  if (fromMeta) return fromMeta;
+  // Lectio's own navigation links to the student's schedule with ?type=elev&elevid=…
+  for (const a of Array.from(doc.querySelectorAll('#s_m_mastermenu a[href], [id$="subnavigator_generic_tr"] a[href], nav a[href]'))) {
+    const href = a.getAttribute('href') || '';
+    const m = /type=elev/i.test(href) && href.match(/elevid=(\d+)/i);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+const readAccount = (doc: Document) => ({ elevId: readElevId(doc) });
+
+/** Who is signed in (from Forside, cached for the session). */
+export function useAccount() {
+  return useLectioPage('forside.aspx', readAccount, { staleTime: Infinity, gcTime: Infinity });
+}

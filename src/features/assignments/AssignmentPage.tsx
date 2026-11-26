@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { ArrowLeft, CalendarClock, ExternalLink, FileText, Info, MessageSquare } from 'lucide-react';
 import { Page } from '@/components/ui/page';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
@@ -9,8 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { RichText } from '@/components/RichText';
-import { useLectioAction, useLectioPage, useSchoolId, type Loaded } from '@/lib/lectio/query';
-import { pageUrl } from '@/lib/lectio/paths';
+import { useAccount, useLectioAction, useLectioPage, useSchoolId, type Loaded } from '@/lib/lectio/query';
+import { useBack } from '@/lib/nav';
+import { assignmentPath, pageUrl, PATHS } from '@/lib/lectio/paths';
 import { readAssignment } from '@/lib/lectio/readers/assignment.js';
 import { dayDiff, fmtDate, fmtLongDate, fmtTime, untilText, urgency } from '@/lib/format';
 import { subjectColor } from '@/lib/subjects';
@@ -24,15 +25,26 @@ const read = readAssignment as (doc: Document) => AssignmentData;
 
 export default function AssignmentPage() {
   const { id = '' } = useParams();
+  const [params] = useSearchParams();
   const school = useSchoolId();
-  const path = id ? `ElevAflevering.aspx?exerciseid=${encodeURIComponent(id)}` : null;
-  const lectioUrl = pageUrl(school, path ?? 'OpgaverElev.aspx');
-  const { data: loaded, isPending, error, refetch } = useLectioPage(path, read);
+  const back = useBack('/assignments');
+  // Lectio only opens an assignment with the student's elevid. Links from the
+  // list carry it; otherwise (notifications, search) look up who is signed in.
+  const routeElevId = params.get('elevid');
+  const account = useAccount();
+  const elevId = routeElevId || account.data?.data.elevId || null;
+  const accountMissing = !routeElevId && account.isSuccess && !elevId;
+  const path = id && elevId ? assignmentPath(id, elevId) : null;
+  const lectioUrl = pageUrl(school, path ?? PATHS.assignments);
+  const page = useLectioPage(path, read);
+  const { data: loaded, refetch } = page;
+  const error = page.error || (!routeElevId && account.error) || (accountMissing ? new Error('Kunne ikke se, hvilken elev der er logget ind, så opgaven kan ikke åbnes.') : null);
+  const isPending = !error && (path ? page.isPending : true);
 
   return (
     <Page>
       <div className="mb-4 flex items-center justify-between gap-3 md:pr-14">
-        <Link to="/assignments" className="inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-fg-muted transition-colors hover:text-fg">
+        <Link to="/assignments" onClick={back} className="inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-fg-muted transition-colors hover:text-fg">
           <ArrowLeft className="size-4" /> Opgaver
         </Link>
         <Button variant="ghost" size="sm" asChild>
@@ -45,7 +57,7 @@ export default function AssignmentPage() {
         <DetailSkeleton />
       ) : error ? (
         <Card>
-          <ErrorState error={error} onRetry={() => refetch()} href={lectioUrl} />
+          <ErrorState error={error} onRetry={() => (path ? refetch() : account.refetch())} href={lectioUrl} />
         </Card>
       ) : (
         <AssignmentDetail loaded={loaded!} lectioUrl={lectioUrl} />

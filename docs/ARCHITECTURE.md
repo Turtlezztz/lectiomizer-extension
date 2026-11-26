@@ -29,6 +29,9 @@ src/
     store.ts        storage keys/types: `sync` prefs, `scheduleHistory`, `calendarStatus`
     hooks.ts        app-side hooks (usePrefs, useNotices, …) + send() to the background
     notice.ts       notice title/body/diff text shared by app + system notifications
+  features/people/  Elever + Lærere (FindSkema.aspx lists) and the shared detail page (profile, "nu", week schedule)
+  features/rooms/   Lokaler: room list with live booked/free status from each room's week schedule
+  lib/nav.ts        useBack(fallback): "Tilbage" via in-app history, else a fallback route
   lib/format.ts     Danish date helpers (relativeDay, untilText, urgency, fmtTime…)
   lib/subjects.ts   subjectColor(hold) – stable colour per subject
   styles/app.css    Tailwind v4 theme tokens (light + .dark)
@@ -51,6 +54,11 @@ const { data, isPending, error, refetch } = useLectioPage(PATHS.assignments, rea
   File uploads: `files: [[inputName, file]]`.
 * Links: convert Lectio hrefs to in-app routes with `appRoute(href)`; if null,
   open the original Lectio page in a new tab (`target="_blank"`).
+* Assignments: Lectio only opens `ElevAflevering.aspx` with the student's
+  `elevid`; routes carry it (`/assignments/:id?elevid=`) and `useAccount()`
+  supplies it otherwise.
+* Other people's / rooms' schedules: `WeekSchedule` with a `SkemaNy.aspx?type=…`
+  base; many at once go through `useManyWeekLessons` (max 4 requests in flight).
 * `NotLoggedInError` from any fetch sends the user to the login gate.
 
 ## Design language

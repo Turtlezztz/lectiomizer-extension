@@ -32,7 +32,7 @@ export default function FeedbackPage() {
   return (
     <Page>
       <Button variant="ghost" size="sm" asChild className="-ml-2.5 mb-3 text-fg-muted">
-        <Link to={`/lesson/${encodeURIComponent(id)}`}><ArrowLeft /> Lektion</Link>
+        <Link replace to={`/lesson/${encodeURIComponent(id)}`}><ArrowLeft /> Lektion</Link>
       </Button>
       {query.isPending ? <FeedbackSkeleton /> : query.error ? (
         <Card><ErrorState error={query.error} onRetry={() => query.refetch()} href={href} /></Card>

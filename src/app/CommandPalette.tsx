@@ -4,7 +4,8 @@ import { Dialog } from 'radix-ui';
 import { CornerDownLeft, Search } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/cn';
-import { NAV } from './Shell';
+import { appRoute } from '@/lib/lectio/paths';
+import { NAV, NAV_SCHOOL } from './Shell';
 
 interface Item {
   id: string;
@@ -18,11 +19,20 @@ interface Item {
 function cachedItems(client: ReturnType<typeof useQueryClient>, go: (to: string) => void): Item[] {
   const out: Item[] = [];
   for (const query of client.getQueryCache().getAll()) {
+    if (query.queryKey[0] === 'lectio-directory' && Array.isArray(query.state.data)) {
+      const kind = query.queryKey[2] as string;
+      const [group, base] = kind === 'elev' ? ['Elever', '/students'] : kind === 'laerer' ? ['Lærere', '/teachers'] : ['Lokaler', '/rooms'];
+      for (const e of query.state.data as Array<{ id: string; name: string; label: string; code: string }>) {
+        out.push({ id: `${kind}${e.id}`, label: kind === 'lokale' ? e.label : e.name, hint: e.code || undefined, group, run: () => go(`${base}/${encodeURIComponent(e.id)}`) });
+      }
+      continue;
+    }
     const data = (query.state.data as any)?.data;
     if (!data) continue;
     for (const a of data.assignments ?? []) {
       const id = a.href && new URL(a.href).searchParams.get('exerciseid');
-      if (id && a.title) out.push({ id: `a${id}`, label: a.title, hint: a.hold, group: 'Opgaver', run: () => go(`/assignments/${id}`) });
+      const route = appRoute(a.href);
+      if (id && route && a.title) out.push({ id: `a${id}`, label: a.title, hint: a.hold, group: 'Opgaver', run: () => go(route) });
     }
     for (const m of data.messages ?? []) {
       const id = m.href && new URL(m.href).searchParams.get('id');
@@ -45,7 +55,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   };
   const items = useMemo(() => {
     if (!open) return [];
-    const nav: Item[] = NAV.map((n) => ({ id: n.to, label: n.label, group: 'Gå til', run: () => go(n.to) }));
+    const nav: Item[] = [...NAV, ...NAV_SCHOOL].map((n) => ({ id: n.to, label: n.label, group: 'Gå til', run: () => go(n.to) }));
     const all = [...nav, ...cachedItems(client, go)];
     const needle = q.trim().toLocaleLowerCase('da');
     return (needle ? all.filter((i) => `${i.label} ${i.hint ?? ''}`.toLocaleLowerCase('da').includes(needle)) : all).slice(0, 40);

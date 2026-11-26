@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { BookOpen, CalendarX2, ChevronLeft, ChevronRight, ExternalLink, StickyNote } from 'lucide-react';
@@ -17,20 +17,18 @@ import { toLessons, dominant, type Lesson, type RawLesson } from './lessons';
 import { WeekGrid, WeekGridSkeleton, type Day } from './WeekGrid';
 import { AgendaSkeleton, DayAgenda, DayPicker } from './DayAgenda';
 import { useDarkClass, useNow } from './hooks';
-import { dayKey, fmtRange, parseWeekParam, relativeWeek, sameWeek, shiftWeek, weekDates, weekOf, weekParam, type WeekRef } from './week';
+import { dayKey, fmtRange, parseWeekParam, relativeWeek, sameWeek, shiftWeek, weekDates, weekOf, weekParam, weekPath, type WeekRef } from './week';
 
 const read = readSchedule as (doc: Document) => RawLesson[];
-const weekPath = (ref: WeekRef | null) => (ref ? `${PATHS.schedule}?week=${weekParam(ref)}` : PATHS.schedule);
-
 /** Warm the cache for neighbouring weeks (same key shape as useLectioPage). */
-function usePrefetchWeeks(center: WeekRef | null) {
+function usePrefetchWeeks(base: string, center: WeekRef | null) {
   const client = useQueryClient();
   const school = useSchoolId();
   useEffect(() => {
     if (!center) return;
     const id = setTimeout(() => {
       for (const n of [1, -1]) {
-        const url = pageUrl(school, weekPath(shiftWeek(center, n)));
+        const url = pageUrl(school, weekPath(base, shiftWeek(center, n)));
         client.prefetchQuery<Loaded<RawLesson[]>>({
           queryKey: ['lectio', url, readSchedule.name],
           queryFn: async () => {
@@ -42,16 +40,28 @@ function usePrefetchWeeks(center: WeekRef | null) {
       }
     }, 250);
     return () => clearTimeout(id);
-  }, [client, school, center?.week, center?.year]);
+  }, [client, school, base, center?.week, center?.year]);
 }
 
 export default function SchedulePage() {
+  return (
+    <Page wide>
+      <WeekSchedule base={PATHS.schedule} eyebrow="Skema" />
+    </Page>
+  );
+}
+
+/**
+ * A week of a Lectio schedule (SkemaNy.aspx): your own, or a student's,
+ * teacher's or room's when `base` carries ?type=…. The week lives in ?week=.
+ */
+export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: string; eyebrow?: ReactNode; emptyText?: (week: number) => string; keys?: boolean }) {
   useDarkClass(); // subject colours depend on the theme
   const now = useNow();
   const school = useSchoolId();
   const [params, setParams] = useSearchParams();
   const requested = parseWeekParam(params.get('week'));
-  const path = weekPath(requested);
+  const path = weekPath(base, requested);
   const { data, isPending, error, refetch } = useLectioPage(path, read);
 
   const lessons = useMemo(() => toLessons(data?.data), [data]);
@@ -70,20 +80,21 @@ export default function SchedulePage() {
   }, [lessons, shown.week, shown.year]);
   const inWeek = days.flatMap((d) => d.lessons);
 
-  usePrefetchWeeks(data ? shown : null);
+  usePrefetchWeeks(base, data ? shown : null);
 
   const go = useCallback(
     (n: number) => {
-      setParams({ week: weekParam(shiftWeek(shown, n)) }, { replace: true });
+      setParams((p) => { const next = new URLSearchParams(p); next.set('week', weekParam(shiftWeek(shown, n))); return next; }, { replace: true });
     },
     [shown.week, shown.year, setParams],
   );
   const isCurrent = sameWeek(shown, current);
   const goToday = useCallback(() => {
-    if (!isCurrent) setParams({ week: weekParam(current) }, { replace: true });
+    if (!isCurrent) setParams((p) => { const next = new URLSearchParams(p); next.set('week', weekParam(current)); return next; }, { replace: true });
   }, [isCurrent, current.week, current.year, setParams]);
 
   useEffect(() => {
+    if (!keys) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || /INPUT|TEXTAREA|SELECT/.test(t.tagName) || t.isContentEditable) return;
@@ -95,7 +106,7 @@ export default function SchedulePage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, goToday]);
+  }, [go, goToday, keys]);
 
   // Mobile: selected day. Default to today when it is in view, else the first day with lessons.
   const [picked, setPicked] = useState<{ week: string; index: number } | null>(null);
@@ -113,9 +124,9 @@ export default function SchedulePage() {
   const homework = inWeek.filter((l) => l.hasHomework && l.status !== 'cancelled').length;
 
   return (
-    <Page wide>
+    <>
       <PageHeader
-        eyebrow="Skema"
+        eyebrow={eyebrow}
         title={
           <span className="flex items-center gap-3">
             <span className="tabular-nums">Uge {shown.week}</span>
@@ -126,7 +137,7 @@ export default function SchedulePage() {
         actions={
           <>
             <Button variant="ghost" size="icon" asChild title="Åbn i Lectio" aria-label="Åbn i Lectio">
-              <a href={pageUrl(school, weekPath(shown))} target="_blank" rel="noreferrer">
+              <a href={pageUrl(school, weekPath(base, shown))} target="_blank" rel="noreferrer">
                 <ExternalLink />
               </a>
             </Button>
@@ -167,7 +178,7 @@ export default function SchedulePage() {
           <EmptyState
             icon={<CalendarX2 />}
             title="Ingen moduler denne uge"
-            description={`Der er ikke noget på dit skema i uge ${shown.week}.`}
+            description={emptyText ? emptyText(shown.week) : `Der er ikke noget på dit skema i uge ${shown.week}.`}
             action={
               !isCurrent && (
                 <Button size="sm" onClick={goToday}>
@@ -207,6 +218,6 @@ export default function SchedulePage() {
           </div>
         </>
       )}
-    </Page>
+    </>
   );
 }

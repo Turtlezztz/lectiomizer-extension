@@ -19,6 +19,9 @@ const AbsencePage = lazy(() => import('@/features/absence/AbsencePage'));
 const LessonPage = lazy(() => import('@/features/lesson/LessonPage'));
 const FeedbackPage = lazy(() => import('@/features/lesson/FeedbackPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
+const PeoplePage = lazy(() => import('@/features/people/PeoplePage'));
+const DirectoryDetailPage = lazy(() => import('@/features/people/DirectoryDetailPage'));
+const RoomsPage = lazy(() => import('@/features/rooms/RoomsPage'));
 
 function Loading() {
   return (
@@ -53,6 +56,12 @@ const router = createHashRouter([
       { path: 'absence', element: lazyRoute(AbsencePage) },
       { path: 'lesson/:id', element: lazyRoute(LessonPage) },
       { path: 'lesson/:id/feedback', element: lazyRoute(FeedbackPage) },
+      { path: 'students', element: lazyRoute(() => <PeoplePage kind="elev" />) },
+      { path: 'students/:id', element: lazyRoute(() => <DirectoryDetailPage kind="elev" />) },
+      { path: 'teachers', element: lazyRoute(() => <PeoplePage kind="laerer" />) },
+      { path: 'teachers/:id', element: lazyRoute(() => <DirectoryDetailPage kind="laerer" />) },
+      { path: 'rooms', element: lazyRoute(RoomsPage) },
+      { path: 'rooms/:id', element: lazyRoute(() => <DirectoryDetailPage kind="lokale" />) },
       { path: 'settings', element: lazyRoute(SettingsPage) },
     ],
   },

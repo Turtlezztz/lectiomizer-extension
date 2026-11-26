@@ -12,10 +12,10 @@ export function LessonTabs({ id, feedbackCount }: { id: string; feedbackCount?: 
     );
   return (
     <nav aria-label="Lektionens faner" className="flex gap-5 border-b border-border">
-      <NavLink to={base} end className={tab}>
+      <NavLink to={base} end replace className={tab}>
         <BookOpen /> Indhold
       </NavLink>
-      <NavLink to={`${base}/feedback`} className={tab}>
+      <NavLink to={`${base}/feedback`} replace className={tab}>
         <MessagesSquare /> Elevfeedback
         {!!feedbackCount && <span className="rounded-full bg-surface-2 px-1.5 text-[11px] font-semibold text-fg-muted tabular-nums">{feedbackCount}</span>}
       </NavLink>

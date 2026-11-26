@@ -34,7 +34,13 @@ export function appRoute(href: string | null | undefined): string | null {
     if (tab === 'elevindhold') return `/lesson/${q.get('absid')}/feedback`;
     if (!tab || tab === 'lektier') return `/lesson/${q.get('absid')}`;
   }
-  if (/elevaflevering\.aspx$/.test(path) && q.get('exerciseid')) return `/assignments/${q.get('exerciseid')}`;
+  if (/elevaflevering\.aspx$/.test(path) && q.get('exerciseid')) return assignmentRoute(q.get('exerciseid')!, q.get('elevid'));
+  if (/skemany\.aspx$/.test(path)) {
+    const type = (q.get('type') || '').toLowerCase();
+    if (type === 'elev' && q.get('elevid')) return `/students/${q.get('elevid')}`;
+    if (type === 'laerer' && q.get('laererid')) return `/teachers/${q.get('laererid')}`;
+    if (type === 'lokale' && q.get('id')) return `/rooms/${q.get('id')}`;
+  }
   if (/beskeder2\.aspx$/.test(path) && q.get('id')) return `/messages/${q.get('id')}`;
   if (/beskeder2\.aspx$/.test(path)) return '/messages';
   if (/forside\.aspx$/.test(path)) return '/';
@@ -43,4 +49,15 @@ export function appRoute(href: string | null | undefined): string | null {
   if (/grade_report\.aspx$/.test(path)) return '/grades';
   if (/fravaerelev(_fravaersaarsager)?\.aspx$/.test(path)) return '/absence';
   return null;
+}
+
+/** In-app route for an assignment. Lectio needs the student's elevid to open ElevAflevering.aspx. */
+export function assignmentRoute(exerciseId: string, elevId?: string | null): string {
+  return `/assignments/${encodeURIComponent(exerciseId)}${elevId ? `?elevid=${encodeURIComponent(elevId)}` : ''}`;
+}
+
+/** ElevAflevering.aspx path; without elevid Lectio answers with an error page. */
+export function assignmentPath(exerciseId: string, elevId: string): string {
+  const q = new URLSearchParams({ elevid: elevId, exerciseid: exerciseId, prevurl: PATHS.assignments });
+  return `ElevAflevering.aspx?${q}`;
 }
