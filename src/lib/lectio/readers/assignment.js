@@ -85,6 +85,18 @@ function readGroup(doc) {
   };
 }
 
+/**
+ * Lectio's "Vælg dokument og send" control. There is no <input type=file>: the
+ * browser uploads to dokumentupload.aspx first, writes the returned id as JSON
+ * into the hidden `…$selectedDocumentId` field and posts back with the control's
+ * UniqueID as event target and "documentId" as argument.
+ */
+export function readDocumentChooser(scope) {
+  const field = scope?.querySelector('input[name$="$selectedDocumentId"]');
+  const name = field?.getAttribute('name');
+  return name ? { field: name, target: name.replace(/\$selectedDocumentId$/, ''), argument: 'documentId' } : null;
+}
+
 export function readAssignment(doc) {
   const infoTable = doc.querySelector('[id$="registerAfl_pa"] .ls-std-table-inputlist') || doc.querySelector('.ls-elevaflevering-page .ls-std-table-inputlist');
   const info = readInfo(infoTable);
@@ -104,6 +116,7 @@ export function readAssignment(doc) {
       comment: form.querySelector('textarea'),
       send: form.querySelector('[id$="AddEntryBtn"]'),
       upload: form.querySelector('[id$="choosedocBtn"]'),
+      chooser: readDocumentChooser(form),
       chosen: text(form.querySelector('[id$="DocumentNameTxt"]')),
     } : null,
   };

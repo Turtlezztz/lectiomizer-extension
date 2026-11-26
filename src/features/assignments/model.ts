@@ -34,6 +34,13 @@ export interface LinkInfo {
   href: string;
 }
 
+/** Lectio's document chooser: hidden field + postback target (see readDocumentChooser). */
+export interface DocumentChooser {
+  field: string;
+  target: string;
+  argument: string;
+}
+
 export interface AssignmentData {
   title: string;
   info: Record<string, { text: string; links: LinkInfo[] } | undefined>;
@@ -46,7 +53,7 @@ export interface AssignmentData {
   students: Array<{ name: string; awaiting: string; status: string; finished: boolean | null; grade: string; gradeNote: string; studentNote: string }>;
   entries: Array<{ time: Date | null; timeText: string; user: string; userTitle: string; comment: Element | null; documents: LinkInfo[] }>;
   base: string | null;
-  handIn: { comment: HTMLTextAreaElement | null; send: Element | null; upload: Element | null; chosen: string } | null;
+  handIn: { comment: HTMLTextAreaElement | null; send: Element | null; upload: Element | null; chooser: DocumentChooser | null; chosen: string } | null;
 }
 
 // ------------------------------------------------------------------ grouping
@@ -148,16 +155,6 @@ export function checkboxTarget(input: Element): string {
   const script = input.getAttribute('onclick') || input.getAttribute('onchange') || '';
   const escaped = script.match(/__doPostBack\(\\?['"]([^'"\\]+)\\?['"]/);
   return escaped?.[1] || input.getAttribute('name') || '';
-}
-
-/** Lectio's file input for a hand-in, if the page has one. */
-export function findFileInput(doc: Document): HTMLInputElement | null {
-  const scopes = ['[id$="ElectronicHandInPanel"]', '[id*="choosedocument"]', 'form'];
-  for (const scope of scopes) {
-    const input = doc.querySelector<HTMLInputElement>(`${scope} input[type="file"][name]`);
-    if (input) return input;
-  }
-  return null;
 }
 
 export const formatBytes = (n: number) => (n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${Math.round(n / 1024)} kB` : `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} MB`);

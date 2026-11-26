@@ -226,6 +226,36 @@ export async function uploadEditorFile(schoolId: string, file: File): Promise<Up
   return { url: json.url, fileName: json.fileName || file.name };
 }
 
+// ---------------------------------------------------------------- documents
+
+/**
+ * Upload a file the way Lectio's document chooser ("Vælg dokument", hand-ins,
+ * message attachments) does: POST it as `file` to the school's dokumentupload.aspx,
+ * which answers `{"serializedId":"DT…"}`. The id is then handed to the page by
+ * writing `JSON.stringify({ serializedId })` into the chooser's hidden
+ * `…$selectedDocumentId` field and posting back (see readDocumentChooser).
+ */
+export async function uploadDocument(pageUrl: string, file: File): Promise<string> {
+  if (isFixtureMode()) return 'DT0';
+  const school = pageUrl.match(/^(https?:\/\/[^/]+\/lectio\/\d+)\//i)?.[1];
+  if (!school) throw new Error('Kunne ikke finde skolen i Lectio-adressen');
+  const body = new FormData();
+  body.append('file', file, file.name);
+  const res = await transport.request(`${school}/dokumentupload.aspx`, { method: 'POST', body });
+  const landed = new URL(res.url);
+  if (/login|nemlog-in|unilogin|mitid/i.test(landed.pathname + landed.hostname)) throw new NotLoggedInError();
+  if (res.status === 413) throw new Error(`${file.name} er for stor til Lectio`);
+  if (res.status >= 400) throw new LectioHttpError(res.status);
+  let json: { serializedId?: string };
+  try {
+    json = JSON.parse(res.html);
+  } catch {
+    throw new Error(`Lectio tog ikke imod ${file.name}`);
+  }
+  if (!json.serializedId) throw new Error(`Lectio tog ikke imod ${file.name}`);
+  return json.serializedId;
+}
+
 /** Click a Lectio link/button found in `doc`: follows normal links, posts back otherwise. */
 export async function activate(doc: Document, el: Element | null | undefined, extra?: Omit<PostbackOptions, 'target' | 'argument'>): Promise<Document> {
   if (!el) throw new Error('Handlingen findes ikke længere på Lectio-siden');

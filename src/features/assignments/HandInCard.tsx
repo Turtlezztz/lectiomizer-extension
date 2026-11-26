@@ -3,13 +3,13 @@ import { CheckCircle2, CloudUpload, FileText, LoaderCircle, Lock, Paperclip, Sen
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/input';
-import { postbackTarget } from '@/lib/lectio/client';
+import { uploadDocument } from '@/lib/lectio/client';
 import type { Loaded } from '@/lib/lectio/query';
 import { cn } from '@/lib/cn';
-import { findFileInput, formatBytes, type AssignmentData } from './model';
+import { formatBytes, type AssignmentData } from './model';
 import { InlineError } from './parts';
 
-type Mutate = (input: { element?: Element | null; fields?: Record<string, string>; files?: Array<[string, File]> }) => Promise<unknown>;
+type Mutate = (input: { element?: Element | null; target?: string; argument?: string; fields?: Record<string, string> }) => Promise<unknown>;
 
 export function HandInClosed() {
   return (
@@ -23,8 +23,9 @@ export function HandInClosed() {
 }
 
 /**
- * Comment + document hand-in. Comments post Lectio's "Send kun kommentar";
- * documents are sent with Lectio's file input when the page has one.
+ * Comment + document hand-in. Comments post Lectio's "Send kun kommentar".
+ * Documents go through Lectio's document chooser: upload to dokumentupload.aspx,
+ * then post the returned id back as "Vælg dokument og send" does (the comment rides along).
  */
 export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: { loaded: Loaded<AssignmentData>; mutate: Mutate; pending: boolean; error: unknown; busy: boolean; lectioUrl: string }) {
   const handIn = loaded.data.handIn!;
@@ -33,11 +34,14 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const commentId = useId();
 
   const canComment = !!handIn.send && !!handIn.comment;
-  const canUpload = !!handIn.upload;
+  const canUpload = !!handIn.chooser;
+  const working = busy || uploading;
+  const showPending = pending || uploading;
   const ready = file ? canUpload : canComment && comment.trim().length > 0;
 
   const pick = (files: FileList | null | undefined) => {
@@ -51,7 +55,7 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    if (!busy) pick(e.dataTransfer.files);
+    if (!working) pick(e.dataTransfer.files);
   };
 
   const submit = async () => {
@@ -62,14 +66,19 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
     if (commentName) fields[commentName] = comment;
     try {
       if (file) {
-        const fileInput = findFileInput(loaded.doc);
-        if (!fileInput) {
-          setLocalError('Lectio-siden har intet upload-felt, som Lectiomizer kan sende til. Aflever dokumentet via Lectio i stedet.');
+        const chooser = handIn.chooser!;
+        setUploading(true);
+        let serializedId: string;
+        try {
+          serializedId = await uploadDocument(loaded.url, file);
+        } catch (e) {
+          setLocalError(e instanceof Error ? e.message : `Kunne ikke uploade ${file.name}`);
           return;
+        } finally {
+          setUploading(false);
         }
-        // Prefer the upload button when it posts back; otherwise Lectio's add-entry button.
-        const element = postbackTarget(handIn.upload) ? handIn.upload : handIn.send;
-        await mutate({ element, fields, files: [[fileInput.name, file]] });
+        fields[chooser.field] = JSON.stringify({ serializedId });
+        await mutate({ target: chooser.target, argument: chooser.argument, fields });
         setSent(`${file.name} er sendt til Lectio.`);
       } else {
         await mutate({ element: handIn.send, fields });
@@ -98,19 +107,19 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
                   <div className="truncate text-[13.5px] font-medium text-fg">{file.name}</div>
                   <div className="text-[12px] tabular-nums text-fg-subtle">{formatBytes(file.size)}</div>
                 </div>
-                <Button variant="ghost" size="icon-sm" aria-label="Fjern fil" disabled={busy} onClick={() => { setFile(null); if (input.current) input.current.value = ''; }}>
+                <Button variant="ghost" size="icon-sm" aria-label="Fjern fil" disabled={working} onClick={() => { setFile(null); if (input.current) input.current.value = ''; }}>
                   <X />
                 </Button>
               </div>
             ) : (
               <label
-                onDragOver={(e) => { e.preventDefault(); if (!busy) setDragging(true); }}
+                onDragOver={(e) => { e.preventDefault(); if (!working) setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={onDrop}
                 className={cn(
                   'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed px-4 py-7 text-center transition-colors',
                   dragging ? 'border-accent bg-accent-soft/60' : 'border-border-strong/70 bg-surface-2/40 hover:border-accent/60 hover:bg-surface-2',
-                  busy && 'pointer-events-none opacity-60',
+                  working && 'pointer-events-none opacity-60',
                 )}
               >
                 <span className={cn('flex size-10 items-center justify-center rounded-xl transition-colors', dragging ? 'bg-accent text-accent-fg' : 'bg-surface text-fg-muted shadow-card ring-1 ring-border')}>
@@ -120,7 +129,7 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
                 <span className="text-[12.5px] text-fg-muted">
                   eller <span className="font-medium text-accent-soft-fg underline decoration-accent/40 underline-offset-2">vælg fra computeren</span>
                 </span>
-                <input ref={input} type="file" className="sr-only" disabled={busy} onChange={(e) => pick(e.target.files)} />
+                <input ref={input} type="file" className="sr-only" disabled={working} onChange={(e) => pick(e.target.files)} />
               </label>
             )}
           </div>
@@ -140,9 +149,9 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
             <Textarea
               id={commentId}
               value={comment}
-              disabled={busy}
+              disabled={working}
               onChange={(e) => { setComment(e.target.value); setSent(null); }}
-              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && ready && !busy) submit(); }}
+              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && ready && !working) submit(); }}
               placeholder="Skriv til din lærer…"
               rows={3}
             />
@@ -159,7 +168,7 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
             Åbn afleveringen i Lectio
           </a>
         )}
-        {sent && !pending && !error && (
+        {sent && !showPending && !error && (
           <p role="status" className="flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-[13px] text-success-soft-fg animate-in">
             <CheckCircle2 className="size-4 shrink-0" /> {sent}
           </p>
@@ -167,9 +176,9 @@ export function HandInCard({ loaded, mutate, pending, error, busy, lectioUrl }: 
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <p className="text-[12px] text-fg-subtle">{file ? 'Dokumentet afleveres med din kommentar.' : canComment ? 'Uden fil sendes kun kommentaren.' : ''}</p>
-          <Button variant="primary" disabled={!ready || busy} onClick={submit} className="max-sm:w-full">
-            {pending ? <LoaderCircle className="animate-spin" /> : file ? <CloudUpload /> : <Send />}
-            {pending ? 'Sender…' : file ? 'Aflever dokument' : 'Send kommentar'}
+          <Button variant="primary" disabled={!ready || working} onClick={submit} className="max-sm:w-full">
+            {showPending ? <LoaderCircle className="animate-spin" /> : file ? <CloudUpload /> : <Send />}
+            {uploading ? 'Uploader…' : pending ? 'Sender…' : file ? 'Aflever dokument' : 'Send kommentar'}
           </Button>
         </div>
       </CardBody>

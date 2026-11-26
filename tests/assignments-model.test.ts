@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parseDocument } from '@/lib/lectio/client';
 import { readAssignments } from '@/lib/lectio/readers/assignments.js';
-import { readAssignment } from '@/lib/lectio/readers/assignment.js';
+import { readAssignment, readDocumentChooser } from '@/lib/lectio/readers/assignment.js';
 import {
-  checkboxTarget, displayName, documentLabel, exerciseId, findFileInput, groupAssignments, groupOf, hoursLabel, matches, splitStudentStatus,
+  checkboxTarget, displayName, documentLabel, exerciseId, groupAssignments, groupOf, hoursLabel, matches, splitStudentStatus,
   type AssignmentItem,
 } from '@/features/assignments/model';
 
@@ -61,10 +61,12 @@ describe('postback helpers', () => {
     expect(checkboxTarget(d.getElementById('a')!)).toBe('s$m$a');
     expect(checkboxTarget(d.getElementById('b')!)).toBe('s$m$b');
   });
-  it('finds a file input in the hand-in panel', () => {
-    const d = doc(`<div id="m_Content_ElectronicHandInPanel"><input type="file" name="m$Content$file"></div>`);
-    expect(findFileInput(d)?.name).toBe('m$Content$file');
-    expect(findFileInput(doc('<input name="x">'))).toBeNull();
+  it("reads Lectio's document chooser in the hand-in panel", () => {
+    const d = doc(`<div id="m_Content_ElectronicHandInPanel"><div id="m_Content_choosedocument_panel"><input type="hidden" name="m$Content$choosedocument$selectedDocumentId"><a id="m_Content_choosedocument_choosedocBtn" onclick="return m_Content_choosedocument_activate(); return false;">Vælg dokument og send</a></div></div>`);
+    expect(readDocumentChooser(d.querySelector('[id$="ElectronicHandInPanel"]'))).toEqual({
+      field: 'm$Content$choosedocument$selectedDocumentId', target: 'm$Content$choosedocument', argument: 'documentId',
+    });
+    expect(readDocumentChooser(doc('<input name="x">'))).toBeNull();
   });
 });
 
