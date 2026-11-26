@@ -12,13 +12,17 @@ import { weekOf, weekParam, weekPath } from './week';
 // Many rooms at once: never more than a few requests to Lectio in flight.
 const limit = limiter(4);
 
+// Must be a stable reference: useQueries re-runs an inline `select` on every
+// render, and a fresh lessons array each time loops React (error #185).
+const selectLessons = (raw: RawLesson[]) => toLessons(raw);
+
 function weekQuery(school: string, base: string, at: Date) {
   const ref = weekOf(at);
   const url = pageUrl(school, weekPath(base, ref));
   return {
     queryKey: ['lectio-week-lessons', url],
     queryFn: () => limit(async () => readSchedule(await getPage(url)) as RawLesson[]),
-    select: (raw: RawLesson[]) => toLessons(raw),
+    select: selectLessons,
     staleTime: 5 * 60_000,
     gcTime: 30 * 60_000,
     retry: 1,

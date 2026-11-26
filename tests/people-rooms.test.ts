@@ -32,6 +32,8 @@ describe('schedule routes', () => {
     expect(appRoute(`${L}SkemaNy.aspx?type=elev&elevid=5`)).toBe('/students/5');
     expect(appRoute(`${L}SkemaNy.aspx?type=laerer&laererid=6`)).toBe('/teachers/6');
     expect(appRoute(`${L}SkemaNy.aspx?type=lokale&nosubnav=1&id=7`)).toBe('/rooms/7');
+    expect(appRoute(`${L}SkemaNy.aspx?elevid=5`)).toBe('/students/5');
+    expect(appRoute(`${L}SkemaNy.aspx?laererid=6`)).toBe('/teachers/6');
     expect(appRoute(`${L}SkemaNy.aspx`)).toBe('/schedule');
   });
   it('adds the week to a schedule path that already has a query', () => {
@@ -41,12 +43,15 @@ describe('schedule routes', () => {
 });
 
 describe('readDirectory', () => {
+  // Shaped like Lectio's real FindSkema.aspx: no type= on student/teacher links,
+  // a help link whose prevurl mentions forbogstav, room numbers in a span.
   const html = `<html><body><div id="s_m_mastermenu"><a href="/lectio/123/SkemaNy.aspx?type=elev&amp;elevid=9">Skema</a></div>
-    <div id="contenttable"><a href="FindSkema.aspx?type=elev&amp;forbogstav=A">A</a><a href="FindSkema.aspx?type=elev&amp;forbogstav=B">B</a>
-    <div id="m_Content_listecontainer"><ul>
-      <li><a href="/lectio/123/SkemaNy.aspx?type=elev&amp;elevid=1">Anna Andersen (3a 01)</a></li>
-      <li><a href="/lectio/123/SkemaNy.aspx?type=elev&amp;elevid=1">Anna Andersen (3a 01)</a></li>
-      <li><a href="/lectio/123/SkemaNy.aspx?type=elev&amp;elevid=2">Bo Christensen (2b 14)</a></li>
+    <a href="/lectio/123/help/helptip2.aspx?articleid=1097&amp;prevurl=FindSkema.aspx%3ftype%3delev%26forbogstav%3dA">Hjælp</a>
+    <div id="contenttable"><a href="FindSkema.aspx?type=elev&amp;forbogstav=A">&nbsp;A&nbsp;</a><a href="FindSkema.aspx?type=elev&amp;forbogstav=B">&nbsp;B&nbsp;</a>
+    <div id="m_Content_listecontainer"><ul class="ls-columnlist mod-onechild">
+      <li><a data-lectiocontextcard="S1" href="/lectio/123/SkemaNy.aspx?elevid=1">Anna Andersen (3a 01)</a></li>
+      <li><a data-lectiocontextcard="S1" href="/lectio/123/SkemaNy.aspx?elevid=1">Anna Andersen (3a 01)</a></li>
+      <li><a data-lectiocontextcard="S2" href="/lectio/123/SkemaNy.aspx?elevid=2">Bo Christensen (2b 14)</a></li>
     </ul></div></div></body></html>`;
   it('reads entries from the list only, once each, plus the letter links', () => {
     const { items, letters } = readDirectory(parseDocument(html, `${L}FindSkema.aspx?type=elev&forbogstav=A`));
@@ -56,7 +61,16 @@ describe('readDirectory', () => {
     ]);
     expect(letters.map((l: any) => l.label)).toEqual(['A', 'B']);
   });
-  it('recognises schedule links', () => {
+  it('reads teachers and rooms', () => {
+    const doc = (list: string) => parseDocument(`<html><body><div id="m_Content_listecontainer"><ul>${list}</ul></div></body></html>`, `${L}FindSkema.aspx`);
+    const teachers = readDirectory(doc('<li><a data-lectiocontextcard="T3" href="/lectio/123/SkemaNy.aspx?laererid=3">Lene Madsen (*lm)</a></li>'));
+    expect(teachers.items.map((i: any) => [i.kind, i.id, i.label])).toEqual([['laerer', '3', 'Lene Madsen (*lm)']]);
+    const rooms = readDirectory(doc('<li><a href="/lectio/123/SkemaNy.aspx?type=lokale&amp;nosubnav=1&amp;id=8"><span class="findskema-symbol">0.04</span>Kemi 1 (lab)🔵</a></li>'));
+    expect(rooms.items.map((i: any) => [i.kind, i.id, i.label])).toEqual([['lokale', '8', '0.04 Kemi 1 (lab)🔵']]);
+  });
+  it('recognises schedule links with and without type=', () => {
+    expect(scheduleTarget(`${L}SkemaNy.aspx?laererid=3`)).toEqual({ kind: 'laerer', id: '3' });
+    expect(scheduleTarget(`${L}SkemaNy.aspx?elevid=4`)).toEqual({ kind: 'elev', id: '4' });
     expect(scheduleTarget(`${L}SkemaNy.aspx?type=laerer&laererid=3`)).toEqual({ kind: 'laerer', id: '3' });
     expect(scheduleTarget(`${L}SkemaNy.aspx?type=lokale&id=8`)).toEqual({ kind: 'lokale', id: '8' });
     expect(scheduleTarget(`${L}SkemaNy.aspx`)).toBeNull();

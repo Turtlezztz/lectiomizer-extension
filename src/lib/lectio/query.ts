@@ -70,10 +70,10 @@ export function readElevId(doc: Document): string | null {
   const meta = doc.querySelector('meta[name="msapplication-starturl"]')?.getAttribute('content') || '';
   const fromMeta = meta.match(/elevid=(\d+)/i)?.[1];
   if (fromMeta) return fromMeta;
-  // Lectio's own navigation links to the student's schedule with ?type=elev&elevid=…
+  // Lectio's own navigation links to the student's schedule with ?elevid=… (sometimes with type=elev)
   for (const a of Array.from(doc.querySelectorAll('#s_m_mastermenu a[href], [id$="subnavigator_generic_tr"] a[href], nav a[href]'))) {
     const href = a.getAttribute('href') || '';
-    const m = /type=elev/i.test(href) && href.match(/elevid=(\d+)/i);
+    const m = !/type=(?!elev\b)/i.test(href) && href.match(/elevid=(\d+)/i);
     if (m) return m[1];
   }
   return null;

@@ -36,9 +36,10 @@ export function appRoute(href: string | null | undefined): string | null {
   }
   if (/elevaflevering\.aspx$/.test(path) && q.get('exerciseid')) return assignmentRoute(q.get('exerciseid')!, q.get('elevid'));
   if (/skemany\.aspx$/.test(path)) {
+    // Lectio links students and teachers both with and without type=…
     const type = (q.get('type') || '').toLowerCase();
-    if (type === 'elev' && q.get('elevid')) return `/students/${q.get('elevid')}`;
-    if (type === 'laerer' && q.get('laererid')) return `/teachers/${q.get('laererid')}`;
+    if ((type === 'elev' || !type) && q.get('elevid')) return `/students/${q.get('elevid')}`;
+    if ((type === 'laerer' || !type) && q.get('laererid')) return `/teachers/${q.get('laererid')}`;
     if (type === 'lokale' && q.get('id')) return `/rooms/${q.get('id')}`;
   }
   if (/beskeder2\.aspx$/.test(path) && q.get('id')) return `/messages/${q.get('id')}`;
