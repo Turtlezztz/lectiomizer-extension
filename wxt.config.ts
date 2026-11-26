@@ -6,6 +6,8 @@ const OPTIONAL_HOSTS = ['https://auth.openai.com/*', 'https://api.openai.com/*',
 export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-react'],
+  // The sources zip for Mozilla's review: never captured Lectio pages (personal data) or scratch files.
+  zip: { excludeSources: ['fixtures/**', 'scripts/tmp-*', '.idea/**', '.claude/**', '.impeccable/**', '.env*'] },
   vite: () => ({ plugins: [tailwindcss()] }),
   manifest: ({ browser, manifestVersion }) => ({
     name: 'Lectiomizer',
