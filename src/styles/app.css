@@ -1,0 +1,124 @@
+@import 'tailwindcss';
+@source '../';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. Surfaces are warm neutrals; the accent keeps a nod to Lectio's
+   red but softened to coral. Everything else derives from these. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-bg: oklch(0.985 0.002 75);
+  --color-surface: oklch(1 0 0);
+  --color-surface-2: oklch(0.97 0.003 75);
+  --color-surface-3: oklch(0.94 0.004 75);
+  --color-border: oklch(0.915 0.004 75);
+  --color-border-strong: oklch(0.86 0.005 75);
+  --color-fg: oklch(0.22 0.01 60);
+  --color-fg-muted: oklch(0.48 0.01 60);
+  --color-fg-subtle: oklch(0.62 0.008 60);
+
+  --color-accent: oklch(0.62 0.19 28);
+  --color-accent-hover: oklch(0.57 0.19 28);
+  --color-accent-fg: oklch(0.99 0.01 28);
+  --color-accent-soft: oklch(0.95 0.035 28);
+  --color-accent-soft-fg: oklch(0.48 0.16 28);
+
+  --color-success: oklch(0.62 0.14 155);
+  --color-success-soft: oklch(0.95 0.04 155);
+  --color-success-soft-fg: oklch(0.42 0.11 155);
+  --color-warning: oklch(0.75 0.15 75);
+  --color-warning-soft: oklch(0.96 0.05 85);
+  --color-warning-soft-fg: oklch(0.5 0.12 65);
+  --color-danger: oklch(0.6 0.21 25);
+  --color-danger-soft: oklch(0.95 0.04 25);
+  --color-danger-soft-fg: oklch(0.5 0.19 25);
+  --color-info: oklch(0.6 0.15 250);
+  --color-info-soft: oklch(0.95 0.03 250);
+  --color-info-soft-fg: oklch(0.45 0.14 250);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  --shadow-card: 0 1px 2px oklch(0.2 0.01 60 / 0.04), 0 1px 1px oklch(0.2 0.01 60 / 0.02);
+  --shadow-pop: 0 12px 32px -8px oklch(0.2 0.01 60 / 0.18), 0 2px 6px oklch(0.2 0.01 60 / 0.06);
+
+  --animate-in: fade-in 160ms ease-out;
+  --animate-pop: pop-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @keyframes pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+}
+
+.dark {
+  --color-bg: oklch(0.16 0.004 60);
+  --color-surface: oklch(0.2 0.005 60);
+  --color-surface-2: oklch(0.235 0.005 60);
+  --color-surface-3: oklch(0.28 0.006 60);
+  --color-border: oklch(0.29 0.006 60);
+  --color-border-strong: oklch(0.36 0.007 60);
+  --color-fg: oklch(0.95 0.004 75);
+  --color-fg-muted: oklch(0.72 0.006 75);
+  --color-fg-subtle: oklch(0.56 0.006 75);
+  --color-accent: oklch(0.68 0.17 30);
+  --color-accent-hover: oklch(0.73 0.16 30);
+  --color-accent-fg: oklch(0.18 0.02 30);
+  --color-accent-soft: oklch(0.3 0.07 28);
+  --color-accent-soft-fg: oklch(0.85 0.09 30);
+  --color-success-soft: oklch(0.3 0.05 155);
+  --color-success-soft-fg: oklch(0.85 0.1 155);
+  --color-warning-soft: oklch(0.32 0.06 75);
+  --color-warning-soft-fg: oklch(0.88 0.1 85);
+  --color-danger-soft: oklch(0.3 0.08 25);
+  --color-danger-soft-fg: oklch(0.85 0.1 25);
+  --color-info-soft: oklch(0.3 0.06 250);
+  --color-info-soft-fg: oklch(0.85 0.08 250);
+  --shadow-card: 0 0 0 1px oklch(1 0 0 / 0.02);
+  --shadow-pop: 0 16px 40px -8px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.06);
+  color-scheme: dark;
+}
+
+@layer base {
+  html { font-feature-settings: 'cv11', 'ss01', 'ss03'; -webkit-font-smoothing: antialiased; }
+  body { @apply bg-bg text-fg font-sans text-[14px] leading-normal; }
+  ::selection { background: var(--color-accent-soft); color: var(--color-accent-soft-fg); }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+/* Rich text from Lectio (lesson notes, messages): readable, contained. */
+@layer components {
+  .prose-lectio { @apply text-[14.5px] leading-relaxed text-fg break-words; }
+  .prose-lectio p { @apply my-2; }
+  .prose-lectio a { @apply text-accent-soft-fg underline decoration-accent/40 underline-offset-2 hover:decoration-accent; }
+  .prose-lectio ul { @apply list-disc pl-5 my-2; }
+  .prose-lectio ol { @apply list-decimal pl-5 my-2; }
+  .prose-lectio h1, .prose-lectio h2, .prose-lectio h3 { @apply font-semibold mt-4 mb-2; }
+  .prose-lectio table { @apply my-3 w-full border-collapse text-sm; }
+  .prose-lectio td, .prose-lectio th { @apply border border-border px-2 py-1; }
+  .prose-lectio img { @apply max-w-full h-auto rounded-md; }
+  .prose-lectio blockquote { @apply border-l-2 border-border-strong pl-3 text-fg-muted; }
+  .prose-lectio h1 { @apply text-[19px] tracking-[-0.015em]; }
+  .prose-lectio h2 { @apply text-[16.5px]; }
+  .prose-lectio h3 { @apply text-[15px]; }
+  .prose-lectio sub, .prose-lectio sup { @apply text-[0.75em]; }
+
+  /* The elevfeedback editor: same typography, plus editing affordances. */
+  .prose-editor > :first-child { @apply mt-1; }
+  .prose-editor td, .prose-editor th { @apply min-w-[3em] align-top; }
+  .prose-editor img { @apply cursor-default; }
+  .prose-editor a[data-lc-display-linktype='file'] {
+    @apply inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-px text-[13px] no-underline;
+  }}

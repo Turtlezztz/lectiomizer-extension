@@ -1,0 +1,271 @@
+import { useState, type ReactNode } from 'react';
+import { Bell, CalendarDays, Check, CheckCircle2, Copy, ExternalLink, Loader2, LogOut, Monitor, Moon, Palette, RefreshCw, School, Sun, TriangleAlert } from 'lucide-react';
+import { Page, PageHeader } from '@/components/ui/page';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Segmented } from '@/components/ui/segmented';
+import { Badge } from '@/components/ui/badge';
+import { useSettings } from '@/lib/settings';
+import { schoolRoot } from '@/lib/lectio/paths';
+import { extApi, isExtension } from '@/lib/storage';
+import { fmtTime, relativeDay } from '@/lib/format';
+import { send, useAccount, useCalendarStatus, usePrefs } from '@/lib/sync/hooks';
+import { BUILT_IN_CLIENT_ID, INTERVALS, WEEK_CHOICES } from '@/lib/sync/store';
+import { cn } from '@/lib/cn';
+
+const redirectUrl: string = (() => {
+  try {
+    return extApi?.identity?.getRedirectURL?.() ?? '';
+  } catch {
+    return '';
+  }
+})();
+
+function CopyField({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 py-1 pr-1 pl-3">
+      <code className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg" title={value}>{value}</code>
+      <Button size="sm" variant="ghost" aria-label={label} onClick={() => navigator.clipboard.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}>
+        {copied ? <Check /> : <Copy />} {copied ? 'Kopieret' : 'Kopiér'}
+      </Button>
+    </div>
+  );
+}
+
+/** Shown until a client id exists: how to make one, and where to paste it. */
+function ClientIdSetup({ value, onSave }: { value: string; onSave: (id: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const valid = /^[\w-]+\.apps\.googleusercontent\.com$/.test(draft.trim());
+  return (
+    <div className="space-y-3 border-t border-border bg-surface-2/40 px-5 py-4">
+      <div>
+        <div className="text-[13.5px] font-medium">Opsætning: Google-klient-ID</div>
+        <ol className="mt-1.5 list-decimal space-y-1 pl-4 text-[12.5px] text-fg-muted">
+          <li>Opret et projekt i <a className="text-accent-soft-fg underline" href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noreferrer">Google Cloud Console</a> og aktivér <b>Google Calendar API</b>.</li>
+          <li>Under <b>Google Auth Platform</b>: vælg <i>External</i>, behold <i>Testing</i>, tilføj dig selv som testbruger og scopet <code className="font-mono">calendar.app.created</code>.</li>
+          <li>Opret en OAuth-klient af typen <b>Web application</b> med denne adresse som <i>Authorized redirect URI</i>:</li>
+        </ol>
+      </div>
+      {redirectUrl ? <CopyField value={redirectUrl} label="Kopiér redirect-adresse" /> : <p className="text-[12.5px] text-fg-subtle">(Adressen vises, når Lectiomizer kører som udvidelse.)</p>}
+      <div className="text-[12.5px] text-fg-muted">4. Indsæt klient-ID'et her:</div>
+      <div className="flex gap-2">
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="1234-abc.apps.googleusercontent.com" className="font-mono text-[12.5px]" aria-label="Google-klient-ID" />
+        <Button onClick={() => onSave(draft.trim())} disabled={!valid || draft.trim() === value}>Gem</Button>
+      </div>
+    </div>
+  );
+}
+
+function when(ts?: number) {
+  if (!ts) return 'aldrig';
+  const d = new Date(ts);
+  return `${relativeDay(d)} kl. ${fmtTime(d)}`;
+}
+
+function Section({ icon, title, description, children, aside }: { icon: ReactNode; title: string; description?: ReactNode; children: ReactNode; aside?: ReactNode }) {
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-start gap-3 border-b border-border px-5 py-4">
+        <span className="mt-0.5 flex size-8 items-center justify-center rounded-lg bg-surface-2 text-fg-muted [&_svg]:size-4">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
+          {description && <p className="mt-0.5 text-[13px] text-fg-muted">{description}</p>}
+        </div>
+        {aside}
+      </div>
+      <div className="divide-y divide-border">{children}</div>
+    </Card>
+  );
+}
+
+function Row({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5">
+      <div className="min-w-0 flex-1 basis-56">
+        <div className="text-[13.5px] font-medium text-fg">{label}</div>
+        {hint && <div className="mt-0.5 text-[12.5px] text-fg-muted">{hint}</div>}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+function StatusLine({ state, message, children }: { state?: string; message?: string; children: ReactNode }) {
+  const Icon = state === 'error' ? TriangleAlert : state === 'syncing' ? Loader2 : CheckCircle2;
+  return (
+    <div className={cn('flex items-start gap-2 px-5 py-3 text-[12.5px]', state === 'error' ? 'bg-danger-soft text-danger-soft-fg' : 'bg-surface-2/60 text-fg-muted')}>
+      <Icon className={cn('mt-px size-3.5 shrink-0', state === 'syncing' && 'animate-spin', state === 'ok' && 'text-success')} />
+      <span>
+        {children}
+        {message && <span className="block">{message}</span>}
+      </span>
+    </div>
+  );
+}
+
+function NotificationSettings() {
+  const [prefs, save] = usePrefs();
+  const account = useAccount();
+  const status = account.status || {};
+  const [busy, setBusy] = useState(false);
+  const checkNow = async () => {
+    setBusy(true);
+    await send({ type: 'check-now' }).catch(() => {});
+    setBusy(false);
+  };
+  const checking = busy || status.state === 'syncing';
+  return (
+    <Section
+      icon={<Bell />}
+      title="Notifikationer"
+      description="Lectiomizer tjekker Lectio i baggrunden – også når appen er lukket – og giver besked om ændrede og aflyste moduler, nye beskeder og nye opgaver."
+    >
+      <Row label="Systemnotifikationer" hint="Vis en notifikation fra browseren, når der er nyt.">
+        <Switch label="Systemnotifikationer" checked={prefs.system} onChange={(system) => save({ system })} />
+      </Row>
+      <Row label="Tjek Lectio" hint="Hvor ofte der tjekkes for nyt, mens browseren er åben.">
+        <Select value={prefs.interval} onChange={(e) => save({ interval: Number(e.target.value) })} aria-label="Interval">
+          {INTERVALS.map((i) => (
+            <option key={i.minutes} value={i.minutes}>{i.label}</option>
+          ))}
+        </Select>
+        <Button size="md" onClick={checkNow} disabled={checking}>
+          <RefreshCw className={cn(checking && 'animate-spin')} /> Tjek nu
+        </Button>
+      </Row>
+      <StatusLine state={checking ? 'syncing' : status.state} message={status.state !== 'syncing' ? status.message : ''}>
+        {checking ? 'Tjekker Lectio…' : `Sidst tjekket ${when(status.checkedAt)}.`}
+      </StatusLine>
+    </Section>
+  );
+}
+
+function CalendarSettings() {
+  const { settings } = useSettings();
+  const [prefs, save] = usePrefs();
+  const status = useCalendarStatus();
+  const [busy, setBusy] = useState<'' | 'connect' | 'sync' | 'disconnect'>('');
+  const [error, setError] = useState('');
+  const run = async (kind: typeof busy, message: Record<string, unknown>) => {
+    setBusy(kind);
+    setError('');
+    const r = await send(message).catch((e: Error) => ({ ok: false, message: e.message }));
+    if (!r?.ok && r?.message) setError(r.message);
+    setBusy('');
+  };
+  const connect = () => {
+    // Firefox asks for the user's consent to send website content (the schedule) to Google.
+    // Must be requested directly in the click handler.
+    let consent: Promise<unknown> = Promise.resolve(true);
+    try {
+      consent = extApi?.permissions?.request?.({ data_collection: ['websiteContent'] }) ?? consent;
+    } catch {}
+    consent
+      .catch(() => true)
+      .then((granted) => {
+        if (granted === false) return setError('Uden tilladelse kan skemaet ikke sendes til Google.');
+        return run('connect', { type: 'calendar:connect' });
+      });
+  };
+  return (
+    <Section
+      icon={<CalendarDays />}
+      title="Google Kalender"
+      description="Kopiér dit skema til en separat “Lectio”-kalender i Google Kalender, så det altid er opdateret på telefonen."
+      aside={prefs.connected ? <Badge tone="success">Forbundet</Badge> : null}
+    >
+      {!prefs.connected ? (
+        <div className="px-5 py-4">
+          <ul className="mb-4 space-y-1.5 text-[13px] text-fg-muted">
+            <li>• Lectiomizer kan kun se og ændre den kalender, den selv opretter – aldrig dine andre kalendere.</li>
+            <li>• Ændrede moduler bliver grønne, aflyste røde, og lektier/noter kommer med i beskrivelsen.</li>
+          </ul>
+          <Button variant="primary" onClick={connect} disabled={!!busy || !isExtension || !(prefs.googleClientId || BUILT_IN_CLIENT_ID)}>
+            {busy === 'connect' ? <Loader2 className="animate-spin" /> : <CalendarDays />} Forbind Google Kalender
+          </Button>
+        </div>
+      ) : (
+        <>
+          <Row label="Google-konto" hint={prefs.email || 'Ukendt konto'}>
+            <Button variant="ghost" onClick={() => run('disconnect', { type: 'calendar:disconnect' })} disabled={!!busy}>
+              <LogOut /> Afbryd
+            </Button>
+          </Row>
+          <Row label="Antal uger" hint="Denne uge og de kommende uger.">
+            <Select value={prefs.weeks} onChange={(e) => save({ weeks: Number(e.target.value) })} aria-label="Antal uger">
+              {WEEK_CHOICES.map((w) => (
+                <option key={w} value={w}>{w === 1 ? '1 uge' : `${w} uger`}</option>
+              ))}
+            </Select>
+          </Row>
+          <Row label="Medtag aflyste moduler" hint="Vises som “Aflyst: …” og blokerer ikke tiden.">
+            <Switch label="Medtag aflyste moduler" checked={prefs.cancelled} onChange={(cancelled) => save({ cancelled })} />
+          </Row>
+          <Row label="Synkronisér" hint="Sker automatisk ved hvert tjek af Lectio.">
+            <Button onClick={() => run('sync', { type: 'calendar:sync-now', schoolId: settings.school?.id })} disabled={!!busy || status.state === 'syncing'}>
+              <RefreshCw className={cn((busy === 'sync' || status.state === 'syncing') && 'animate-spin')} /> Synkronisér nu
+            </Button>
+          </Row>
+          <StatusLine state={status.state === 'idle' ? 'ok' : status.state} message={status.message}>
+            {status.state === 'syncing'
+              ? 'Synkroniserer…'
+              : status.syncedAt
+                ? `Synkroniseret ${when(status.syncedAt)} · ${status.lessons ?? 0} moduler i ${status.weeks ?? 0} uger.`
+                : 'Ikke synkroniseret endnu.'}
+          </StatusLine>
+          {status.reconnect && (
+            <div className="px-5 py-3">
+              <Button variant="soft" onClick={connect} disabled={!!busy}>Forbind igen</Button>
+            </div>
+          )}
+        </>
+      )}
+      {!prefs.connected && (!BUILT_IN_CLIENT_ID || prefs.googleClientId) && (
+        <ClientIdSetup value={prefs.googleClientId} onSave={(googleClientId) => save({ googleClientId })} />
+      )}
+      {error && <div className="bg-danger-soft px-5 py-3 text-[13px] text-danger-soft-fg">{error}</div>}
+    </Section>
+  );
+}
+
+export default function SettingsPage() {
+  const { settings, update } = useSettings();
+  return (
+    <Page className="max-w-[760px]">
+      <PageHeader title="Indstillinger" description="Notifikationer, Google Kalender og udseende." />
+      <div className="space-y-5">
+        <NotificationSettings />
+        <CalendarSettings />
+        <Section icon={<Palette />} title="Udseende">
+          <Row label="Tema">
+            <Segmented
+              value={settings.theme}
+              onChange={(theme) => update({ theme })}
+              options={[
+                { value: 'system', label: <><Monitor className="size-3.5" /> System</> },
+                { value: 'light', label: <><Sun className="size-3.5" /> Lyst</> },
+                { value: 'dark', label: <><Moon className="size-3.5" /> Mørkt</> },
+              ]}
+            />
+          </Row>
+        </Section>
+        <Section icon={<School />} title="Skole">
+          <Row label={settings.school?.name ?? 'Ingen skole'} hint="Lectiomizer bruger dit eget Lectio-login på denne skole.">
+            {settings.school && (
+              <Button variant="ghost" asChild>
+                <a href={schoolRoot(settings.school.id) + 'forside.aspx'} target="_blank" rel="noreferrer">
+                  <ExternalLink /> Åbn Lectio
+                </a>
+              </Button>
+            )}
+            <Button onClick={() => update({ school: null })}>Skift skole</Button>
+          </Row>
+        </Section>
+      </div>
+    </Page>
+  );
+}

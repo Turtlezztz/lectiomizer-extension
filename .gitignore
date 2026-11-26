@@ -1,8 +1,11 @@
 node_modules/
 dist/
 artifacts/
+.output/
+.wxt/
 .impeccable/questions/
 .impeccable/review/
 .env
-
 .idea/
+# Captured Lectio pages (may hold personal data) – never commit
+fixtures/

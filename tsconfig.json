@@ -1,0 +1,22 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
+  },
+  "exclude": [
+    "legacy",
+    ".output",
+    "node_modules",
+    "fixtures"
+  ]
+}
