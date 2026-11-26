@@ -32,6 +32,17 @@ src/
   features/people/  Elever + Lærere (FindSkema.aspx lists) and the shared detail page (profile, "nu", week schedule)
   features/rooms/   Lokaler: room list with live booked/free status from each room's week schedule
   lib/nav.ts        useBack(fallback): "Tilbage" via in-app history, else a fallback route
+  lib/agent/         the Assistent and the MCP bridge
+    tool-specs.js   the read-only Lectio tools as plain data (names, descriptions, JSON Schema); shared with mcp/server.mjs
+    tools.ts        createLectioTools(): runs them with getPage + the readers, returns compact Markdown with ids
+    html-markdown.js  Lectio HTML → Markdown (teacher content, message bodies, fallback pages)
+    openai.js       Sign in with ChatGPT + Responses API helpers (pure, ported from v1)
+    session.ts      background: sign-in, callback capture via tabs.onUpdated, token refresh (only here)
+    agent.ts        app: Responses streaming with retries, runTurn() tool loop, history helpers
+    account.ts      chat account state, permissions, saved conversations (storage)
+    bridge.ts       background: long-polls the local MCP server for tool calls (when turned on)
+    run-tool.ts     runs one tool for the bridge (Firefox background page / Chrome offscreen document)
+  features/chat/    Assistent page; jobs.ts keeps running answers alive across route changes
   lib/format.ts     Danish date helpers (relativeDay, untilText, urgency, fmtTime…)
   lib/subjects.ts   subjectColor(hold) – stable colour per subject
   styles/app.css    Tailwind v4 theme tokens (light + .dark)
@@ -60,6 +71,23 @@ const { data, isPending, error, refetch } = useLectioPage(PATHS.assignments, rea
 * Other people's / rooms' schedules: `WeekSchedule` with a `SkemaNy.aspx?type=…`
   base; many at once go through `useManyWeekLessons` (max 4 requests in flight).
 * `NotLoggedInError` from any fetch sends the user to the login gate.
+
+## Assistent and MCP
+
+```
+app page (ChatPage) ── runTurn ──▶ api.openai.com/v1/responses   (token from background: chat:token)
+        └── tools.run(name, args) ──▶ lectio.dk (getPage + readers, no Lectio tab needed)
+
+MCP client ──stdio──▶ mcp/server.mjs (127.0.0.1:47123) ◀── long-poll ── background bridge.ts
+                                                                         └─ run-tool.ts (offscreen on Chrome)
+```
+
+* The tools only read. They take ids (opgave-id, lektion-id, besked-id) that other tools return, and
+  links stay on the student's own school (`resolveUrl`). Pages are shared between calls for a minute.
+* In the app, links in answers are school-relative; `features/chat/Markdown.tsx` turns them into in-app
+  routes via `appRoute()`. MCP results use absolute lectio.dk links.
+* The bridge only runs while turned on in Indstillinger and only talks to a server with the same
+  pairing token (`LECTIOMIZER_TOKEN`).
 
 ## Design language
 

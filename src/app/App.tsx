@@ -18,6 +18,7 @@ const GradesPage = lazy(() => import('@/features/grades/GradesPage'));
 const AbsencePage = lazy(() => import('@/features/absence/AbsencePage'));
 const LessonPage = lazy(() => import('@/features/lesson/LessonPage'));
 const FeedbackPage = lazy(() => import('@/features/lesson/FeedbackPage'));
+const ChatPage = lazy(() => import('@/features/chat/ChatPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
 const PeoplePage = lazy(() => import('@/features/people/PeoplePage'));
 const DirectoryDetailPage = lazy(() => import('@/features/people/DirectoryDetailPage'));
@@ -62,6 +63,8 @@ const router = createHashRouter([
       { path: 'teachers/:id', element: lazyRoute(() => <DirectoryDetailPage kind="laerer" />) },
       { path: 'rooms', element: lazyRoute(RoomsPage) },
       { path: 'rooms/:id', element: lazyRoute(() => <DirectoryDetailPage kind="lokale" />) },
+      { path: 'chat', element: lazyRoute(ChatPage) },
+      { path: 'chat/:id', element: lazyRoute(ChatPage) },
       { path: 'settings', element: lazyRoute(SettingsPage) },
     ],
   },

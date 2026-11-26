@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Bell, CalendarDays, Check, CheckCircle2, Copy, ExternalLink, Loader2, LogOut, Monitor, Moon, Palette, RefreshCw, School, Sun, TriangleAlert } from 'lucide-react';
+import { Bell, CalendarDays, Check, CheckCircle2, Copy, ExternalLink, KeyRound, Loader2, LogOut, Monitor, Moon, Palette, Plug, RefreshCw, School, Sparkles, Sun, TriangleAlert } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,8 @@ import { fmtTime, relativeDay } from '@/lib/format';
 import { send, useAccount, useCalendarStatus, usePrefs } from '@/lib/sync/hooks';
 import { BUILT_IN_CLIENT_ID, INTERVALS, WEEK_CHOICES } from '@/lib/sync/store';
 import { cn } from '@/lib/cn';
+import { BRIDGE_DEFAULTS, BRIDGE_KEY, BRIDGE_ORIGINS, BRIDGE_STATUS_KEY, DEFAULT_PORT, newToken, saveBridge, type BridgePrefs, type BridgeStatus } from '@/lib/agent/bridge';
+import { connectChatGPT, useChatAccount, useStored } from '@/features/chat/hooks';
 
 const redirectUrl: string = (() => {
   try {
@@ -232,14 +234,120 @@ function CalendarSettings() {
   );
 }
 
+function AssistantSettings() {
+  const account = useChatAccount();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const run = async (action: () => Promise<string>) => {
+    setBusy(true);
+    setError(await action().catch((e: Error) => e.message));
+    setBusy(false);
+  };
+  return (
+    <Section
+      icon={<Sparkles />}
+      title="Assistent"
+      description="Assistenten svarer med din egen ChatGPT-plan og kan læse – men ikke ændre – dit skema, opgaver, lektioner, beskeder, karakterer og fravær."
+    >
+      <Row
+        label="ChatGPT"
+        hint={account.connected ? `Logget ind som ${account.email || 'din ChatGPT-konto'}${account.planEnabled ? '' : ' – uden adgang til planen'}.` : account.pending ? 'Venter på login i ChatGPT-fanen…' : 'Ikke forbundet.'}
+      >
+        {account.connected ? (
+          <Button onClick={() => run(async () => ((await send({ type: 'chat:disconnect' }))?.ok ? '' : 'Kunne ikke logge ud.'))} disabled={busy}>
+            <LogOut /> Log ud
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={() => run(() => connectChatGPT())} disabled={busy || account.pending}>
+            Fortsæt med ChatGPT
+          </Button>
+        )}
+      </Row>
+      {(error || account.message) && <div className="bg-danger-soft px-5 py-3 text-[13px] text-danger-soft-fg">{error || account.message}</div>}
+    </Section>
+  );
+}
+
+const SERVER_PATH = '/sti/til/lectiomizer/mcp/server.mjs';
+
+function McpSettings() {
+  const prefs = { ...BRIDGE_DEFAULTS, ...useStored<Partial<BridgePrefs>>(BRIDGE_KEY, {}) };
+  const status = useStored<BridgeStatus>(BRIDGE_STATUS_KEY, { state: 'off', at: 0 });
+  const [error, setError] = useState('');
+  const port = prefs.port || DEFAULT_PORT;
+  const toggle = async (enabled: boolean) => {
+    setError('');
+    if (enabled && isExtension) {
+      // In the click: the extension may need permission to reach 127.0.0.1.
+      const granted = await extApi.permissions.request({ origins: BRIDGE_ORIGINS }).catch(() => false);
+      if (!granted) return setError('Lectiomizer skal have lov til at kontakte 127.0.0.1 for at tale med MCP-serveren.');
+    }
+    await saveBridge({ enabled, token: prefs.token || newToken() });
+  };
+  const env = `LECTIOMIZER_TOKEN=${prefs.token || '…'}${port !== DEFAULT_PORT ? ` LECTIOMIZER_PORT=${port}` : ''}`;
+  const desktop = JSON.stringify(
+    { mcpServers: { lectio: { command: 'node', args: [SERVER_PATH], env: { LECTIOMIZER_TOKEN: prefs.token || '…', ...(port !== DEFAULT_PORT ? { LECTIOMIZER_PORT: String(port) } : {}) } } } },
+    null,
+    2,
+  );
+  const cli = `claude mcp add lectio ${env.split(' ').map((e) => `-e ${e}`).join(' ')} -- node ${SERVER_PATH}`;
+  const state = !prefs.enabled ? 'off' : status.state;
+  return (
+    <Section
+      icon={<Plug />}
+      title="MCP-server"
+      description="Brug dine Lectio-data fra Claude, Cursor eller en anden MCP-klient. Klienten starter mcp/server.mjs fra Lectiomizers kildekode; udvidelsen udfører opslagene med dit Lectio-login, mens browseren er åben. Kun læsning."
+    >
+      <Row label="Tillad MCP-klienter" hint="Udvidelsen forbinder til MCP-serveren på denne computer (127.0.0.1).">
+        <Switch label="Tillad MCP-klienter" checked={prefs.enabled} onChange={toggle} />
+      </Row>
+      {prefs.enabled && (
+        <>
+          <Row label={<span className="flex items-center gap-1.5"><KeyRound className="size-3.5" /> Nøgle</span>} hint="Klienten skal have samme nøgle i LECTIOMIZER_TOKEN. Lav en ny, hvis den er kommet i forkerte hænder.">
+            <Button size="sm" variant="ghost" onClick={() => saveBridge({ token: newToken() })}>
+              <RefreshCw /> Ny nøgle
+            </Button>
+          </Row>
+          <div className="space-y-3 px-5 py-4">
+            <CopyField value={prefs.token} label="Kopiér nøgle" />
+            <div className="text-[12.5px] text-fg-muted">Claude Code:</div>
+            <CopyField value={cli} label="Kopiér kommando" />
+            <div className="text-[12.5px] text-fg-muted">Claude Desktop (claude_desktop_config.json) og andre klienter:</div>
+            <div className="relative">
+              <pre className="overflow-x-auto rounded-lg border border-border bg-surface-2 p-3 pr-24 font-mono text-[12px]">{desktop}</pre>
+              <Button size="sm" variant="ghost" className="absolute top-1.5 right-1.5" onClick={() => navigator.clipboard.writeText(desktop)}>
+                <Copy /> Kopiér
+              </Button>
+            </div>
+            <p className="text-[12px] text-fg-subtle">Erstat <code className="font-mono">{SERVER_PATH}</code> med stien til din Lectiomizer-mappe. Kræver Node 18+.</p>
+          </div>
+          <Row label="Port" hint="Skift kun, hvis 47123 er optaget. Sæt også LECTIOMIZER_PORT i klienten.">
+            <Input type="number" min={1024} max={65535} value={port} onChange={(e) => saveBridge({ port: Number(e.target.value) || DEFAULT_PORT })} className="w-28" aria-label="Port" />
+          </Row>
+        </>
+      )}
+      {prefs.enabled && (
+        <StatusLine state={state === 'connected' ? 'ok' : state === 'waiting' && status.message?.includes('afviste') ? 'error' : 'syncing'}>
+          {state === 'connected'
+            ? `Forbundet til MCP-serveren.${status.lastCall ? ` Seneste opslag: ${status.lastCall.name} ${when(status.lastCall.at)}.` : ''}`
+            : status.message || 'Venter på MCP-serveren… Start en MCP-klient, der bruger den.'}
+        </StatusLine>
+      )}
+      {error && <div className="bg-danger-soft px-5 py-3 text-[13px] text-danger-soft-fg">{error}</div>}
+    </Section>
+  );
+}
+
 export default function SettingsPage() {
   const { settings, update } = useSettings();
   return (
     <Page className="max-w-[760px]">
-      <PageHeader title="Indstillinger" description="Notifikationer, Google Kalender og udseende." />
+      <PageHeader title="Indstillinger" description="Notifikationer, Google Kalender, assistent og udseende." />
       <div className="space-y-5">
         <NotificationSettings />
         <CalendarSettings />
+        <AssistantSettings />
+        <McpSettings />
         <Section icon={<Palette />} title="Udseende">
           <Row label="Tema">
             <Segmented

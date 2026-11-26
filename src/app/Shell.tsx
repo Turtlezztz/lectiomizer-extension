@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useIsFetching } from '@tanstack/react-query';
 import {
-  CalendarDays, ClipboardList, DoorOpen, ExternalLink, GraduationCap, House, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sun, SunMoon, UserX, X,
+  CalendarDays, ClipboardList, DoorOpen, ExternalLink, GraduationCap, House, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sparkles, Sun, SunMoon, UserX, X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSettings } from '@/lib/settings';
@@ -20,6 +20,7 @@ export const NAV = [
   { to: '/messages', label: 'Beskeder', icon: Mail },
   { to: '/grades', label: 'Karakterer', icon: GraduationCap },
   { to: '/absence', label: 'Fravær', icon: UserX },
+  { to: '/chat', label: 'Assistent', icon: Sparkles },
 ] as const;
 
 /** The school's directories: people and rooms, each with their own schedule. */
@@ -159,7 +160,7 @@ export function Shell({ children }: { children?: ReactNode }) {
       }
       const target = e.target as HTMLElement;
       if (e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable) return;
-      const shortcut = { '1': '/', '2': '/schedule', '3': '/assignments', '4': '/messages', '5': '/grades', '6': '/absence', '7': '/students', '8': '/teachers', '9': '/rooms' }[e.key];
+      const shortcut = { '1': '/', '2': '/schedule', '3': '/assignments', '4': '/messages', '5': '/grades', '6': '/absence', '7': '/students', '8': '/teachers', '9': '/rooms', '0': '/chat' }[e.key];
       if (shortcut) navigate(shortcut);
     };
     window.addEventListener('keydown', onKey);

@@ -6,9 +6,13 @@ import { readLectio } from '@/lib/sync/read';
 import { markRead, noticeFor, runCheck, updateBadge, type Reader } from '@/lib/sync/check';
 import { connectGoogle, disconnectGoogle, syncToGoogle } from '@/lib/sync/calendar';
 import { intervalOf, loadPrefs, SYNC_KEY } from '@/lib/sync/store';
+import { cancelSignIn, onTabRemoved, onTabUpdated, pasteCallback, refreshModels, signOut, signedOut, startSignIn, tokenForApp } from '@/lib/agent/session';
+import { BRIDGE_KEY, loadBridge, startBridge, type BridgeRunner } from '@/lib/agent/bridge';
+import { runToolHere } from '@/lib/agent/run-tool';
 
 const APP_PATH = '/app.html';
 const ALARM = 'lectio-check';
+const BRIDGE_ALARM = 'mcp-bridge';
 const loginTabs = new Set<number>();
 
 async function openApp(route = '') {
@@ -54,6 +58,23 @@ const viaOffscreen: Reader = async (args) => {
 };
 const read: Reader = typeof DOMParser !== 'undefined' ? direct : viaOffscreen;
 
+// MCP bridge: tool calls from a local MCP client, run with the Lectio session.
+const runTool: BridgeRunner =
+  typeof DOMParser !== 'undefined'
+    ? (call) => runToolHere(call.name, call.arguments)
+    : async (call) => {
+        await ensureOffscreen();
+        return browser.runtime.sendMessage({ target: 'offscreen', type: 'tool', name: call.name, args: call.arguments });
+      };
+async function bridge() {
+  const { enabled } = await loadBridge();
+  // While it's on, a once-a-minute alarm finds a server that starts later.
+  if (enabled) {
+    if (!(await browser.alarms.get(BRIDGE_ALARM))) await browser.alarms.create(BRIDGE_ALARM, { periodInMinutes: 1 });
+  } else await browser.alarms.clear(BRIDGE_ALARM);
+  await startBridge(runTool).catch((e) => console.warn('Lectiomizer: MCP-bro fejlede', e));
+}
+
 async function scheduleAlarm() {
   const prefs = await loadPrefs();
   const period = intervalOf(prefs).minutes;
@@ -73,17 +94,20 @@ export default defineBackground(() => {
     scheduleAlarm();
   });
   browser.runtime.onStartup.addListener(() => {
+    bridge();
     scheduleAlarm();
     updateBadge();
   });
 
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === ALARM) runCheck(read).catch((e) => console.warn('Lectiomizer: tjek fejlede', e));
+    if (alarm.name === BRIDGE_ALARM) bridge();
   });
 
   browser.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (changes[SYNC_KEY]) scheduleAlarm();
+    if (changes[BRIDGE_KEY]) bridge();
     // A school was just chosen (or changed): check right away.
     if (changes.settings && (changes.settings.newValue as any)?.school?.id !== (changes.settings.oldValue as any)?.school?.id) runCheck(read, { force: true });
   });
@@ -110,6 +134,24 @@ export default defineBackground(() => {
         return reply(connectGoogle().then(async (r) => (r.ok ? (runCheck(read, { force: true }), r) : r)));
       case 'calendar:disconnect':
         return reply(disconnectGoogle());
+      // Assistent (Sign in with ChatGPT). Only the background refreshes tokens.
+      case 'chat:connect':
+        return reply(startSignIn({ openerTabId: sender.tab?.id ?? null, consent: !!message.consent }));
+      case 'chat:cancel':
+        return reply(cancelSignIn());
+      case 'chat:callback':
+        return reply(pasteCallback(message.url));
+      case 'chat:disconnect':
+        return reply(signOut());
+      case 'chat:models':
+        return reply(refreshModels());
+      case 'chat:token':
+        return reply(tokenForApp(!!message.force));
+      case 'chat:signed-out':
+        return reply(signedOut(String(message.message || 'Log ind med ChatGPT igen.')));
+      case 'mcp:start':
+        bridge();
+        return reply(Promise.resolve({ ok: true }));
       case 'calendar:sync-now':
         return reply(
           read({ schoolId: message.schoolId, weekCount: 8 }).then((r) => ('error' in r ? { ok: false, message: r.error } : syncToGoogle(r.weeks))),
@@ -127,6 +169,7 @@ export default defineBackground(() => {
 
   // After login Lectio lands on the student's forside; that's our cue.
   browser.tabs.onUpdated.addListener(async (tabId, info) => {
+    onTabUpdated(tabId, info).catch(() => {});
     if (!loginTabs.has(tabId) || !info.url) return;
     if (/^https:\/\/(www\.)?lectio\.dk\/lectio\/\d+\/forside\.aspx/i.test(info.url)) {
       loginTabs.delete(tabId);
@@ -135,7 +178,11 @@ export default defineBackground(() => {
       runCheck(read, { force: true });
     }
   });
-  browser.tabs.onRemoved.addListener((tabId) => loginTabs.delete(tabId));
+  browser.tabs.onRemoved.addListener((tabId) => {
+    loginTabs.delete(tabId);
+    onTabRemoved(tabId).catch(() => {});
+  });
 
   scheduleAlarm();
+  bridge();
 });
