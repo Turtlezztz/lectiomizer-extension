@@ -31,10 +31,10 @@ export interface SyncPrefs {
 export const SYNC_DEFAULTS: SyncPrefs = { interval: 60, system: true, connected: false, email: '', calendarId: '', weeks: 4, cancelled: true, googleClientId: '' };
 export const SYNC_KEY = 'sync';
 
-// TODO: replace with a real OAuth client id (or set WXT_GOOGLE_CLIENT_ID in .env).
-// Google rejects this placeholder, so connecting fails until it is replaced.
-export const PLACEHOLDER_CLIENT_ID = '1234-abc.apps.googleusercontent.com';
-export const BUILT_IN_CLIENT_ID: string = (import.meta.env.WXT_GOOGLE_CLIENT_ID || '').trim() || PLACEHOLDER_CLIENT_ID;
+// Lectiomizer's own OAuth client (public, not a secret). WXT_GOOGLE_CLIENT_ID in
+// .env overrides it at build time; a client id saved in Indstillinger wins over both.
+const DEFAULT_CLIENT_ID = '937670631254-humqamqlj6vg91boaab1bluhanuq2q29.apps.googleusercontent.com';
+export const BUILT_IN_CLIENT_ID: string = (import.meta.env.WXT_GOOGLE_CLIENT_ID || '').trim() || DEFAULT_CLIENT_ID;
 
 export interface CheckStatus {
   state?: 'idle' | 'syncing' | 'ok' | 'error';
