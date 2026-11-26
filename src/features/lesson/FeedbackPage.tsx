@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useBlocker, useParams } from 'react-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, Check, Clock, ExternalLink, Eye, LoaderCircle, Lock, MapPin, MessagesSquare, PencilLine, Save, UserRound } from 'lucide-react';
+import { useMemo } from 'react';
+import { Link, useParams } from 'react-router';
+import { ArrowLeft, Clock, ExternalLink, Eye, Lock, MapPin, MessagesSquare, PencilLine, RotateCw, UserRound } from 'lucide-react';
 import { readFeedback } from '@/lib/lectio/readers/feedback.js';
 import { useLectioPage, useSchoolId, type Loaded } from '@/lib/lectio/query';
-import { postback, uploadEditorFile } from '@/lib/lectio/client';
 import { pageUrl } from '@/lib/lectio/paths';
 import { subjectColor } from '@/lib/subjects';
 import { cn } from '@/lib/cn';
@@ -15,18 +13,16 @@ import { Avatar } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { RichText } from '@/components/RichText';
-import { FeedbackEditor, type FeedbackEditorHandle } from './FeedbackEditor';
 import { LessonTabs } from './LessonTabs';
-import { isBlank, toEditorHtml, toLectioHtml } from './feedback-html';
-import { feedbackPath, type FeedbackData, type FeedbackPaper } from './lesson-utils';
+import { isBlank, toEditorHtml } from './feedback-html';
+import { feedbackPath, feedbackWriteRoute, type FeedbackData, type FeedbackPaper } from './lesson-utils';
 
 export default function FeedbackPage() {
   const { id = '' } = useParams();
   const school = useSchoolId();
   const path = id ? feedbackPath(id) : null;
   const href = path ? pageUrl(school, path) : '';
-  // Never refetch behind the student's back while they write.
-  const query = useLectioPage(path, readFeedback, { refetchOnWindowFocus: false, staleTime: 5 * 60_000 });
+  const query = useLectioPage(path, readFeedback);
   const loaded = query.data as Loaded<FeedbackData> | undefined;
 
   return (
@@ -45,7 +41,8 @@ function FeedbackContent({ id, loaded, href, onReload, reloading }: { id: string
   const data = loaded.data;
   const { lesson } = data;
   const color = subjectColor(lesson?.holds[0] || lesson?.title || '');
-  const written = data.others.length + data.teacher.length + (data.own && !isBlank(data.own.editor?.html || '') ? 1 : 0);
+  const ownWritten = data.own ? (data.own.editor ? !isBlank(data.own.editor.html) : data.own.items.length > 0) : false;
+  const written = data.others.length + data.teacher.length + (ownWritten ? 1 : 0);
 
   return (
     <div className="space-y-5">
@@ -65,9 +62,14 @@ function FeedbackContent({ id, loaded, href, onReload, reloading }: { id: string
               {!!lesson?.teachers.length && <Meta icon={<UserRound />} label="Lærere">{lesson.teachers.join(', ')}</Meta>}
             </dl>
           </div>
-          <Button size="sm" variant="secondary" asChild className="self-start sm:self-center">
-            <a href={href} target="_blank" rel="noreferrer"><ExternalLink /> Åbn i Lectio</a>
-          </Button>
+          <div className="flex gap-2 self-start sm:self-center">
+            <Button size="sm" variant="ghost" onClick={onReload} disabled={reloading} title="Hent igen fra Lectio" aria-label="Opdatér">
+              <RotateCw className={reloading ? 'animate-spin' : undefined} />
+            </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <a href={href} target="_blank" rel="noreferrer"><ExternalLink /> Åbn i Lectio</a>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -84,8 +86,8 @@ function FeedbackContent({ id, loaded, href, onReload, reloading }: { id: string
       ) : (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
           <div className="min-w-0 space-y-5">
-            {data.canWrite && data.own ? (
-              <OwnPaper key={loaded.url} loaded={loaded} paper={data.own} hint={data.hint} href={href} onReload={onReload} reloading={reloading} />
+            {data.canWrite ? (
+              <OwnPaper id={id} data={data} />
             ) : (
               <aside className="flex gap-3 rounded-xl border border-border bg-surface-2/60 px-4 py-3">
                 <Eye className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
@@ -113,120 +115,48 @@ function FeedbackContent({ id, loaded, href, onReload, reloading }: { id: string
   );
 }
 
-// ---------------------------------------------------------------- own paper (editor)
+// ---------------------------------------------------------------- own paper (read-only, links to the writing page)
 
-function OwnPaper({ loaded, paper, hint, href, onReload, reloading }: { loaded: Loaded<FeedbackData>; paper: FeedbackPaper; hint: string; href: string; onReload: () => void; reloading: boolean }) {
-  const school = useSchoolId();
-  const client = useQueryClient();
-  const editor = useRef<FeedbackEditorHandle>(null);
-  const [dirty, setDirty] = useState(false);
-  const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const [version, setVersion] = useState(0);
-  const initialHtml = useMemo(() => toEditorHtml(paper.editor?.html || ''), [paper.editor?.html]);
-
-  const save = useMutation({
-    mutationFn: async () => {
-      const ed = paper.editor;
-      if (!ed) throw new Error('Din feedback kan ikke redigeres lige nu');
-      const html = toLectioHtml(editor.current?.getHtml() ?? '');
-      const doc = await postback(loaded.doc, {
-        target: ed.target,
-        argument: 'save',
-        fields: [[ed.textarea, html], [ed.dirtyName, '1']],
-      });
-      const data = readFeedback(doc) as FeedbackData;
-      if (!data.own?.editor) throw new Error('Lectio bekræftede ikke gemningen. Åbn siden i Lectio og tjek din tekst.');
-      return { doc, data, url: loaded.url } satisfies Loaded<FeedbackData>;
-    },
-    onSuccess: (next) => {
-      client.setQueryData(['lectio', loaded.url, readFeedback.name], next);
-      setSavedAt(new Date());
-      setDirty(false);
-    },
-  });
-
-  const onSave = useCallback(() => {
-    if (!save.isPending) save.mutate();
-  }, [save]);
-
-  // Unsaved changes: warn before leaving the page or the app tab.
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return;
-    if (window.confirm('Du har ændringer, der ikke er gemt. Vil du forlade siden?')) blocker.proceed();
-    else blocker.reset();
-  }, [blocker]);
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [dirty]);
-
-  const discard = () => {
-    if (!window.confirm('Kassér dine ændringer siden sidst du gemte?')) return;
-    setVersion((v) => v + 1);
-    save.reset();
-  };
-
+function OwnPaper({ id, data }: { id: string; data: FeedbackData }) {
+  const paper = data.own;
+  const editorHtml = paper?.editor?.html || '';
+  const hasText = paper ? (paper.editor ? !isBlank(editorHtml) : paper.items.length > 0) : false;
+  const write = feedbackWriteRoute(id);
   return (
-    <section aria-labelledby="own-heading" className="space-y-2.5">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 id="own-heading" className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em] text-fg"><PencilLine className="size-4 text-accent" /> Din feedback</h2>
-          {hint && <p className="mt-0.5 text-[13px] text-fg-muted">{hint}</p>}
+    <section aria-labelledby="own-heading">
+      <Card className="border-accent/25">
+        <div className="flex flex-wrap items-start gap-3 px-5 pt-4 pb-3">
+          <div className="min-w-0 flex-1">
+            <h2 id="own-heading" className="flex scroll-mt-6 items-center gap-2 text-[15px] font-semibold tracking-[-0.01em] text-fg"><PencilLine className="size-4 text-accent" /> Din feedback</h2>
+            {data.hint && <p className="mt-0.5 text-[13px] text-fg-muted">{data.hint}</p>}
+          </div>
+          {hasText && (
+            <Button size="sm" variant="secondary" asChild>
+              <Link to={write}><PencilLine /> Rediger</Link>
+            </Button>
+          )}
         </div>
-      </div>
-
-      {paper.editor?.hasBackup && (
-        <aside className="flex gap-3 rounded-xl border border-warning/30 bg-warning-soft/60 px-4 py-3 text-[13px]">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-soft-fg" />
-          <p className="text-fg">
-            Lectio har en automatisk sikkerhedskopi af en redigering, der ikke blev gemt.{' '}
-            <a href={href} target="_blank" rel="noreferrer" className="font-medium text-accent-soft-fg underline underline-offset-2">Åbn i Lectio</a> for at gendanne den.
-          </p>
-        </aside>
-      )}
-
-      <FeedbackEditor
-        ref={editor}
-        html={initialHtml}
-        resetKey={`${paper.editor?.html.length}:${version}:${savedAt?.getTime() ?? 0}`}
-        disabled={save.isPending}
-        placeholder="Skriv din besvarelse, noter eller spørgsmål til læreren…"
-        onDirtyChange={setDirty}
-        onUpload={(file) => uploadEditorFile(school, file)}
-        onSave={onSave}
-      />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="primary" onClick={onSave} disabled={save.isPending || !dirty}>
-          {save.isPending ? <LoaderCircle className="animate-spin" /> : <Save />} {save.isPending ? 'Gemmer…' : 'Gem'}
-        </Button>
-        {dirty && !save.isPending && (
-          <Button variant="ghost" onClick={discard}>Kassér ændringer</Button>
+        {hasText ? (
+          <div className="divide-y divide-border border-t border-border">
+            {paper!.editor ? (
+              <article className="px-5 py-3"><RichText html={toEditorHtml(editorHtml)} /></article>
+            ) : (
+              paper!.items.map((item) => (
+                <article key={item.id} className="px-5 py-3 [&_.prose-lectio>h1:first-child]:mt-1 [&_.prose-lectio>h1:first-child]:text-[15px]">
+                  <RichText node={item.node} />
+                </article>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-start gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center">
+            <p className="flex-1 text-[13.5px] text-fg-muted">Du har ikke skrevet noget endnu. Skriv tekst, og tilføj billeder, tabeller eller filer.</p>
+            <Button variant="primary" asChild>
+              <Link to={write}><PencilLine /> Skriv feedback</Link>
+            </Button>
+          </div>
         )}
-        <span className="ml-1 text-[12.5px] text-fg-muted" role="status" aria-live="polite">
-          {save.isPending ? null : dirty ? (
-            <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-warning" /> Ikke gemt · <kbd className="font-sans">Ctrl+S</kbd> gemmer</span>
-          ) : savedAt ? (
-            <span className="inline-flex items-center gap-1.5 text-success"><Check className="size-3.5" /> Gemt i Lectio kl. {savedAt.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}</span>
-          ) : null}
-        </span>
-        {!dirty && !save.isPending && (
-          <Button variant="ghost" size="sm" className="ml-auto text-fg-muted" onClick={onReload} disabled={reloading}>
-            {reloading ? <LoaderCircle className="animate-spin" /> : null} Opdatér
-          </Button>
-        )}
-      </div>
-      {save.error && (
-        <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger-soft-fg">
-          {save.error instanceof Error ? save.error.message : 'Kunne ikke gemme'} Din tekst er stadig her, så du kan prøve igen.
-        </p>
-      )}
+      </Card>
     </section>
   );
 }

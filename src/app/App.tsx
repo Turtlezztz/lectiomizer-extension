@@ -18,6 +18,7 @@ const GradesPage = lazy(() => import('@/features/grades/GradesPage'));
 const AbsencePage = lazy(() => import('@/features/absence/AbsencePage'));
 const LessonPage = lazy(() => import('@/features/lesson/LessonPage'));
 const FeedbackPage = lazy(() => import('@/features/lesson/FeedbackPage'));
+const FeedbackWritePage = lazy(() => import('@/features/lesson/FeedbackWritePage'));
 const ChatPage = lazy(() => import('@/features/chat/ChatPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
 const PeoplePage = lazy(() => import('@/features/people/PeoplePage'));
@@ -57,6 +58,7 @@ const router = createHashRouter([
       { path: 'absence', element: lazyRoute(AbsencePage) },
       { path: 'lesson/:id', element: lazyRoute(LessonPage) },
       { path: 'lesson/:id/feedback', element: lazyRoute(FeedbackPage) },
+      { path: 'lesson/:id/feedback/write', element: lazyRoute(FeedbackWritePage) },
       { path: 'students', element: lazyRoute(() => <PeoplePage kind="elev" />) },
       { path: 'students/:id', element: lazyRoute(() => <DirectoryDetailPage kind="elev" />) },
       { path: 'teachers', element: lazyRoute(() => <PeoplePage kind="laerer" />) },

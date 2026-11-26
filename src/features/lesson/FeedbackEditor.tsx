@@ -27,6 +27,7 @@ interface Props {
   onDirtyChange?: (dirty: boolean) => void;
   onUpload: (file: File) => Promise<UploadedEditorFile>;
   onSave?: () => void;
+  className?: string;
 }
 
 /** Lectio's CKEditor colour palette. */
@@ -66,7 +67,7 @@ const imageSize = (src: string) =>
     img.src = src;
   });
 
-export const FeedbackEditor = forwardRef<FeedbackEditorHandle, Props>(function FeedbackEditor({ html, resetKey, disabled, placeholder, onDirtyChange, onUpload, onSave }, ref) {
+export const FeedbackEditor = forwardRef<FeedbackEditorHandle, Props>(function FeedbackEditor({ html, resetKey, disabled, placeholder, onDirtyChange, onUpload, onSave, className }, ref) {
   const area = useRef<HTMLDivElement>(null);
   const saved = useRef<Range | null>(null);
   const initial = useRef('');
@@ -363,7 +364,7 @@ export const FeedbackEditor = forwardRef<FeedbackEditorHandle, Props>(function F
   const formatLabel = FORMATS.find((f) => f.tag === state.block)?.label ?? 'Brødtekst';
 
   return (
-    <div className={cn('rounded-xl border border-border bg-surface shadow-card focus-within:border-border-strong', disabled && 'pointer-events-none opacity-60')}>
+    <div className={cn('rounded-xl border border-border bg-surface shadow-card focus-within:border-border-strong', disabled && 'pointer-events-none opacity-60', className)}>
       <div
         ref={toolbar}
         role="toolbar"

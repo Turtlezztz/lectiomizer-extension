@@ -10,6 +10,7 @@ existing Lectio login.
 - **Opgaver**: assignments grouped as upcoming, missing and handed in, with hand-in, upload and groups on the detail page.
 - **Beskeder**: a mail-style inbox, conversation threads, reply and new messages.
 - **Karakterer**, **Fravær** and **Lektion** (lesson notes, homework and materials).
+- **Elevfeedback**: on a lesson's Elevfeedback tab you read what the teacher and classmates wrote, and write your own answer in an editor with headings, bold/italic/strikethrough, sub/superscript, text and highlight colours, alignment, lists, indent, quotes, links, tables, images and attached files (also by paste or drag-and-drop). It shows when elevfeedback isn't open or is read-only on a module.
 - **Notifications**: Lectiomizer checks Lectio in the background (hourly by default, down to every 3 minutes) and tells you about changed, cancelled, removed or restored lessons, new messages and replies, and new assignments. You get a browser notification and a badge on the toolbar icon, and the history is under the bell in the app.
 - **Assistent** (optional): ask about your schedule, assignments (and their description documents), lessons, messages, grades and absence. It answers with your own ChatGPT plan (Sign in with ChatGPT) and can only read.
 - **MCP server** (optional): use the same read-only Lectio tools from Claude, Cursor or any other MCP client.

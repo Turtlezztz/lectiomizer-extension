@@ -42,6 +42,8 @@ export interface ActivityData {
 
 export const activityPath = (absid: string) => `aktivitet/aktivitetforside2.aspx?absid=${encodeURIComponent(absid)}`;
 export const feedbackPath = (absid: string) => `${activityPath(absid)}&lectab=elevindhold`;
+/** In-app route of the dedicated writing page. */
+export const feedbackWriteRoute = (absid: string) => `/lesson/${encodeURIComponent(absid)}/feedback/write`;
 
 /** absid from a Lectio URL ("…aktivitetforside2.aspx?absid=123") or null. */
 export function absidFromHref(href: string | null | undefined): string | null {
@@ -121,6 +123,12 @@ export interface FeedbackData {
   contentHref: string | null;
   open: boolean;
   canWrite: boolean;
+  /** The own paper is an editor right now (Lectio's edit mode). */
+  editing: boolean;
+  /** Lectio's "Rediger" button: posts back to switch the page to edit mode. */
+  editButton: Element | null;
+  /** Context-card id of the signed-in student, e.g. "S123". */
+  me: string;
   own: FeedbackPaper | null;
   teacher: FeedbackPaper[];
   others: FeedbackPaper[];

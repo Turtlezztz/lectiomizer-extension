@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { parseDocument, serializeForm } from '@/lib/lectio/client';
+import { parseDocument, postbackTarget, serializeForm } from '@/lib/lectio/client';
 import { appRoute } from '@/lib/lectio/paths';
 import { readFeedback } from '@/lib/lectio/readers/feedback.js';
 import { cleanStyle, fileLinkHtml, isBlank, tableHtml, toEditorHtml, toLectioHtml } from '@/features/lesson/feedback-html';
@@ -11,7 +11,7 @@ const load = (opts: Parameters<typeof feedbackPage>[1] = {}) => parseDocument(fe
 
 describe('readFeedback', () => {
   it('reads an open elevfeedback page with the own editor', () => {
-    const data = readFeedback(load());
+    const data: any = readFeedback(load());
     expect(data.open).toBe(true);
     expect(data.canWrite).toBe(true);
     expect(data.own.name).toBe('Demo Elev');
@@ -28,23 +28,38 @@ describe('readFeedback', () => {
   });
 
   it('reads a module where elevfeedback is not open', () => {
-    const data = readFeedback(load({ open: false }));
+    const data: any = readFeedback(load({ open: false }));
     expect(data.open).toBe(false);
     expect(data.canWrite).toBe(false);
     expect(data.others).toHaveLength(0);
   });
 
+  it("reads Lectio's read mode, where the own paper is an article and Rediger switches to the editor", () => {
+    const data: any = readFeedback(load({ editing: false }));
+    expect(data.open).toBe(true);
+    expect(data.canWrite).toBe(true);
+    expect(data.editing).toBe(false);
+    expect(data.me).toBe('S104');
+    expect(data.own.name).toBe('Demo Elev');
+    expect(data.own.editor).toBeNull();
+    expect(data.own.items).toHaveLength(1);
+    expect(data.others.map((p: any) => p.name)).not.toContain('Demo Elev');
+    expect(postbackTarget(data.editButton)).toEqual({ target: 's$m$Content$Content$Elevindhold$tocAndToolbar$editModeBtn', argument: '' });
+  });
+
   it('reads a read-only module', () => {
-    const data = readFeedback(load({ canWrite: false }));
+    const data: any = readFeedback(load({ canWrite: false }));
     expect(data.open).toBe(true);
     expect(data.canWrite).toBe(false);
-    expect(data.own).toBeNull();
-    expect(data.others.map((p: any) => p.name)).toContain('Demo Elev');
+    expect(data.editing).toBe(false);
+    // Still recognised as the student's own paper, just not editable.
+    expect(data.own.name).toBe('Demo Elev');
+    expect(data.editButton).toBeNull();
   });
 
   it('posts the editor content back in the form', () => {
     const doc = load();
-    const data = readFeedback(doc);
+    const data: any = readFeedback(doc);
     const form = doc.querySelector('form') as HTMLFormElement;
     const fields = new Map(serializeForm(form));
     expect(fields.get(data.own.editor.textarea.getAttribute('name'))).toContain('Mine rammer');

@@ -71,6 +71,16 @@ const { data, isPending, error, refetch } = useLectioPage(PATHS.assignments, rea
 * Other people's / rooms' schedules: `WeekSchedule` with a `SkemaNy.aspx?type=…`
   base; many at once go through `useManyWeekLessons` (max 4 requests in flight).
 * `NotLoggedInError` from any fetch sends the user to the login gate.
+* Lectio documents (elevfeedback): Lectio remembers per session whether the tab is in
+  read or edit mode. `readers/feedback.js` finds the student's own paper in both (via the
+  header's context card) and returns the CKEditor `<textarea>` handle in edit mode, or the
+  "Rediger" button (`editButton`) in read mode. The writing page (`/lesson/:id/feedback/write`)
+  presses Rediger first when needed. Saving posts back with the editor control as event
+  target and argument `save` (what Lectio's "lectiosave" command does), the HTML in the
+  textarea field and `$isDirty=1`. Images/files go to `uploadEditorFile()`
+  (`lcutil/editorapi.api/posteditorfile`, CKEditor's JSON upload protocol) and are
+  referenced from the HTML. `features/lesson/feedback-html.ts` converts between
+  Lectio's stored markup and the editor's (absolute vs site-relative URLs, CKEditor-safe tags).
 
 ## Assistent and MCP
 
