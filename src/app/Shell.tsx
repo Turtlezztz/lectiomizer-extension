@@ -63,9 +63,10 @@ function Logo({ compact }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <div className="relative flex size-8 items-center justify-center rounded-[10px] bg-accent text-accent-fg shadow-sm">
-        <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M6 4v16h12" />
-          <path d="M10 8l4 4-4 4" />
+        <svg viewBox="26 26 76 76" className="size-[20px]" fill="currentColor" aria-hidden>
+          <path d="M36 37a8 8 0 0 1 16 0v46h40a8 8 0 0 1 0 16H44a8 8 0 0 1-8-8z" />
+          <rect x="62" y="29" width="30" height="30" rx="8" fillOpacity={0.92} />
+          <rect x="62" y="64" width="30" height="11" rx="5.5" fillOpacity={0.45} />
         </svg>
       </div>
       {!compact && <span className="text-[15px] font-semibold tracking-[-0.02em]">Lectiomizer</span>}
