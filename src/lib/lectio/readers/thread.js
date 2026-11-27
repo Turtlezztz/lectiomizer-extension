@@ -60,7 +60,9 @@ function readAttachments(row, content) {
     const href = link.href;
     if (seen.has(href)) return [];
     seen.add(href);
-    const size = text(link.parentElement).match(/\((\d+(?:[.,]\d+)?\s*[KMG]?B)\)/i)?.[1] || '';
+    // "<a>42.jpg</a> (3 MB)": the size follows its own link; several files share one block.
+    const sizeOf = value => value.match(/^\s*\((\d+(?:[.,]\d+)?\s*[KMG]?B)\)/i)?.[1] || '';
+    const size = sizeOf(link.nextSibling?.textContent || '') || sizeOf(text(link.parentElement).slice(text(link.parentElement).indexOf(name) + name.length));
     return [{ name, href, size }];
   });
 }
@@ -121,6 +123,21 @@ export function readReply(row) {
   };
 }
 
+// Teams, classes and groups have no context card: Lectio writes them as plain
+// text after the people, e.g. "Gruppen Alle 3. HTX-elever (Lyn), Holdet L3g Sa".
+const GROUP_KINDS = { Gruppen: 'Gruppe', Holdet: 'Hold', Klassen: 'Klasse' };
+export function readGroups(node) {
+  if (!node) return [];
+  const loose = Array.from(node.childNodes)
+    .map(child => (child.nodeType === 3 ? child.data : child.nodeName === 'BR' ? ',' : child.matches?.('[data-lectiocontextcard]') ? ',' : child.textContent))
+    .join('');
+  return loose.split(',').map(part => part.replace(/\s+/g, ' ').trim()).filter(Boolean).map(full => {
+    const m = full.match(/^(Gruppen|Holdet|Klassen)\s+(.+)$/);
+    const name = m ? m[2] : full;
+    return { full, name: personName(name), kind: m ? GROUP_KINDS[m[1]] : '' };
+  });
+}
+
 export function readThread(doc, panel) {
   const table = panel.querySelector('table[id$="MessagesGV"]');
   if (!table) throw new ReaderError('Beskedtråden blev ikke fundet');
@@ -148,7 +165,8 @@ export function readThread(doc, panel) {
     });
   }
   if (!messages.length) throw new ReaderError('Tråden har ingen beskeder');
-  const recipients = Array.from(panel.querySelectorAll('[id$="RecipientsReadMode"] [data-lectiocontextcard]')).map(el => {
+  const recipientsNode = panel.querySelector('[id$="RecipientsReadMode"]');
+  const recipients = Array.from(recipientsNode?.querySelectorAll('[data-lectiocontextcard]') || []).map(el => {
     const recipient = person(el);
     return { ...recipient, own: mine(recipient) };
   });
@@ -158,7 +176,7 @@ export function readThread(doc, panel) {
   const school = schoolBase(doc.URL);
   return {
     subject: messages[0].title || 'Besked',
-    me, recipients, messages, reply,
+    me, recipients, groups: readGroups(recipientsNode), messages, reply,
     // Lectio puts the folder's list address in the URL while a thread is open.
     back: doc.URL,
     base: school ? new URL(school, doc.URL).href : null,

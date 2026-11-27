@@ -14,6 +14,7 @@ import {
   Reply,
   SquarePen,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { useLectioAction } from '@/lib/lectio/query';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,8 @@ import { fmtLongDate, fmtTime } from '@/lib/format';
 import { fieldName, read, useLectioChain, useThread } from './data';
 import { groupThread, hasPhoto, listNames, ownTitle, timeOf } from './model';
 import { InlineError, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, PersonAvatar, errorText, touchScreen, useAutoGrow } from './parts';
-import type { Attachment, Person, Thread, ThreadMessage } from './types';
+import type { Person, RecipientGroup, Thread, ThreadMessage } from './types';
+import { AttachmentView } from './AttachmentView';
 import { Person as PersonLink } from '@/features/people/PersonPopover';
 
 const MENU_ICONS: Record<string, typeof Pencil> = {
@@ -60,26 +62,6 @@ export function ThreadSkeleton() {
   );
 }
 
-function AttachmentChip({ file, own }: { file: Attachment; own: boolean }) {
-  return (
-    <a
-      href={file.href}
-      target="_blank"
-      rel="noreferrer"
-      className={cn(
-        'inline-flex max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-[13px] text-fg shadow-card transition-colors hover:border-border-strong hover:bg-surface-2',
-        own && 'self-end',
-      )}
-    >
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-soft-fg">
-        <Paperclip className="size-3.5" />
-      </span>
-      <span className="min-w-0 truncate font-medium">{file.name}</span>
-      {file.size && <span className="shrink-0 text-[12px] text-fg-subtle">{file.size}</span>}
-    </a>
-  );
-}
-
 function Bubble({ message, subject, own, first }: { message: ThreadMessage; subject: string; own: boolean; first: boolean }) {
   const title = ownTitle(message.title, subject);
   const hasText = !!message.content && (!!message.content.textContent?.trim() || !!message.content.querySelector('img'));
@@ -109,9 +91,9 @@ function Bubble({ message, subject, own, first }: { message: ThreadMessage; subj
         </div>
       )}
       {message.attachments.length > 0 && (
-        <div className={cn('flex max-w-full flex-wrap gap-1.5', own && 'justify-end')}>
+        <div className={cn('flex w-full max-w-full flex-col gap-1.5', own ? 'items-end' : 'items-start')}>
           {message.attachments.map((file) => (
-            <AttachmentChip key={file.href} file={file} own={own} />
+            <AttachmentView key={file.href} file={file} />
           ))}
         </div>
       )}
@@ -120,6 +102,42 @@ function Bubble({ message, subject, own, first }: { message: ThreadMessage; subj
 }
 
 const personKey = (p: Person) => p.id || p.full;
+
+function PeopleRow({
+  label,
+  people,
+  groups = [],
+  photoOf,
+}: {
+  label: string;
+  people: Person[];
+  groups?: RecipientGroup[];
+  photoOf: (p: Person) => string | null;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <dt className="w-14 shrink-0 pt-1 text-fg-subtle">{label}</dt>
+      <dd className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+        {groups.map((g) => (
+          <span key={g.full} className="flex items-center gap-1.5 rounded-full bg-surface-2 py-0.5 pr-2.5 pl-0.5 text-fg" title={g.full}>
+            <span aria-hidden className="inline-flex size-[22px] items-center justify-center rounded-full bg-surface-3 text-fg-muted">
+              <Users className="size-3" />
+            </span>
+            {g.name}
+            {g.kind && <span className="text-fg-subtle">{g.kind.toLowerCase()}</span>}
+          </span>
+        ))}
+        {people.map((p) => (
+          <span key={personKey(p)} className="flex items-center gap-1.5 rounded-full bg-surface-2 py-0.5 pr-2.5 pl-0.5 text-fg" title={p.full}>
+            <PersonAvatar id={p.id} name={p.name} photo={photoOf(p)} size={22} />
+            {p.own ? p.name : <PersonLink person={p}>{p.name}</PersonLink>}
+            {p.own && <span className="text-fg-subtle">(dig)</span>}
+          </span>
+        ))}
+      </dd>
+    </div>
+  );
+}
 
 export function ThreadPane({
   id,
@@ -187,6 +205,15 @@ function ThreadView({
     }
     return out;
   }, [thread]);
+  // Who the thread is for: Lectio lists the starter among the recipients, so
+  // leave them out unless they are the only one.
+  const starter = thread.messages[0].sender;
+  const to = useMemo(() => {
+    const named = thread.recipients.filter((p) => personKey(p) !== personKey(starter));
+    return { people: named, groups: thread.groups ?? [] };
+  }, [thread, starter]);
+  const toNames = [...to.groups.map((g) => g.name), ...to.people.map((p) => (p.own ? 'dig' : p.name))];
+  const wrote = people.filter((p) => personKey(p) !== personKey(starter) && !to.people.some((q) => personKey(q) === personKey(p)));
   const others = people.filter((p) => !p.own);
   const group = others.length > 1;
   const items = useMemo(() => groupThread(thread.messages), [thread]);
@@ -287,7 +314,18 @@ function ThreadView({
               onClick={() => setPeopleOpen((o) => !o)}
               className="flex max-w-full items-center gap-1 text-[12.5px] text-fg-muted hover:text-fg"
             >
-              <span className="truncate">{others.length ? listNames(others.map((p) => p.name)) : thread.recipientsText || 'Kun dig'}</span>
+              <span className="truncate">
+                {toNames.length ? (
+                  <>
+                    <span className="text-fg-subtle">Til </span>
+                    {listNames(toNames)}
+                  </>
+                ) : others.length ? (
+                  listNames(others.map((p) => p.name))
+                ) : (
+                  thread.recipientsText || 'Kun dig'
+                )}
+              </span>
               <ChevronDown className={cn('size-3.5 shrink-0 transition-transform', peopleOpen && 'rotate-180')} />
             </button>
           </div>
@@ -338,15 +376,13 @@ function ThreadView({
           </Menu>
         </div>
         {peopleOpen && (
-          <ul className="flex max-h-48 flex-wrap gap-1.5 overflow-y-auto border-t border-border px-4 py-3 animate-in" aria-label="Deltagere">
-            {people.map((p) => (
-              <li key={personKey(p)} className="flex items-center gap-1.5 rounded-full bg-surface-2 py-0.5 pr-2.5 pl-0.5 text-[12.5px] text-fg" title={p.full}>
-                <PersonAvatar id={p.id} name={p.name} photo={photoOf(p)} size={22} />
-                {p.own ? p.name : <PersonLink person={p}>{p.name}</PersonLink>}
-                {p.own && <span className="text-fg-subtle">(dig)</span>}
-              </li>
-            ))}
-          </ul>
+          <dl className="max-h-56 space-y-2 overflow-y-auto border-t border-border px-4 py-3 text-[12.5px] animate-in" aria-label="Deltagere">
+            <PeopleRow label="Fra" people={[{ ...starter, own: thread.messages[0].own }]} photoOf={photoOf} />
+            {(to.groups.length > 0 || to.people.length > 0) && (
+              <PeopleRow label="Til" people={to.people} groups={to.groups} photoOf={photoOf} />
+            )}
+            {wrote.length > 0 && <PeopleRow label="Svar fra" people={wrote} photoOf={photoOf} />}
+          </dl>
         )}
         {action.error && (
           <div className="px-4 pb-3">
@@ -381,7 +417,7 @@ function ThreadView({
                     <PersonAvatar id={item.messages[0].sender.id} name={item.messages[0].sender.name} size={28} />
                   </PersonLink>
                 )}
-                <div className={cn('flex min-w-0 max-w-[min(85%,560px)] flex-col gap-1', item.own ? 'items-end' : 'items-start')}>
+                <div className={cn('flex min-w-0 max-w-[min(85%,560px)] flex-col gap-1', item.own ? 'items-end' : 'items-start', item.messages.some((m) => m.attachments.length > 0) && 'w-full')}>
                   <div className={cn('flex items-baseline gap-2 px-1 text-[12px]', item.own && 'flex-row-reverse')}>
                     {!item.own && (
                       <PersonLink person={item.messages[0].sender} title={item.messages[0].sender.full} className="font-medium text-fg-muted">

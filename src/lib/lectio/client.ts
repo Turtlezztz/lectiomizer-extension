@@ -134,6 +134,21 @@ async function load(url: string, init?: { method?: 'GET' | 'POST'; body?: Body }
   return doc;
 }
 
+/**
+ * A file Lectio serves (dokumenthent.aspx): the raw bytes with the user's
+ * session. Lectio sends everything as application/octet-stream, so callers set
+ * the real type themselves.
+ */
+export async function fetchFile(url: string, signal?: AbortSignal): Promise<Blob> {
+  const response = isFixtureMode()
+    ? await fetch(`/__lectio?url=${encodeURIComponent(url)}`, { signal })
+    : await fetch(url, { credentials: 'include', redirect: 'follow', signal });
+  if (response.status >= 400) throw new LectioHttpError(response.status);
+  // A logged-out request lands on Lectio's (HTML) login page instead of the file.
+  if (/\/login\w*\.aspx$/i.test(new URL(response.url || url).pathname)) throw new NotLoggedInError();
+  return response.blob();
+}
+
 export function absolute(pathOrUrl: string, base: string): string {
   return new URL(pathOrUrl, base).href;
 }

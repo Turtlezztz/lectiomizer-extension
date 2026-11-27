@@ -429,7 +429,8 @@ export function createLectioTools(options: ToolOptions) {
     if (!data.thread) throw new ToolError('Tråden kunne ikke åbnes. Den er måske slettet, eller id\'et passer ikke.');
     const t = data.thread;
     const out = [`# ${t.subject}`, `besked-id ${thread}`];
-    const recipients = t.recipients?.length ? t.recipients.map((p: any) => p.full || p.name).join(', ') : t.recipientsText;
+    const named = [...(t.recipients || []).map((p: any) => p.full || p.name), ...(t.groups || []).map((g: any) => g.full)];
+    const recipients = named.length ? named.join(', ') : t.recipientsText;
     if (recipients) out.push(`Modtagere: ${oneLine(recipients)}`);
     for (const m of t.messages) {
       out.push('', `## ${join([m.sender?.full || m.sender?.name || 'Ukendt', when(m.date, now()) || m.stamp, m.own && 'dig'])}`);

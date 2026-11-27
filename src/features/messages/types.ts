@@ -90,10 +90,18 @@ export interface ReplyForm {
   files: DraftFile[];
 }
 
+/** A team, class or group a thread was sent to (no context card). */
+export interface RecipientGroup {
+  full: string;
+  name: string;
+  kind: string;
+}
+
 export interface Thread {
   subject: string;
   me: Me;
   recipients: Person[];
+  groups: RecipientGroup[];
   messages: ThreadMessage[];
   reply: ReplyForm | null;
   back: string;
