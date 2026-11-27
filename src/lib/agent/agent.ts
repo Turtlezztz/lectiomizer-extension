@@ -1,14 +1,22 @@
-// One chat turn against the Responses API (ported from v1's agent.js and the
-// streaming half of session.js): stream the model's answer, run the Lectio
-// tools it calls, send the results back, repeat until it answers. Runs in the
-// app page, which has the Lectio session and a DOM; the access token comes
-// from the background, which alone refreshes it.
+// One chat turn against ChatGPT (Responses API) or OpenRouter (Chat
+// Completions API): stream the model's answer, run the Lectio tools it calls,
+// send the results back, repeat until it answers. Runs in the app page, which
+// has the Lectio session and a DOM; tokens/keys come from the background.
 import { API, ChatGPTError, errorFromBody, readEvents, requestBody, responseError } from './openai.js';
+import {
+  OPENROUTER_API,
+  OPENROUTER_HEADERS,
+  OpenRouterError,
+  openRouterErrorFromBody,
+  openRouterRequestBody,
+  openRouterResponseError,
+  openRouterTools,
+} from './openrouter.js';
 import { TOOL_GUIDE, TOOL_SPECS, specOf } from './tool-specs.js';
-import type { AssistantTurn, Part, ToolPart, Turn } from './account';
+import type { AIProvider, AssistantTurn, Part, ToolPart, Turn } from './account';
 import type { ToolResult } from './tools';
 
-/** The tools as the Responses API takes them: grouped in a namespace, as plan usage requires. */
+/** The tools as OpenAI's Responses API takes them: grouped in a namespace, as plan usage requires. */
 export const RESPONSES_TOOLS = [
   {
     type: 'namespace',
@@ -17,6 +25,9 @@ export const RESPONSES_TOOLS = [
     tools: TOOL_SPECS.map((t: any) => ({ type: 'function', name: t.name, description: t.description, strict: true, parameters: t.parameters })),
   },
 ];
+
+/** The same tools as standard Chat Completions function tools for OpenRouter. */
+export const OPENROUTER_TOOLS = openRouterTools(TOOL_SPECS);
 
 export const runningLabel = (name: string) => specOf(name)?.running || 'Arbejder';
 
@@ -42,7 +53,7 @@ export type GetToken = (force: boolean) => Promise<{ ok: boolean; token?: string
 
 // Events a turn needs; the rest of the stream is dropped.
 const FORWARD = new Set(['response.output_text.delta', 'response.output_item.added', 'response.output_item.done', 'response.incomplete']);
-/** Pauses before retrying a request ChatGPT turned away for a moment. Tests shorten them. */
+/** Pauses before retrying a request the provider turned away for a moment. Tests shorten them. */
 export const retry = { delays: [1500, 4000, 8000] };
 const pause = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -86,7 +97,7 @@ async function* streamOnce(body: string, signal: AbortSignal | undefined, getTok
 }
 
 /**
- * A Responses request as a stream of events. Busy servers and dropped
+ * A ChatGPT Responses request as a stream of events. Busy servers and dropped
  * connections are retried while nothing has been shown, with an
  * 'lx.retrying' event so the chat can say so.
  */
@@ -103,6 +114,129 @@ export async function* responses(request: { model: string; effort?: string; inst
     } catch (error: any) {
       if (signal?.aborted) throw aborted();
       const known = error instanceof ChatGPTError ? error : new ChatGPTError('Kunne ikke nå ChatGPT. Tjek din forbindelse og prøv igen.', { kind: 'retry' });
+      if (!(error instanceof ChatGPTError)) console.warn('Lectiomizer:', error);
+      if (shown || (known as any).kind !== 'retry' || attempt >= retry.delays.length) throw known;
+      yield { type: 'lx.retrying', attempt: attempt + 1 };
+      await pause(retry.delays[attempt], signal);
+      if (signal?.aborted) throw aborted();
+    }
+  }
+}
+
+// ------------------------------------------------------ OpenRouter streaming
+
+let orSeq = 0;
+
+async function* streamOpenRouterOnce(body: string, signal: AbortSignal | undefined, getToken: GetToken): AsyncGenerator<any> {
+  const token = await getToken(false);
+  if (!token.ok) throw new OpenRouterError(token.message || 'Forbind OpenRouter.', { kind: token.kind || 'reconnect' });
+  const response = await fetch(`${OPENROUTER_API}/chat/completions`, {
+    method: 'POST',
+    credentials: 'omit',
+    signal,
+    body,
+    headers: {
+      Authorization: `Bearer ${token.token}`,
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...OPENROUTER_HEADERS,
+    },
+  });
+  if (!response.ok) throw await openRouterResponseError(response);
+
+  const requestId = response.headers?.get?.('x-request-id') || response.headers?.get?.('cf-ray') || '';
+  let msgId = '';
+  let text = '';
+  let finishReason = '';
+  let usage: any = null;
+  const toolCalls = new Map<number, { id: string; name: string; arguments: string; announced: boolean }>();
+
+  for await (const chunk of readEvents(response.body!, signal)) {
+    if (chunk.error) {
+      console.warn('Lectiomizer: OpenRouter-fejl i svaret', JSON.stringify(chunk).slice(0, 4000));
+      const error = openRouterErrorFromBody(0, chunk);
+      (error as any).requestId = requestId;
+      throw error;
+    }
+    if (chunk.usage) usage = chunk.usage;
+    const choice = chunk.choices?.[0];
+    if (!choice) continue;
+    if (choice.finish_reason) finishReason = choice.finish_reason;
+    const delta = choice.delta;
+    if (!delta) continue;
+
+    if (typeof delta.content === 'string' && delta.content) {
+      if (!msgId) {
+        msgId = `or_msg_${++orSeq}`;
+        yield { type: 'response.output_item.added', item: { type: 'message', id: msgId, phase: null } };
+      }
+      text += delta.content;
+      yield { type: 'response.output_text.delta', item_id: msgId, delta: delta.content };
+    }
+
+    if (Array.isArray(delta.tool_calls)) {
+      for (const tc of delta.tool_calls) {
+        const idx = typeof tc.index === 'number' ? tc.index : 0;
+        let entry = toolCalls.get(idx);
+        if (!entry) {
+          entry = { id: tc.id || `or_call_${++orSeq}`, name: '', arguments: '', announced: false };
+          toolCalls.set(idx, entry);
+        } else if (tc.id) {
+          entry.id = tc.id;
+        }
+        if (tc.function?.name) entry.name += tc.function.name;
+        if (tc.function?.arguments) entry.arguments += tc.function.arguments;
+        if (entry.name && !entry.announced) {
+          entry.announced = true;
+          yield { type: 'response.output_item.added', item: { type: 'function_call', id: entry.id, name: entry.name } };
+        }
+      }
+    }
+  }
+
+  if (finishReason === 'error') {
+    throw new OpenRouterError('OpenRouter afbrød svaret med en fejl. Prøv igen.', { kind: 'retry', requestId });
+  }
+  if (!finishReason && !msgId && !toolCalls.size) {
+    throw new OpenRouterError('Svaret fra OpenRouter blev afbrudt. Prøv igen.', { kind: 'retry', requestId });
+  }
+  if (msgId) {
+    yield {
+      type: 'response.output_item.done',
+      item: { type: 'message', id: msgId, role: 'assistant', phase: null, content: [{ type: 'output_text', text }] },
+    };
+  }
+  for (const [, tc] of Array.from(toolCalls.entries()).sort((a, b) => a[0] - b[0])) {
+    yield {
+      type: 'response.output_item.done',
+      item: { type: 'function_call', id: tc.id, call_id: tc.id, name: tc.name, arguments: tc.arguments || '{}' },
+    };
+  }
+  if (finishReason === 'length') yield { type: 'response.incomplete' };
+  yield { type: 'response.completed', usage };
+}
+
+/**
+ * An OpenRouter Chat Completions request normalised to the same event stream as
+ * `responses()`, with matching pre-output retries.
+ */
+export async function* openrouterResponses(
+  request: { model: string; effort?: string; instructions: string; input: any[]; tools: any[] },
+  signal: AbortSignal | undefined,
+  getToken: GetToken,
+) {
+  const body = JSON.stringify(openRouterRequestBody({ ...request, effort: request.effort || '' }));
+  for (let attempt = 0; ; attempt++) {
+    let shown = false;
+    try {
+      for await (const event of streamOpenRouterOnce(body, signal, getToken)) {
+        if (event.type !== 'response.completed') shown = true;
+        yield event;
+      }
+      return;
+    } catch (error: any) {
+      if (signal?.aborted) throw aborted();
+      const known = error instanceof ChatGPTError ? error : new OpenRouterError('Kunne ikke nå OpenRouter. Tjek din forbindelse og prøv igen.', { kind: 'retry' });
       if (!(error instanceof ChatGPTError)) console.warn('Lectiomizer:', error);
       if (shown || (known as any).kind !== 'retry' || attempt >= retry.delays.length) throw known;
       yield { type: 'lx.retrying', attempt: attempt + 1 };
@@ -138,7 +272,7 @@ export type RunTool = (name: string, args: Record<string, unknown>, signal?: Abo
 
 /**
  * Display parts of an assistant turn, in order: text the model wrote and the
- * tools it used. `input` (the full Responses history) is extended in place.
+ * tools it used. `input` (the full history) is extended in place.
  */
 export async function runTurn({
   input,
@@ -147,6 +281,7 @@ export async function runTurn({
   onUpdate = () => {},
   signal,
   maxRounds = 12,
+  providerName = 'ChatGPT',
 }: {
   input: any[];
   stream: Stream;
@@ -154,6 +289,7 @@ export async function runTurn({
   onUpdate?: (parts: Part[], status: string) => void;
   signal?: AbortSignal;
   maxRounds?: number;
+  providerName?: string;
 }): Promise<Part[]> {
   const parts: Part[] = [];
   const update = (status: string) => onUpdate(parts.map((p) => ({ ...p })), status);
@@ -193,14 +329,14 @@ export async function runTurn({
             part.done = true;
           }
         } else if (event.type === 'lx.retrying') {
-          update('ChatGPT har travlt – prøver igen…');
+          update(`${providerName} har travlt – prøver igen…`);
         } else if (event.type === 'response.incomplete') {
-          parts.push({ type: 'notice', text: 'Svaret blev afkortet af ChatGPT.' });
+          parts.push({ type: 'notice', text: `Svaret blev afkortet af ${providerName}.` });
         }
       }
     } catch (error: any) {
       // A file the model can't take fails the whole request; drop files once.
-      if ((error?.kind === 'unsupported' || error?.status === 400) && !retriedFiles && withoutFiles(input)) {
+      if ((error?.kind === 'unsupported' || error?.status === 400) && !retriedFiles && withoutFiles(input, providerName)) {
         retriedFiles = true;
         parts.length = mark;
         round--;
@@ -248,11 +384,15 @@ export async function runTurn({
 }
 
 /** Replaces file contents in tool results with a note. True if any changed. */
-export function withoutFiles(input: any[]) {
+export function withoutFiles(input: any[], providerName = 'ChatGPT') {
   let changed = false;
   for (const item of input) {
     if (item.type !== 'function_call_output' || !Array.isArray(item.output)) continue;
-    item.output = item.output.filter((part: any) => part.type === 'input_text').map((part: any) => part.text).join('\n') + '\n(Filens indhold kunne ikke sendes til ChatGPT.)';
+    item.output =
+      item.output
+        .filter((part: any) => part.type === 'input_text')
+        .map((part: any) => part.text)
+        .join('\n') + `\n(Filens indhold kunne ikke sendes til ${providerName}.)`;
     changed = true;
   }
   return changed;
@@ -280,13 +420,14 @@ export const savedParts = (parts: Part[]): Part[] =>
   );
 
 /** The saved assistant turn when a turn didn't finish. */
-export function failedReply(error: any, parts: Part[]): AssistantTurn {
-  if (error?.name === 'AbortError') return { role: 'assistant', parts: savedParts(parts), stopped: true };
+export function failedReply(error: any, parts: Part[], provider?: AIProvider): AssistantTurn {
+  if (error?.name === 'AbortError') return { role: 'assistant', parts: savedParts(parts), ...(provider ? { provider } : {}), stopped: true };
   const known = typeof error?.kind === 'string';
   if (!known) console.warn('Lectiomizer:', error);
   return {
     role: 'assistant',
     parts: savedParts(parts),
+    ...(provider ? { provider } : {}),
     error: known ? error.message : 'Noget gik galt. Prøv igen.',
     limit: error?.kind === 'limit',
     retry: !known || error.kind === 'retry' || error.kind === 'other',

@@ -1,13 +1,20 @@
-// Background side of Sign in with ChatGPT (ported from v1's chat/session.js):
-// starts the sign-in, catches the loopback callback, keeps the tokens and
-// hands a fresh access token to the app's chat. Refreshes happen only here,
-// because every refresh rotates the refresh token.
+// Background side of AI authentication (ChatGPT OAuth + OpenRouter OAuth PKCE /
+// API key): starts sign-in, catches loopback callbacks, keeps credentials in
+// extension storage and hands tokens/keys to the app's chat.
 //
-// An extension can't listen on 127.0.0.1, so sign-in opens OpenAI in a tab
+// An extension can't listen on 127.0.0.1, so OAuth opens the provider in a tab
 // and catches the tab's navigation to the loopback callback (the `tabs`
 // permission lets us see it), or, as a last resort, an address the student
 // pastes in.
-import { loadAccount, saveAccount, hasChatPermissions } from './account';
+import {
+  OPENROUTER_DEFAULTS,
+  hasChatPermissions,
+  hasOpenRouterPermissions,
+  isChatGPTReady,
+  loadAccount,
+  saveAccount,
+  saveOpenRouter,
+} from './account';
 import {
   PLAN_SCOPE,
   ChatGPTError,
@@ -24,16 +31,28 @@ import {
   revokeToken,
   verifyIdToken,
 } from './openai.js';
+import {
+  OpenRouterError,
+  checkOpenRouterKey,
+  exchangeOpenRouterCode,
+  listOpenRouterModels,
+  openRouterAuthorizeUrl,
+  openRouterCallbackUri,
+  readOpenRouterCallback,
+} from './openrouter.js';
 
 const api = () => (globalThis as any).browser ?? (globalThis as any).chrome;
 
-// The registration (issued client id, identity, refresh and id token) persists
+// ChatGPT registration (issued client id, identity, refresh and id token) persists
 // so the student stays signed in; the hour-long access token stays in session storage.
 const REGISTRATION = 'chatgptRegistration';
 const HOST = 'chatgptHost';
 const ACCESS = 'chatgptAccess';
 // Sign-in attempts by their OAuth state, so a second click doesn't void the first tab.
 const PENDING = 'chatgptAttempts';
+// OpenRouter API key stays in local storage (never inside chatAccount).
+const OPENROUTER_KEY = 'openrouterKey';
+const OPENROUTER_PENDING = 'openrouterAttempts';
 const ATTEMPT_TTL = 15 * 60 * 1000;
 
 interface Registration {
@@ -50,6 +69,13 @@ interface Attempt {
   verifier: string;
   redirectUri: string;
   clientId: string;
+  startedAt: number;
+  openerTabId: number | null;
+  tabId: number | null;
+}
+interface OpenRouterAttempt {
+  verifier: string;
+  redirectUri: string;
   startedAt: number;
   openerTabId: number | null;
   tabId: number | null;
@@ -72,6 +98,15 @@ async function loadAttempts(): Promise<Record<string, Attempt>> {
   return Object.fromEntries(Object.entries(attempts as Record<string, Attempt>).filter(([, a]) => now - a.startedAt < ATTEMPT_TTL));
 }
 const saveAttempts = (attempts: Record<string, Attempt>) => api().storage.session.set({ [PENDING]: attempts });
+
+async function loadOpenRouterAttempts(): Promise<Record<string, OpenRouterAttempt>> {
+  const { [OPENROUTER_PENDING]: attempts = {} } = await api().storage.session.get(OPENROUTER_PENDING);
+  const now = Date.now();
+  return Object.fromEntries(Object.entries(attempts as Record<string, OpenRouterAttempt>).filter(([, a]) => now - a.startedAt < ATTEMPT_TTL));
+}
+const saveOpenRouterAttempts = (attempts: Record<string, OpenRouterAttempt>) => api().storage.session.set({ [OPENROUTER_PENDING]: attempts });
+
+// ------------------------------------------------------------------ ChatGPT
 
 /** Opens OpenAI's sign-in in a new tab. `consent` asks again for the plan after the student declined it. */
 export async function startSignIn({ openerTabId = null, consent = false }: { openerTabId?: number | null; consent?: boolean } = {}) {
@@ -132,7 +167,17 @@ async function finishSignIn(url: string, attempt: Attempt) {
     await api().storage.session.set({ [ACCESS]: { token: tokens.access_token, expiresAt: tokens.expiresAt } });
     const planEnabled = tokens.scopes.includes(PLAN_SCOPE);
     const models = planEnabled ? await listModels({ token: tokens.access_token }).catch(() => []) : [];
-    await saveAccount({ connected: true, email: claims.email || '', planEnabled, models, modelsAt: models.length ? Date.now() : 0, reconnect: false, pending: false, message: '' });
+    await saveAccount({
+      ...(planEnabled ? { provider: 'chatgpt' as const } : {}),
+      connected: true,
+      email: claims.email || '',
+      planEnabled,
+      models,
+      modelsAt: models.length ? Date.now() : 0,
+      reconnect: false,
+      pending: false,
+      message: '',
+    });
     await api().storage.session.remove(PENDING);
     return { ok: true };
   } catch (error: any) {
@@ -144,7 +189,7 @@ async function finishSignIn(url: string, attempt: Attempt) {
   }
 }
 
-/** The pending attempt a callback address belongs to. Claiming removes it, so each code is used once. */
+/** The pending ChatGPT attempt a callback address belongs to. Claiming removes it, so each code is used once. */
 async function claim(href: string): Promise<Attempt | null> {
   let url: URL;
   try {
@@ -167,28 +212,12 @@ function complete(href: string, attempt: Attempt, tabId: number | null) {
   return finishSignIn(href, attempt);
 }
 
-/** tabs.onUpdated: the sign-in tab went to the loopback callback (nothing listens there). */
-export async function onTabUpdated(tabId: number, changeInfo: { url?: string }) {
-  if (!changeInfo?.url || !changeInfo.url.startsWith('http://127.0.0.1')) return;
-  const attempt = await claim(changeInfo.url);
-  if (attempt) await complete(changeInfo.url, attempt, tabId);
-}
-
-/** The student pasted the address of a callback page that wouldn't load. */
+/** The student pasted the address of a ChatGPT callback page that wouldn't load. */
 export async function pasteCallback(href: unknown) {
   const value = String(href || '').trim();
   const attempt = await claim(value);
   if (!attempt) return { ok: false, message: 'Adressen passer ikke til et login, der er i gang. Start forfra med Fortsæt med ChatGPT.' };
   return complete(value, attempt, attempt.tabId);
-}
-
-/** The student closed OpenAI's tab before finishing. */
-export async function onTabRemoved(tabId: number) {
-  const attempts = await loadAttempts();
-  const left = Object.fromEntries(Object.entries(attempts).filter(([, a]) => a.tabId !== tabId));
-  if (Object.keys(left).length === Object.keys(attempts).length) return;
-  await saveAttempts(left);
-  if (!Object.keys(left).length) await saveAccount({ pending: false });
 }
 
 // Valid access token, refreshed near expiry. Refreshes are serialised because
@@ -251,7 +280,14 @@ export async function signOut() {
     }
   }
   await signedOut('');
-  await saveAccount({ email: '', models: [], modelsAt: 0, message: revoked ? '' : 'Du er logget ud her, men ChatGPT bekræftede ikke afmeldingen. Du kan fjerne Lectiomizer under Indstillinger i ChatGPT.' });
+  const current = await loadAccount();
+  await saveAccount({
+    ...(current.openrouter.connected ? { provider: 'openrouter' as const } : {}),
+    email: '',
+    models: [],
+    modelsAt: 0,
+    message: revoked ? '' : 'Du er logget ud her, men ChatGPT bekræftede ikke afmeldingen. Du kan fjerne Lectiomizer under Indstillinger i ChatGPT.',
+  });
   return { ok: true };
 }
 
@@ -262,5 +298,185 @@ export async function refreshModels() {
     return { ok: true };
   } catch (error: any) {
     return { ok: false, message: error.message };
+  }
+}
+
+// --------------------------------------------------------------- OpenRouter
+
+async function connectOpenRouterWithKey(rawKey: string) {
+  const key = rawKey.trim();
+  const info = await checkOpenRouterKey({ key });
+  const models = await listOpenRouterModels({ key }).catch(() => [{ slug: 'openrouter/auto', name: 'OpenRouter Auto' }]);
+  await api().storage.local.set({ [OPENROUTER_KEY]: key });
+  const current = await loadAccount();
+  const model = current.openrouter.model || models[0]?.slug || 'openrouter/auto';
+  await saveOpenRouter(
+    {
+      connected: true,
+      label: info.label,
+      models,
+      modelsAt: Date.now(),
+      model,
+      pending: false,
+      message: '',
+    },
+    { provider: 'openrouter' },
+  );
+  return { ok: true };
+}
+
+/** Opens OpenRouter's OAuth PKCE sign-in in a new tab. */
+export async function startOpenRouterSignIn({ openerTabId = null }: { openerTabId?: number | null } = {}) {
+  if (!(await hasOpenRouterPermissions())) return { ok: false, message: 'Giv Lectiomizer lov til at kontakte OpenRouter først.' };
+  const verifier = randomToken(48);
+  const attempt: OpenRouterAttempt = {
+    verifier,
+    redirectUri: openRouterCallbackUri(49152 + Math.floor(Math.random() * 16000)),
+    startedAt: Date.now(),
+    openerTabId,
+    tabId: null,
+  };
+  const url = openRouterAuthorizeUrl({ redirectUri: attempt.redirectUri, challenge: await pkceChallenge(verifier) });
+  await saveOpenRouterAttempts({ ...(await loadOpenRouterAttempts()), [attempt.redirectUri]: attempt });
+  await saveOpenRouter({ pending: true, message: '' });
+  const tab = await api().tabs.create({ url, ...(openerTabId != null ? { openerTabId } : {}) });
+  const attempts = await loadOpenRouterAttempts();
+  if (attempts[attempt.redirectUri]) {
+    await saveOpenRouterAttempts({ ...attempts, [attempt.redirectUri]: { ...attempts[attempt.redirectUri], tabId: tab.id } });
+  }
+  return { ok: true, started: true };
+}
+
+export async function cancelOpenRouterSignIn() {
+  const attempts = await loadOpenRouterAttempts();
+  await api().storage.session.remove(OPENROUTER_PENDING);
+  await saveOpenRouter({ pending: false });
+  for (const attempt of Object.values(attempts)) if (attempt.tabId != null) api().tabs.remove(attempt.tabId).catch(() => {});
+  return { ok: true };
+}
+
+async function finishOpenRouterSignIn(url: string, attempt: OpenRouterAttempt) {
+  try {
+    const { code } = readOpenRouterCallback(url);
+    const { key } = await exchangeOpenRouterCode({ code, verifier: attempt.verifier });
+    const result = await connectOpenRouterWithKey(key);
+    await api().storage.session.remove(OPENROUTER_PENDING);
+    return result;
+  } catch (error: any) {
+    const message = error instanceof OpenRouterError || error instanceof ChatGPTError ? error.message : 'OpenRouter-login fejlede. Prøv igen.';
+    await saveOpenRouter({ pending: false, message });
+    if (!(error instanceof ChatGPTError)) console.error('Lectiomizer:', error);
+    return { ok: false, message };
+  }
+}
+
+async function claimOpenRouter(href: string): Promise<OpenRouterAttempt | null> {
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+  if (url.hostname !== '127.0.0.1' || url.pathname !== '/openrouter/callback') return null;
+  const key = `${url.origin}${url.pathname}`;
+  const attempts = await loadOpenRouterAttempts();
+  const attempt = attempts[key];
+  if (!attempt) return null;
+  delete attempts[key];
+  await saveOpenRouterAttempts(attempts);
+  return attempt;
+}
+
+function completeOpenRouter(href: string, attempt: OpenRouterAttempt, tabId: number | null) {
+  if (tabId != null && tabId >= 0) api().tabs.remove(tabId).catch(() => {});
+  if (attempt.openerTabId != null) api().tabs.update(attempt.openerTabId, { active: true }).catch(() => {});
+  return finishOpenRouterSignIn(href, attempt);
+}
+
+/** The student pasted the address of an OpenRouter callback page that wouldn't load. */
+export async function pasteOpenRouterCallback(href: unknown) {
+  const value = String(href || '').trim();
+  const attempt = await claimOpenRouter(value);
+  if (!attempt) return { ok: false, message: 'Adressen passer ikke til et OpenRouter-login, der er i gang. Start forfra.' };
+  return completeOpenRouter(value, attempt, attempt.tabId);
+}
+
+/** Validates and stores a manually pasted OpenRouter API key. */
+export async function setOpenRouterKey(rawKey: unknown) {
+  if (!(await hasOpenRouterPermissions())) return { ok: false, message: 'Giv Lectiomizer lov til at kontakte OpenRouter først.' };
+  const key = String(rawKey || '').trim();
+  if (!key) return { ok: false, message: 'Indsæt en OpenRouter API-nøgle.' };
+  try {
+    return await connectOpenRouterWithKey(key);
+  } catch (error: any) {
+    const message = error instanceof ChatGPTError ? error.message : 'Kunne ikke kontakte OpenRouter. Tjek nøglen og prøv igen.';
+    await saveOpenRouter({ pending: false, message });
+    return { ok: false, message };
+  }
+}
+
+export async function disconnectOpenRouter() {
+  await api().storage.local.remove(OPENROUTER_KEY);
+  await api().storage.session.remove(OPENROUTER_PENDING);
+  const current = await loadAccount();
+  await saveOpenRouter(
+    { ...OPENROUTER_DEFAULTS },
+    isChatGPTReady(current) ? { provider: 'chatgpt' } : undefined,
+  );
+  return { ok: true };
+}
+
+export async function openRouterSignedOut(message: string) {
+  await api().storage.local.remove(OPENROUTER_KEY);
+  await saveOpenRouter({ connected: false, pending: false, message: message || 'Forbind OpenRouter igen.' });
+  return { ok: true };
+}
+
+export async function openRouterTokenForApp() {
+  const account = await loadAccount();
+  if (!account.openrouter.connected) return { ok: false, kind: 'reconnect', message: 'Forbind OpenRouter.' };
+  const { [OPENROUTER_KEY]: key } = await api().storage.local.get(OPENROUTER_KEY);
+  if (!key) return { ok: false, kind: 'reconnect', message: 'Din OpenRouter-nøgle mangler. Forbind OpenRouter igen.' };
+  return { ok: true, token: String(key) };
+}
+
+export async function refreshOpenRouterModels() {
+  try {
+    const { [OPENROUTER_KEY]: key } = await api().storage.local.get(OPENROUTER_KEY);
+    const models = await listOpenRouterModels({ key: key ? String(key) : '' });
+    await saveOpenRouter({ models, modelsAt: Date.now() });
+    return { ok: true };
+  } catch (error: any) {
+    return { ok: false, message: error.message };
+  }
+}
+
+// ------------------------------------------------------------------ tab hooks
+
+/** tabs.onUpdated: a sign-in tab went to a loopback callback (nothing listens there). */
+export async function onTabUpdated(tabId: number, changeInfo: { url?: string }) {
+  if (!changeInfo?.url || !changeInfo.url.startsWith('http://127.0.0.1')) return;
+  const attempt = await claim(changeInfo.url);
+  if (attempt) {
+    await complete(changeInfo.url, attempt, tabId);
+    return;
+  }
+  const orAttempt = await claimOpenRouter(changeInfo.url);
+  if (orAttempt) await completeOpenRouter(changeInfo.url, orAttempt, tabId);
+}
+
+/** The student closed a sign-in tab before finishing. */
+export async function onTabRemoved(tabId: number) {
+  const attempts = await loadAttempts();
+  const left = Object.fromEntries(Object.entries(attempts).filter(([, a]) => a.tabId !== tabId));
+  if (Object.keys(left).length !== Object.keys(attempts).length) {
+    await saveAttempts(left);
+    if (!Object.keys(left).length) await saveAccount({ pending: false });
+  }
+  const orAttempts = await loadOpenRouterAttempts();
+  const orLeft = Object.fromEntries(Object.entries(orAttempts).filter(([, a]) => a.tabId !== tabId));
+  if (Object.keys(orLeft).length !== Object.keys(orAttempts).length) {
+    await saveOpenRouterAttempts(orLeft);
+    if (!Object.keys(orLeft).length) await saveOpenRouter({ pending: false });
   }
 }

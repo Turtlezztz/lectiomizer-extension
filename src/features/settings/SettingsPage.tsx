@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Bell, CalendarDays, Check, CheckCircle2, Copy, ExternalLink, KeyRound, Loader2, LogOut, Monitor, Moon, Palette, Plug, RefreshCw, School, Sparkles, Sun, TriangleAlert } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
@@ -16,7 +16,8 @@ import { send, useAccount, useCalendarStatus, usePrefs } from '@/lib/sync/hooks'
 import { BUILT_IN_CLIENT_ID, INTERVALS, WEEK_CHOICES } from '@/lib/sync/store';
 import { cn } from '@/lib/cn';
 import { BRIDGE_DEFAULTS, BRIDGE_KEY, BRIDGE_ORIGINS, BRIDGE_STATUS_KEY, DEFAULT_PORT, newToken, saveBridge, type BridgePrefs, type BridgeStatus } from '@/lib/agent/bridge';
-import { connectChatGPT, useChatAccount, useStored } from '@/features/chat/hooks';
+import { OPENROUTER_KEYS_URL, activeProvider, isChatGPTReady, isOpenRouterReady, saveAccount, saveOpenRouter, type AIProvider } from '@/lib/agent/account';
+import { connectChatGPT, connectOpenRouter, saveOpenRouterApiKey, useChatAccount, useStored } from '@/features/chat/hooks';
 import { SubjectColorSettings } from './SubjectColors';
 
 const redirectUrl: string = (() => {
@@ -237,19 +238,57 @@ function CalendarSettings() {
 
 function AssistantSettings() {
   const account = useChatAccount();
+  const or = account.openrouter;
+  const bothReady = isChatGPTReady(account) && isOpenRouterReady(account);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [callbackUrl, setCallbackUrl] = useState('');
+  const [customModel, setCustomModel] = useState(or.model);
+  const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => setCustomModel(or.model), [or.model]);
+
   const run = async (action: () => Promise<string>) => {
     setBusy(true);
     setError(await action().catch((e: Error) => e.message));
     setBusy(false);
   };
+
+  const saveKey = async () => {
+    if (!apiKey.trim()) return;
+    await run(async () => {
+      const err = await saveOpenRouterApiKey(apiKey);
+      if (!err) setApiKey('');
+      return err;
+    });
+  };
+
+  const refreshOrModels = async () => {
+    setRefreshing(true);
+    setError('');
+    const result = await send({ type: 'openrouter:models' }).catch((e: Error) => ({ ok: false, message: e.message }));
+    if (!result?.ok && result?.message) setError(result.message);
+    setRefreshing(false);
+  };
+
   return (
     <Section
       icon={<Sparkles />}
       title="Assistent"
-      description="Assistenten svarer med din egen ChatGPT-plan og kan læse – men ikke ændre – dit skema, opgaver, lektioner, beskeder, karakterer og fravær."
+      description="Assistenten kan læse – men ikke ændre – dit skema, opgaver, lektioner, beskeder, karakterer og fravær. Forbind din egen ChatGPT-plan, OpenRouter, eller begge dele."
     >
+      {bothReady && (
+        <Row label="Aktiv udbyder" hint="Hvilken udbyder Assistenten bruger som standard.">
+          <Segmented<AIProvider>
+            value={activeProvider(account)}
+            onChange={(provider) => saveAccount({ provider })}
+            options={[
+              { value: 'chatgpt', label: 'ChatGPT' },
+              { value: 'openrouter', label: 'OpenRouter' },
+            ]}
+          />
+        </Row>
+      )}
       <Row
         label="ChatGPT"
         hint={account.connected ? `Logget ind som ${account.email || 'din ChatGPT-konto'}${account.planEnabled ? '' : ' – uden adgang til planen'}.` : account.pending ? 'Venter på login i ChatGPT-fanen…' : 'Ikke forbundet.'}
@@ -264,7 +303,100 @@ function AssistantSettings() {
           </Button>
         )}
       </Row>
-      {(error || account.message) && <div className="bg-danger-soft px-5 py-3 text-[13px] text-danger-soft-fg">{error || account.message}</div>}
+      <Row
+        label="OpenRouter"
+        hint={
+          or.connected
+            ? `Forbundet (${or.label || 'OpenRouter'}).`
+            : or.pending
+              ? 'Venter på login i OpenRouter-fanen…'
+              : 'Brug modeller fra Anthropic, Google, OpenAI m.fl. via din OpenRouter-konto.'
+        }
+      >
+        {or.connected ? (
+          <Button onClick={() => run(async () => ((await send({ type: 'openrouter:disconnect' }))?.ok ? '' : 'Kunne ikke afbryde OpenRouter.'))} disabled={busy}>
+            <LogOut /> Afbryd
+          </Button>
+        ) : or.pending ? (
+          <Button variant="ghost" onClick={() => send({ type: 'openrouter:cancel' })}>Annullér</Button>
+        ) : (
+          <Button variant="primary" onClick={() => run(() => connectOpenRouter())} disabled={busy}>
+            Fortsæt med OpenRouter
+          </Button>
+        )}
+      </Row>
+      {!or.connected && or.pending && (
+        <div className="space-y-2 bg-surface-2/40 px-5 py-3.5">
+          <div className="text-[12.5px] text-fg-muted">Hvis OpenRouter-fanen ender på en side, der ikke kan vises (127.0.0.1), så kopiér adressen herind:</div>
+          <div className="flex gap-2">
+            <Input
+              value={callbackUrl}
+              onChange={(e) => setCallbackUrl(e.target.value)}
+              placeholder="http://127.0.0.1:…/openrouter/callback?code=…"
+              className="font-mono text-[12px]"
+              aria-label="OpenRouter login-adresse"
+            />
+            <Button
+              disabled={!callbackUrl.trim() || busy}
+              onClick={() =>
+                run(async () => {
+                  const r = await send({ type: 'openrouter:callback', url: callbackUrl });
+                  if (r?.ok) setCallbackUrl('');
+                  return r?.ok ? '' : r?.message || 'Det virkede ikke.';
+                })
+              }
+            >
+              Fortsæt
+            </Button>
+          </div>
+        </div>
+      )}
+      {!or.connected && !or.pending && (
+        <div className="space-y-2 bg-surface-2/40 px-5 py-3.5">
+          <div className="flex items-center justify-between gap-2 text-[12.5px] text-fg-muted">
+            <span>Eller indsæt en OpenRouter API-nøgle direkte:</span>
+            <a href={OPENROUTER_KEYS_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent-soft-fg hover:underline">
+              Hent nøgle <ExternalLink className="size-3" />
+            </a>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-or-v1-…"
+              className="font-mono text-[12.5px]"
+              aria-label="OpenRouter API-nøgle"
+              autoComplete="off"
+            />
+            <Button onClick={saveKey} disabled={!apiKey.trim() || busy}>Gem nøgle</Button>
+          </div>
+        </div>
+      )}
+      {or.connected && (
+        <Row label="OpenRouter-model" hint="Indtast et valgfrit OpenRouter model-ID (fx anthropic/claude-sonnet-4) eller opdatér modellisten.">
+          <Input
+            value={customModel}
+            onChange={(e) => setCustomModel(e.target.value)}
+            placeholder={or.model || 'openrouter/auto'}
+            className="w-52 font-mono text-[12px]"
+            aria-label="OpenRouter model-ID"
+          />
+          <Button
+            size="md"
+            disabled={!customModel.trim() || customModel.trim() === or.model}
+            onClick={() => saveOpenRouter({ model: customModel.trim() })}
+          >
+            Gem
+          </Button>
+          <Button size="icon" variant="ghost" onClick={refreshOrModels} disabled={refreshing} aria-label="Opdatér modeller" title="Opdatér modeller">
+            <RefreshCw className={cn(refreshing && 'animate-spin')} />
+          </Button>
+        </Row>
+      )}
+      {(error || account.message || or.message) && (
+        <div className="bg-danger-soft px-5 py-3 text-[13px] text-danger-soft-fg">{error || or.message || account.message}</div>
+      )}
     </Section>
   );
 }

@@ -1,6 +1,6 @@
-// Assistent: a ChatGPT conversation that reads the student's Lectio through
-// the tools in lib/agent. Answers run in jobs.ts, so they keep going while the
-// student uses the rest of the app.
+// Assistent: a ChatGPT or OpenRouter conversation that reads the student's
+// Lectio through the tools in lib/agent. Answers run in jobs.ts, so they keep
+// going while the student uses the rest of the app.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import {
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
+import { Segmented } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/cn';
 import { useSettings } from '@/lib/settings';
@@ -16,10 +17,27 @@ import { useLectioPage } from '@/lib/lectio/query';
 import { readMe } from '@/lib/lectio/readers/thread.js';
 import { send } from '@/lib/sync/hooks';
 import {
-  EFFORTS, USAGE_URL, deleteConversation, modelOf, saveAccount, type AssistantTurn, type ChatAccount, type Conversation, type Part,
+  EFFORTS,
+  OPENROUTER_KEYS_URL,
+  OPENROUTER_USAGE_URL,
+  USAGE_URL,
+  activeProvider,
+  deleteConversation,
+  isAssistantReady,
+  isChatGPTReady,
+  isOpenRouterReady,
+  modelOf,
+  saveAccount,
+  saveOpenRouter,
+  type AIProvider,
+  type AssistantTurn,
+  type ChatAccount,
+  type Conversation,
+  type Part,
 } from '@/lib/agent/account';
+import { POPULAR_OPENROUTER_SLUGS } from '@/lib/agent/openrouter.js';
 import { Markdown } from './Markdown';
-import { connectChatGPT, useChatAccount, useConversations } from './hooks';
+import { connectChatGPT, connectOpenRouter, saveOpenRouterApiKey, useChatAccount, useConversations } from './hooks';
 import { ask, forget, retryAnswer, stop, useJobs, type Context } from './jobs';
 
 const SUGGESTIONS = [
@@ -29,6 +47,7 @@ const SUGGESTIONS = [
   'Opsummér opgavebeskrivelsen til min næste aflevering',
 ];
 const MODELS_TTL = 6 * 60 * 60 * 1000;
+const POPULAR_SET = new Set<string>(POPULAR_OPENROUTER_SLUGS);
 
 const listDate = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'short' });
 const listTime = new Intl.DateTimeFormat('da-DK', { hour: '2-digit', minute: '2-digit' });
@@ -41,7 +60,7 @@ const TOOL_ICONS: Record<string, typeof FileText> = {
 
 // ------------------------------------------------------------------ sign-in
 
-function PendingSignIn() {
+function PendingSignIn({ callbackType, cancelType, placeholder }: { callbackType: string; cancelType: string; placeholder: string }) {
   const [value, setValue] = useState('');
   const [message, setMessage] = useState('');
   return (
@@ -53,56 +72,129 @@ function PendingSignIn() {
         className="flex gap-2"
         onSubmit={async (e) => {
           e.preventDefault();
-          const result = await send({ type: 'chat:callback', url: value });
+          const result = await send({ type: callbackType, url: value });
           setMessage(result?.ok ? '' : result?.message || 'Det virkede ikke.');
         }}
       >
-        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="http://127.0.0.1:…/auth/callback?code=…" className="font-mono text-[12px]" aria-label="Login-adresse" />
+        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} className="font-mono text-[12px]" aria-label="Login-adresse" />
         <Button type="submit" disabled={!value.trim()}>Fortsæt</Button>
       </form>
       <div className="flex items-center justify-between">
         {message ? <p className="text-[12.5px] text-danger" role="alert">{message}</p> : <span />}
-        <Button size="sm" variant="ghost" onClick={() => send({ type: 'chat:cancel' })}>Annullér</Button>
+        <Button size="sm" variant="ghost" onClick={() => send({ type: cancelType })}>Annullér</Button>
       </div>
     </div>
   );
 }
 
 function SignIn({ account }: { account: ChatAccount }) {
+  const [tab, setTab] = useState<AIProvider>(() => (account.openrouter.pending || account.openrouter.message ? 'openrouter' : account.provider || 'chatgpt'));
+  const [apiKey, setApiKey] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const planOnly = account.connected && !account.planEnabled;
-  const start = async () => {
+
+  const startChatGPT = async () => {
     setBusy(true);
     setNotice(await connectChatGPT(planOnly));
     setBusy(false);
   };
+  const startOpenRouter = async () => {
+    setBusy(true);
+    setNotice(await connectOpenRouter());
+    setBusy(false);
+  };
+  const submitKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!apiKey.trim()) return;
+    setBusy(true);
+    const err = await saveOpenRouterApiKey(apiKey);
+    setNotice(err);
+    if (!err) setApiKey('');
+    setBusy(false);
+  };
+
+  const errorText = notice || (tab === 'openrouter' ? account.openrouter.message : account.message);
+
   return (
     <div className="mx-auto flex max-w-lg flex-col items-center px-6 py-16 text-center">
       <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-soft-fg">
         <MessagesSquare className="size-6" />
       </div>
-      <h2 className="text-[20px] font-semibold tracking-[-0.02em]">{planOnly ? 'Giv adgang til din ChatGPT-plan' : 'Spørg om din Lectio'}</h2>
+      <h2 className="text-[20px] font-semibold tracking-[-0.02em]">
+        {tab === 'chatgpt' && planOnly ? 'Giv adgang til din ChatGPT-plan' : 'Spørg om din Lectio'}
+      </h2>
       <p className="mt-2 text-[14px] text-fg-muted">
-        {planOnly
+        {tab === 'chatgpt' && planOnly
           ? `Du er logget ind som ${account.email || 'din ChatGPT-konto'}, men Lectiomizer har ikke lov til at bruge din ChatGPT-plan. Uden den kan assistenten ikke svare.`
-          : 'Assistenten kan læse dit skema, dine opgaver og opgavebeskrivelser, lektioner, beskeder, karakterer og fravær, når du spørger, og svarer med din egen ChatGPT-plan.'}
+          : 'Assistenten kan læse dit skema, dine opgaver og opgavebeskrivelser, lektioner, beskeder, karakterer og fravær, når du spørger. Brug din egen ChatGPT-plan eller OpenRouter.'}
       </p>
-      {account.pending ? (
+      <Segmented
+        className="mt-5"
+        value={tab}
+        onChange={(next) => {
+          setTab(next);
+          setNotice('');
+        }}
+        options={[
+          { value: 'chatgpt', label: 'ChatGPT' },
+          { value: 'openrouter', label: 'OpenRouter' },
+        ]}
+      />
+
+      {tab === 'chatgpt' ? (
+        account.pending ? (
+          <>
+            <Button className="mt-6" size="lg" disabled>
+              <LoaderCircle className="animate-spin" /> Venter på ChatGPT…
+            </Button>
+            <PendingSignIn callbackType="chat:callback" cancelType="chat:cancel" placeholder="http://127.0.0.1:…/auth/callback?code=…" />
+          </>
+        ) : (
+          <Button className="mt-6" size="lg" variant="primary" onClick={startChatGPT} disabled={busy}>
+            {planOnly ? 'Tillad brug af din ChatGPT-plan' : 'Fortsæt med ChatGPT'}
+          </Button>
+        )
+      ) : account.openrouter.pending ? (
         <>
           <Button className="mt-6" size="lg" disabled>
-            <LoaderCircle className="animate-spin" /> Venter på ChatGPT…
+            <LoaderCircle className="animate-spin" /> Venter på OpenRouter…
           </Button>
-          <PendingSignIn />
+          <PendingSignIn callbackType="openrouter:callback" cancelType="openrouter:cancel" placeholder="http://127.0.0.1:…/openrouter/callback?code=…" />
         </>
       ) : (
-        <Button className="mt-6" size="lg" variant="primary" onClick={start} disabled={busy}>
-          {planOnly ? 'Tillad brug af din ChatGPT-plan' : 'Fortsæt med ChatGPT'}
-        </Button>
+        <div className="mt-6 flex w-full max-w-md flex-col items-center">
+          <Button size="lg" variant="primary" onClick={startOpenRouter} disabled={busy}>
+            Fortsæt med OpenRouter
+          </Button>
+          <div className="my-4 flex w-full items-center gap-3 text-[12px] text-fg-subtle">
+            <span className="h-px flex-1 bg-border" />
+            <span>eller brug en API-nøgle</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <form className="flex w-full gap-2" onSubmit={submitKey}>
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-or-v1-…"
+              className="font-mono text-[12.5px]"
+              aria-label="OpenRouter API-nøgle"
+              autoComplete="off"
+            />
+            <Button type="submit" disabled={!apiKey.trim() || busy}>
+              {busy ? <LoaderCircle className="animate-spin" /> : 'Forbind'}
+            </Button>
+          </form>
+          <a href={OPENROUTER_KEYS_URL} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[12px] text-fg-muted hover:text-fg hover:underline">
+            Opret eller find API-nøgle på OpenRouter <ArrowUpRight className="size-3" />
+          </a>
+        </div>
       )}
-      {(notice || account.message) && <p className="mt-3 text-[13px] text-danger" role="alert">{notice || account.message}</p>}
+
+      {errorText && <p className="mt-3 text-[13px] text-danger" role="alert">{errorText}</p>}
       <p className="mt-6 text-[12px] text-fg-subtle">
-        Lectio-indhold sendes kun til OpenAI, når du stiller et spørgsmål. Assistenten kan kun læse – den kan ikke aflevere, sende eller ændre noget. Samtaler gemmes kun i din browser, uden indholdet af de sider og dokumenter, der blev læst.
+        Lectio-indhold sendes kun til {tab === 'openrouter' ? 'OpenRouter' : 'OpenAI'}, når du stiller et spørgsmål. Assistenten kan kun læse – den kan ikke aflevere, sende eller ændre noget. Samtaler gemmes kun i din browser, uden indholdet af de sider og dokumenter, der blev læst.
       </p>
     </div>
   );
@@ -124,6 +216,7 @@ function ToolLine({ part }: { part: Extract<Part, { type: 'tool' }> }) {
 
 function Assistant({ turn, base, status, onRetry }: { turn: AssistantTurn; base: string; status?: string; onRetry?: () => void }) {
   const tools = turn.parts.filter((p) => p.type === 'tool');
+  const limitUrl = turn.provider === 'openrouter' ? OPENROUTER_USAGE_URL : USAGE_URL;
   return (
     <div className="space-y-2">
       {tools.length > 0 && (
@@ -153,7 +246,7 @@ function Assistant({ turn, base, status, onRetry }: { turn: AssistantTurn; base:
           </div>
           {turn.limit && (
             <Button size="sm" asChild>
-              <a href={USAGE_URL} target="_blank" rel="noreferrer">Forbrug <ArrowUpRight /></a>
+              <a href={limitUrl} target="_blank" rel="noreferrer">{turn.provider === 'openrouter' ? 'Kredit' : 'Forbrug'} <ArrowUpRight /></a>
             </Button>
           )}
           {onRetry && (
@@ -249,16 +342,58 @@ function ConversationList({ conversations, current, running, onOpen, onDelete }:
   );
 }
 
-function ModelPicker({ account }: { account: ChatAccount }) {
-  const model = modelOf(account);
+function ModelPicker({ account, provider }: { account: ChatAccount; provider: AIProvider }) {
+  const bothReady = isChatGPTReady(account) && isOpenRouterReady(account);
+  const model = modelOf(account, provider);
+  const effort = provider === 'openrouter' ? account.openrouter.effort : account.effort;
+  const openRouterModels = account.openrouter.models;
+  const popularOr = openRouterModels.filter((m) => POPULAR_SET.has(m.slug));
+  const otherOr = openRouterModels.filter((m) => !POPULAR_SET.has(m.slug));
+  const hasCustomOr = provider === 'openrouter' && !!model && !openRouterModels.some((m) => m.slug === model.slug);
+
   return (
     <div className="flex items-center gap-2">
-      <Select value={model?.slug || ''} onChange={(e) => saveAccount({ model: e.target.value })} aria-label="Model" className="h-8 text-[12.5px]">
-        {account.models.map((m) => (
-          <option key={m.slug} value={m.slug}>{m.name}</option>
-        ))}
-      </Select>
-      <Select value={account.effort} onChange={(e) => saveAccount({ effort: e.target.value as ChatAccount['effort'] })} aria-label="Tænketid" className="h-8 text-[12.5px]">
+      {bothReady && (
+        <Select value={provider} onChange={(e) => saveAccount({ provider: e.target.value as AIProvider })} aria-label="Udbyder" className="h-8 text-[12.5px]">
+          <option value="chatgpt">ChatGPT</option>
+          <option value="openrouter">OpenRouter</option>
+        </Select>
+      )}
+      {provider === 'openrouter' ? (
+        <Select value={model?.slug || ''} onChange={(e) => saveOpenRouter({ model: e.target.value })} aria-label="Model" className="h-8 max-w-[230px] text-[12.5px]">
+          {hasCustomOr && <option value={model.slug}>{model.name}</option>}
+          {popularOr.length > 0 && (
+            <optgroup label="Anbefalede">
+              {popularOr.map((m) => (
+                <option key={m.slug} value={m.slug}>{m.name}</option>
+              ))}
+            </optgroup>
+          )}
+          {otherOr.length > 0 && (
+            <optgroup label="Alle modeller">
+              {otherOr.map((m) => (
+                <option key={m.slug} value={m.slug}>{m.name}</option>
+              ))}
+            </optgroup>
+          )}
+        </Select>
+      ) : (
+        <Select value={model?.slug || ''} onChange={(e) => saveAccount({ model: e.target.value })} aria-label="Model" className="h-8 text-[12.5px]">
+          {account.models.map((m) => (
+            <option key={m.slug} value={m.slug}>{m.name}</option>
+          ))}
+        </Select>
+      )}
+      <Select
+        value={effort}
+        onChange={(e) => {
+          const next = e.target.value as ChatAccount['effort'];
+          if (provider === 'openrouter') saveOpenRouter({ effort: next });
+          else saveAccount({ effort: next });
+        }}
+        aria-label="Tænketid"
+        className="h-8 text-[12.5px]"
+      >
         {EFFORTS.map((e) => (
           <option key={e.value} value={e.value}>{e.label}</option>
         ))}
@@ -306,15 +441,22 @@ export default function ChatPage() {
   const pinned = useRef(true);
   const base = schoolRoot(school.id);
   const me = useLectioPage(PATHS.home, readMe as (doc: Document) => { name: string }, { staleTime: 10 * 60_000 });
-  const model = modelOf(account);
-  const ready = account.connected && account.planEnabled;
+  const provider = activeProvider(account);
+  const ready = isAssistantReady(account);
+  const model = modelOf(account, provider);
+  const effort = provider === 'openrouter' ? account.openrouter.effort : account.effort;
 
-  // Plans change; keep the model list fresh.
+  // Keep the active provider's model list fresh.
   useEffect(() => {
-    if (ready && (!account.models.length || Date.now() - account.modelsAt > MODELS_TTL)) send({ type: 'chat:models' }).catch(() => {});
-  }, [ready, account.models.length, account.modelsAt]);
+    if (provider === 'chatgpt' && isChatGPTReady(account) && (!account.models.length || Date.now() - account.modelsAt > MODELS_TTL)) {
+      send({ type: 'chat:models' }).catch(() => {});
+    }
+    if (provider === 'openrouter' && isOpenRouterReady(account) && (!account.openrouter.models.length || Date.now() - account.openrouter.modelsAt > MODELS_TTL)) {
+      send({ type: 'openrouter:models' }).catch(() => {});
+    }
+  }, [provider, account.connected, account.planEnabled, account.models.length, account.modelsAt, account.openrouter.connected, account.openrouter.models.length, account.openrouter.modelsAt]);
 
-  const context = (): Context => ({ schoolId: school.id, school: school.name, name: me.data?.data.name || '', model: model?.slug || '', effort: account.effort });
+  const context = (): Context => ({ provider, schoolId: school.id, school: school.name, name: me.data?.data.name || '', model: model?.slug || '', effort });
 
   const onSend = async (question: string) => {
     setNotice('');
@@ -370,7 +512,7 @@ export default function ChatPage() {
             <History />
           </Button>
           <h1 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{conversation?.title || 'Assistent'}</h1>
-          <ModelPicker account={account} />
+          <ModelPicker account={account} provider={provider} />
           <Button size="icon-sm" variant="ghost" aria-label="Ny samtale" title="Ny samtale" onClick={() => open(null)}>
             <SquarePen />
           </Button>
@@ -408,7 +550,9 @@ export default function ChatPage() {
         <div className="mx-auto w-full max-w-[760px] px-4 pb-4 sm:px-6">
           {notice && <p className="mb-2 text-[13px] text-danger" role="alert">{notice}</p>}
           <Composer onSend={onSend} onStop={() => stop(id)} running={!!job} disabled={!model} />
-          <p className="mt-1.5 text-center text-[11.5px] text-fg-subtle">Svarene kommer fra ChatGPT og kan tage fejl. Tjek vigtige frister i Lectio.</p>
+          <p className="mt-1.5 text-center text-[11.5px] text-fg-subtle">
+            Svarene kommer fra {provider === 'openrouter' ? 'OpenRouter' : 'ChatGPT'} og kan tage fejl. Tjek vigtige frister i Lectio.
+          </p>
         </div>
       </div>
     </div>

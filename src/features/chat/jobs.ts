@@ -3,8 +3,19 @@
 // tools run right here in the app page: it has the Lectio session and a DOM,
 // so unlike v1 no Lectio tab has to be open.
 import { useSyncExternalStore } from 'react';
-import { loadConversations, saveConversation, type Conversation, type Part } from '@/lib/agent/account';
-import { RESPONSES_TOOLS, failedReply, inputFromTurns, instructions, responses, runTurn, savedParts, type GetToken } from '@/lib/agent/agent';
+import { loadConversations, saveConversation, type AIProvider, type Conversation, type Part } from '@/lib/agent/account';
+import {
+  OPENROUTER_TOOLS,
+  RESPONSES_TOOLS,
+  failedReply,
+  inputFromTurns,
+  instructions,
+  openrouterResponses,
+  responses,
+  runTurn,
+  savedParts,
+  type GetToken,
+} from '@/lib/agent/agent';
 import { createLectioTools } from '@/lib/agent/tools';
 import { send } from '@/lib/sync/hooks';
 
@@ -15,6 +26,7 @@ export interface Job {
 }
 
 export interface Context {
+  provider: AIProvider;
   schoolId: string;
   school: string;
   name: string;
@@ -23,8 +35,10 @@ export interface Context {
 }
 
 const jobs = new Map<string, Job>();
-// Full histories (tool results and files included) for follow-up questions.
-const memory = new Map<string, any[]>();
+// Full histories (tool results and files included) for follow-up questions,
+// tagged with the provider that produced them so switching providers mid-chat
+// rebuilds cleanly from saved text turns.
+const memory = new Map<string, { provider: AIProvider; input: any[] }>();
 const REMEMBER = 5;
 const listeners = new Set<() => void>();
 let version = 0;
@@ -33,21 +47,27 @@ const emit = () => {
   for (const l of listeners) l();
 };
 
-function remember(id: string, input: any[]) {
+function remember(id: string, provider: AIProvider, input: any[]) {
   memory.delete(id);
-  memory.set(id, input);
+  memory.set(id, { provider, input });
   while (memory.size > REMEMBER) memory.delete(memory.keys().next().value!);
 }
 
-const getToken: GetToken = (force) => send({ type: 'chat:token', force });
+const getChatGPTToken: GetToken = (force) => send({ type: 'chat:token', force });
+const getOpenRouterToken: GetToken = () => send({ type: 'openrouter:token' });
 
 async function run(id: string, input: any[], context: Context) {
   const job: Job = { parts: [], status: 'Tænker…', controller: new AbortController() };
   jobs.set(id, job);
   emit();
   const tools = createLectioTools({ schoolId: context.schoolId, links: 'relative' });
-  const stream = (history: any[], signal?: AbortSignal) =>
-    responses({ model: context.model, effort: context.effort, tools: RESPONSES_TOOLS, input: history, instructions: instructions({ name: context.name, school: context.school }) }, signal, getToken);
+  const isOpenRouter = context.provider === 'openrouter';
+  const prompt = instructions({ name: context.name, school: context.school });
+  const stream = isOpenRouter
+    ? (history: any[], signal?: AbortSignal) =>
+        openrouterResponses({ model: context.model, effort: context.effort, tools: OPENROUTER_TOOLS, input: history, instructions: prompt }, signal, getOpenRouterToken)
+    : (history: any[], signal?: AbortSignal) =>
+        responses({ model: context.model, effort: context.effort, tools: RESPONSES_TOOLS, input: history, instructions: prompt }, signal, getChatGPTToken);
   let reply;
   try {
     const parts = await runTurn({
@@ -55,16 +75,19 @@ async function run(id: string, input: any[], context: Context) {
       stream,
       runTool: (name, args) => tools.run(name, args),
       signal: job.controller.signal,
+      providerName: isOpenRouter ? 'OpenRouter' : 'ChatGPT',
       onUpdate: (parts, status) => {
         job.parts = parts;
         job.status = status;
         emit();
       },
     });
-    reply = { role: 'assistant' as const, parts: savedParts(parts) };
+    reply = { role: 'assistant' as const, provider: context.provider, parts: savedParts(parts) };
   } catch (error) {
-    reply = failedReply(error, job.parts);
-    if ((error as any)?.kind === 'reconnect' && (error as any)?.status === 401) send({ type: 'chat:signed-out', message: (error as Error).message }).catch(() => {});
+    reply = failedReply(error, job.parts, context.provider);
+    if ((error as any)?.kind === 'reconnect' && (error as any)?.status === 401) {
+      send({ type: isOpenRouter ? 'openrouter:signed-out' : 'chat:signed-out', message: (error as Error).message }).catch(() => {});
+    }
   }
   // Deleted while it ran: don't bring it back.
   const latest = (await loadConversations()).find((c) => c.id === id);
@@ -81,9 +104,10 @@ export async function ask(id: string, question: string, context: Context): Promi
   const saved = (await loadConversations()).find((c) => c.id === id);
   const title = question.replace(/\s+/g, ' ').trim();
   const conversation: Conversation = saved || { id, title: title.length > 60 ? title.slice(0, 57).trimEnd() + '…' : title, created: Date.now(), updated: Date.now(), turns: [] };
-  const input = memory.get(id) || inputFromTurns(conversation.turns);
+  const cached = memory.get(id);
+  const input = cached && cached.provider === context.provider ? cached.input : inputFromTurns(conversation.turns);
   input.push({ role: 'user', content: question });
-  remember(id, input);
+  remember(id, context.provider, input);
   await saveConversation({ ...conversation, turns: [...conversation.turns, { role: 'user', text: question }], updated: Date.now() });
   run(id, input, context);
   return null;
@@ -92,6 +116,7 @@ export async function ask(id: string, question: string, context: Context): Promi
 /** Answers the last question again, replacing an answer that failed. */
 export async function retryAnswer(id: string, context: Context): Promise<string | null> {
   if (jobs.has(id)) return 'Vent, til svaret er færdigt.';
+  if (!context.model) return 'Vælg en model.';
   const conversation = (await loadConversations()).find((c) => c.id === id);
   if (!conversation) return 'Samtalen findes ikke længere.';
   const last = conversation.turns.at(-1);
@@ -100,7 +125,7 @@ export async function retryAnswer(id: string, context: Context): Promise<string 
   if (turns !== conversation.turns) await saveConversation({ ...conversation, turns, updated: Date.now() });
   // The remembered history may hold the failed attempt; start from what was written.
   const input = inputFromTurns(turns);
-  remember(id, input);
+  remember(id, context.provider, input);
   run(id, input, context);
   return null;
 }

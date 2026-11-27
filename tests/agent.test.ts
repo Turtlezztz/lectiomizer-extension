@@ -24,9 +24,34 @@ const area = (store: Record<string, any>) => ({
   },
 };
 
-const { startSignIn, onTabUpdated, pasteCallback, signOut, tokenForApp } = await import('@/lib/agent/session');
-const { responses, retry, runTurn, savedParts, inputFromTurns, withoutFiles, toolOutput, RESPONSES_TOOLS, instructions } = await import('@/lib/agent/agent');
+const {
+  startSignIn,
+  onTabUpdated,
+  pasteCallback,
+  signOut,
+  tokenForApp,
+  startOpenRouterSignIn,
+  pasteOpenRouterCallback,
+  setOpenRouterKey,
+  disconnectOpenRouter,
+  openRouterTokenForApp,
+} = await import('@/lib/agent/session');
+const {
+  responses,
+  openrouterResponses,
+  retry,
+  runTurn,
+  savedParts,
+  inputFromTurns,
+  withoutFiles,
+  toolOutput,
+  RESPONSES_TOOLS,
+  OPENROUTER_TOOLS,
+  instructions,
+} = await import('@/lib/agent/agent');
 const { ChatGPTError } = await import('@/lib/agent/openai.js');
+const { openRouterMessages } = await import('@/lib/agent/openrouter.js');
+const { activeProvider, mergeAccount, modelOf } = await import('@/lib/agent/account');
 retry.delays = [0, 0, 0];
 
 const { publicKey, privateKey } = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
@@ -40,10 +65,20 @@ async function idToken(claims: Record<string, unknown>) {
 
 const requests: Array<[string, any]> = [];
 let responsesStatus: Array<number | string> = [200];
+let openrouterStatus: Array<number | string> = [200];
 const sse = (events: any[]) =>
   new ReadableStream({
     start(c) {
       for (const e of events) c.enqueue(new TextEncoder().encode(`event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`));
+      c.close();
+    },
+  });
+const orSse = (chunks: any[]) =>
+  new ReadableStream({
+    start(c) {
+      c.enqueue(new TextEncoder().encode(': OPENROUTER PROCESSING\n\n'));
+      for (const chunk of chunks) c.enqueue(new TextEncoder().encode(`data: ${typeof chunk === 'string' ? chunk : JSON.stringify(chunk)}\n\n`));
+      c.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
       c.close();
     },
   });
@@ -71,6 +106,59 @@ globalThis.fetch = (async (url: string, init: any = {}) => {
     if (status === 'fail') return stream([{ type: 'error', error: { type: 'invalid_request_error', code: 'model_not_found', message: 'The model gpt-a does not exist.' } }], { 'x-request-id': 'req_123' });
     if (status !== 200) return json({ detail: 'expired' }, status as number);
     return stream([{ type: 'response.output_item.added', item: { type: 'message', id: 'm' } }, { type: 'response.output_text.delta', item_id: 'm', delta: 'Hej' }, { type: 'response.completed', response: { usage: {} } }]);
+  }
+  if (url === 'https://openrouter.ai/api/v1/auth/keys') {
+    const body = JSON.parse(init.body || '{}');
+    if (body.code === 'or_code_1' && body.code_verifier) return json({ key: 'sk-or-v1-oauthkey123456', user_id: 'u_1' });
+    if (body.code === 'or_code_2' && body.code_verifier) return json({ key: 'sk-or-v1-oauthkey654321', user_id: 'u_1' });
+    return json({ error: { message: 'Invalid code', code: 400 } }, 400);
+  }
+  if (url === 'https://openrouter.ai/api/v1/key') {
+    if (init.headers?.Authorization === 'Bearer sk-or-v1-bad') return json({ error: { message: 'Invalid credentials', code: 401 } }, 401);
+    return json({ data: { label: 'sk-or-v1-min-nøgle', limit: 10, limit_remaining: 8.5, is_free_tier: false } });
+  }
+  if (url === 'https://openrouter.ai/api/v1/models?supported_parameters=tools') {
+    return json({
+      data: [
+        { id: 'z/other-model', name: 'Zeta Model', supported_parameters: ['tools'] },
+        { id: 'anthropic/claude-sonnet-4', name: 'Anthropic: Claude Sonnet 4', supported_parameters: ['tools', 'reasoning'] },
+        { id: 'no-tools/plain', name: 'No Tools', supported_parameters: ['temperature'] },
+      ],
+    });
+  }
+  if (url === 'https://openrouter.ai/api/v1/chat/completions') {
+    const status = openrouterStatus.shift() ?? 200;
+    const stream = (chunks: any[], headers = {}) => new Response(orSse(chunks), { status: 200, headers: { 'content-type': 'text/event-stream', ...headers } });
+    if (status === 'tool-then-text') {
+      return stream([
+        { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_or_1', type: 'function', function: { name: 'get_schedule', arguments: '{"start":' } }] }, finish_reason: null }] },
+        { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'null,"days":1}' } }] }, finish_reason: null }] },
+        { choices: [{ delta: {}, finish_reason: 'tool_calls' }], usage: { total_tokens: 42 } },
+      ]);
+    }
+    if (status === 'length') {
+      return stream([
+        { choices: [{ delta: { content: 'Delvist' }, finish_reason: null }] },
+        { choices: [{ delta: {}, finish_reason: 'length' }] },
+      ]);
+    }
+    if (status === 'stream-error') {
+      return stream([{ error: { code: 503, message: 'Provider overloaded' } }], { 'x-request-id': 'or_req_1' });
+    }
+    if (status === 'stream-error-late') {
+      return stream([
+        { choices: [{ delta: { content: 'Hal' }, finish_reason: null }] },
+        { error: { code: 503, message: 'Dropped' } },
+      ]);
+    }
+    if (status === 402) return json({ error: { code: 402, message: 'Insufficient credits' } }, 402);
+    if (status === 429) return json({ error: { code: 429, message: 'Rate limited' } }, 429);
+    if (status === 401) return json({ error: { code: 401, message: 'Invalid API key' } }, 401);
+    return stream([
+      { choices: [{ delta: { content: 'Hej ' }, finish_reason: null }] },
+      { choices: [{ delta: { content: 'fra OpenRouter!' }, finish_reason: null }] },
+      { choices: [{ delta: {}, finish_reason: 'stop' }], usage: { total_tokens: 15 } },
+    ]);
   }
   return new Response('not found', { status: 404 });
 }) as any;
@@ -235,5 +323,152 @@ describe('a chat turn', () => {
     expect(RESPONSES_TOOLS[0].name).toBe('lectio');
     expect(RESPONSES_TOOLS[0].tools.every((t: any) => t.strict && t.parameters.additionalProperties === false)).toBe(true);
     expect(instructions({ name: 'Demo Elev', school: 'Demo Gymnasium' })).toMatch(/Demo Elev[\s\S]*list_assignments/);
+  });
+});
+
+describe('OpenRouter', () => {
+  const getOrToken = () => openRouterTokenForApp();
+  async function collectOr(request: any) {
+    const events: any[] = [];
+    try {
+      for await (const event of openrouterResponses({ instructions: 'sys', tools: OPENROUTER_TOOLS, input: [{ role: 'user', content: 'Hej' }], ...request }, undefined, getOrToken)) {
+        events.push(event);
+      }
+      return { events, error: undefined as any };
+    } catch (error) {
+      return { events, error: error as any };
+    }
+  }
+
+  it('connects via OAuth PKCE callback or pasted URL, lists tool models and stores key separately', async () => {
+    await startOpenRouterSignIn({ openerTabId: 4 });
+    const authUrl = new URL(tabs.created.at(-1)!);
+    expect(authUrl.origin + authUrl.pathname).toBe('https://openrouter.ai/auth');
+    expect(authUrl.searchParams.get('code_challenge_method')).toBe('S256');
+    const redirectUri = authUrl.searchParams.get('callback_url')!;
+    expect(redirectUri).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/openrouter\/callback$/);
+    expect(local.chatAccount.openrouter.pending).toBe(true);
+
+    await onTabUpdated(7, { url: `${redirectUri}?code=or_code_1` });
+    await until(() => local.chatAccount?.openrouter?.connected);
+    expect(local.chatAccount.provider).toBe('openrouter');
+    expect(local.chatAccount.openrouter.label).toBe('sk-or-v1-min-nøgle');
+    // Popular models first, openrouter/auto ensured, non-tool models filtered out.
+    expect(local.chatAccount.openrouter.models.map((m: any) => m.slug)).toEqual(['openrouter/auto', 'anthropic/claude-sonnet-4', 'z/other-model']);
+    expect(local.openrouterKey).toBe('sk-or-v1-oauthkey123456');
+    expect(JSON.stringify(local.chatAccount)).not.toContain('sk-or-v1-oauthkey123456');
+
+    // Pasted callback also works.
+    await startOpenRouterSignIn({});
+    const secondRedirect = new URL(tabs.created.at(-1)!).searchParams.get('callback_url')!;
+    expect((await pasteOpenRouterCallback('http://127.0.0.1:9999/other')).ok).toBe(false);
+    expect(await pasteOpenRouterCallback(`${secondRedirect}?code=or_code_2`)).toEqual({ ok: true });
+    expect(local.openrouterKey).toBe('sk-or-v1-oauthkey654321');
+  });
+
+  it('streams text and incremental tool calls through runTurn, handles retries and errors', async () => {
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      // Full agentic turn: tool call round -> final text round.
+      openrouterStatus = ['tool-then-text', 200];
+      const before = requests.length;
+      const toolCalls: any[] = [];
+      const input: any[] = [{ role: 'user', content: 'Hvad har jeg i dag?' }];
+      const parts = await runTurn({
+        input,
+        providerName: 'OpenRouter',
+        stream: (history, signal) => openrouterResponses({ model: 'anthropic/claude-sonnet-4', effort: 'low', instructions: 'sys', tools: OPENROUTER_TOOLS, input: history }, signal, getOrToken),
+        runTool: async (name, args) => {
+          toolCalls.push([name, args]);
+          return { ok: true, text: '# Skema', label: 'Læste skemaet', href: null };
+        },
+      });
+      expect(toolCalls).toEqual([['get_schedule', { start: null, days: 1 }]]);
+      expect(parts.map((p: any) => [p.type, p.label || p.text])).toEqual([['tool', 'Læste skemaet'], ['text', 'Hej fra OpenRouter!']]);
+      const orCalls = requests.slice(before).filter(([u]) => u === 'https://openrouter.ai/api/v1/chat/completions');
+      expect(orCalls.length).toBe(2);
+      const firstBody = JSON.parse(orCalls[0][1].body);
+      expect(firstBody.reasoning).toEqual({ effort: 'low' });
+      expect(firstBody.tools[0].type).toBe('function');
+      expect(firstBody.tools[0].function.strict).toBeUndefined();
+      const secondBody = JSON.parse(orCalls[1][1].body);
+      expect(secondBody.messages.map((m: any) => m.role)).toEqual(['system', 'user', 'assistant', 'tool']);
+      expect(secondBody.messages[2].tool_calls[0].id).toBe('call_or_1');
+      expect(secondBody.messages[3].tool_call_id).toBe('call_or_1');
+
+      // Length finish_reason emits incomplete.
+      openrouterStatus = ['length'];
+      const truncated = await collectOr({ model: 'anthropic/claude-sonnet-4' });
+      expect(truncated.events.some((e) => e.type === 'response.incomplete')).toBe(true);
+
+      // 429 and early stream errors retry before output; late errors do not retry.
+      openrouterStatus = [429, 'stream-error', 200];
+      const retried = await collectOr({ model: 'anthropic/claude-sonnet-4' });
+      expect(retried.error).toBeUndefined();
+      expect(retried.events.slice(0, 2).map((e) => e.type)).toEqual(['lx.retrying', 'lx.retrying']);
+
+      openrouterStatus = ['stream-error-late', 200];
+      const late = await collectOr({ model: 'anthropic/claude-sonnet-4' });
+      expect(late.error.kind).toBe('retry');
+      expect(late.events.some((e) => e.type === 'response.output_text.delta')).toBe(true);
+
+      // 402 insufficient credits -> limit, 401 -> reconnect.
+      openrouterStatus = [402];
+      expect((await collectOr({ model: 'anthropic/claude-sonnet-4' })).error.kind).toBe('limit');
+      openrouterStatus = [401];
+      expect((await collectOr({ model: 'anthropic/claude-sonnet-4' })).error.kind).toBe('reconnect');
+    } finally {
+      console.warn = warn;
+      openrouterStatus = [200];
+    }
+  });
+
+  it('validates manual API keys and disconnects cleanly', async () => {
+    expect((await setOpenRouterKey('sk-or-v1-bad')).ok).toBe(false);
+    expect(await setOpenRouterKey('sk-or-v1-manual-key-9999')).toEqual({ ok: true });
+    expect(local.openrouterKey).toBe('sk-or-v1-manual-key-9999');
+    expect((await openRouterTokenForApp()).token).toBe('sk-or-v1-manual-key-9999');
+
+    await disconnectOpenRouter();
+    expect(local.openrouterKey).toBeUndefined();
+    expect(local.chatAccount.openrouter.connected).toBe(false);
+    expect((await openRouterTokenForApp()).kind).toBe('reconnect');
+  });
+
+  it('converts history with tool calls and multimodal files for OpenRouter and supports custom model slugs', () => {
+    const history = [
+      { role: 'user', content: 'Læs pdf og billede' },
+      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Jeg kigger.' }] },
+      { type: 'function_call', call_id: 'c1', name: 'read_document', arguments: '{"url":"a.pdf"}' },
+      { type: 'function_call', call_id: 'c2', name: 'read_document', arguments: '{"url":"b.png"}' },
+      {
+        type: 'function_call_output',
+        call_id: 'c1',
+        output: toolOutput({ ok: true, text: 'PDF', label: '', files: [{ kind: 'file', name: 'a.pdf', mime: 'application/pdf', data: 'AA==' }] }),
+      },
+      {
+        type: 'function_call_output',
+        call_id: 'c2',
+        output: toolOutput({ ok: true, text: 'IMG', label: '', files: [{ kind: 'image', name: 'b.png', mime: 'image/png', data: 'BB==' }] }),
+      },
+    ];
+    const messages = openRouterMessages('Instruktioner', history);
+    expect(messages.map((m: any) => m.role)).toEqual(['system', 'user', 'assistant', 'tool', 'tool', 'user']);
+    expect(messages[2]).toEqual({
+      role: 'assistant',
+      content: 'Jeg kigger.',
+      tool_calls: [
+        { id: 'c1', type: 'function', function: { name: 'read_document', arguments: '{"url":"a.pdf"}' } },
+        { id: 'c2', type: 'function', function: { name: 'read_document', arguments: '{"url":"b.png"}' } },
+      ],
+    });
+    expect(messages[5].content[1]).toEqual({ type: 'file', file: { filename: 'a.pdf', file_data: 'data:application/pdf;base64,AA==' } });
+    expect(messages[5].content[2]).toEqual({ type: 'image_url', image_url: { url: 'data:image/png;base64,BB==' } });
+
+    // Backwards-compatible account merge + custom OpenRouter model slug.
+    const merged = mergeAccount({ connected: false, openrouter: { connected: true, label: 'k', models: [], modelsAt: 0, model: 'google/gemini-2.5-pro:free', effort: '', pending: false, message: '' } });
+    expect(activeProvider(merged)).toBe('openrouter');
+    expect(modelOf(merged)).toEqual({ slug: 'google/gemini-2.5-pro:free', name: 'google/gemini-2.5-pro:free' });
   });
 });
