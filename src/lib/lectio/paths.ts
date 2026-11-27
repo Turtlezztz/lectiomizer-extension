@@ -11,7 +11,11 @@ export const PATHS = {
   grades: 'grades/grade_report.aspx',
   documents: 'DokumentOversigt.aspx',
   books: 'BD/UserReservations.aspx',
+  questionnaires: 'spoergeskema/spoergeskema_rapport.aspx',
 } as const;
+
+/** Answer page of a Spørgeskema. */
+export const questionnairePath = (id: string) => `spoergeskema/spoergeskema_besvar.aspx?id=${encodeURIComponent(id)}&prevurl=spoergeskema%2fspoergeskema_rapport.aspx`;
 
 export const schoolRoot = (schoolId: string) => `${ORIGIN}/lectio/${schoolId}/`;
 export const pageUrl = (schoolId: string, path: string) => new URL(path, schoolRoot(schoolId)).href;
@@ -49,6 +53,9 @@ export function appRoute(href: string | null | undefined): string | null {
   if (/opgaverelev\.aspx$/.test(path)) return '/assignments';
   if (/grade_report\.aspx$/.test(path)) return '/grades';
   if (/fravaerelev(_fravaersaarsager)?\.aspx$/.test(path)) return '/absence';
+  // Templates open in display mode (mode=display) and can't be answered: those stay on Lectio.
+  if (/spoergeskema\/spoergeskema_besvar\.aspx$/.test(path) && q.get('id') && !q.get('mode')) return `/questionnaires/${q.get('id')}`;
+  if (/spoergeskema\/spoergeskema_rapport\.aspx$/.test(path)) return '/questionnaires';
   return null;
 }
 

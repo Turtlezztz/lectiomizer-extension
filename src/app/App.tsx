@@ -23,6 +23,8 @@ const ChatPage = lazy(() => import('@/features/chat/ChatPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
 const PeoplePage = lazy(() => import('@/features/people/PeoplePage'));
 const DirectoryDetailPage = lazy(() => import('@/features/people/DirectoryDetailPage'));
+const QuestionnairesPage = lazy(() => import('@/features/questionnaires/QuestionnairesPage'));
+const QuestionnairePage = lazy(() => import('@/features/questionnaires/QuestionnairePage'));
 const RoomsPage = lazy(() => import('@/features/rooms/RoomsPage'));
 
 function Loading() {
@@ -56,6 +58,8 @@ const router = createHashRouter([
       { path: 'messages/:id', element: lazyRoute(MessagesPage) },
       { path: 'grades', element: lazyRoute(GradesPage) },
       { path: 'absence', element: lazyRoute(AbsencePage) },
+      { path: 'questionnaires', element: lazyRoute(QuestionnairesPage) },
+      { path: 'questionnaires/:id', element: lazyRoute(QuestionnairePage) },
       { path: 'lesson/:id', element: lazyRoute(LessonPage) },
       { path: 'lesson/:id/feedback', element: lazyRoute(FeedbackPage) },
       { path: 'lesson/:id/feedback/write', element: lazyRoute(FeedbackWritePage) },

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useIsFetching } from '@tanstack/react-query';
 import {
-  CalendarDays, ClipboardList, DoorOpen, ExternalLink, GraduationCap, House, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sparkles, Sun, SunMoon, UserX, X,
+  CalendarDays, ClipboardList, ListChecks, DoorOpen, ExternalLink, GraduationCap, House, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sparkles, Sun, SunMoon, UserX, X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSettings } from '@/lib/settings';
@@ -20,6 +20,7 @@ export const NAV = [
   { to: '/messages', label: 'Beskeder', icon: Mail },
   { to: '/grades', label: 'Karakterer', icon: GraduationCap },
   { to: '/absence', label: 'Fravær', icon: UserX },
+  { to: '/questionnaires', label: 'Spørgeskemaer', icon: ListChecks },
   { to: '/chat', label: 'Assistent', icon: Sparkles },
 ] as const;
 

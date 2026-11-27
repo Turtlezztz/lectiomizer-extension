@@ -30,6 +30,7 @@ src/
     hooks.ts        app-side hooks (usePrefs, useNotices, …) + send() to the background
     notice.ts       notice title/body/diff text shared by app + system notifications
   features/people/  Elever + Lærere (FindSkema.aspx lists) and the shared detail page (profile, "nu", week schedule)
+  features/questionnaires/  Spørgeskemaer: overview + answer page (model.ts: answers ↔ Lectio form fields)
   features/rooms/   Lokaler: room list with live booked/free status from each room's week schedule
   lib/nav.ts        useBack(fallback): "Tilbage" via in-app history, else a fallback route
   lib/agent/         the Assistent and the MCP bridge
@@ -81,6 +82,14 @@ const { data, isPending, error, refetch } = useLectioPage(PATHS.assignments, rea
   (`lcutil/editorapi.api/posteditorfile`, CKEditor's JSON upload protocol) and are
   referenced from the HTML. `features/lesson/feedback-html.ts` converts between
   Lectio's stored markup and the editor's (absolute vs site-relative URLs, CKEditor-safe tags).
+
+* Spørgeskemaer (`readers/questionnaire.js`): Lectio has four question types – Overskrift
+  (info), Åbent svar (textarea), Ét svar (radio list), Flere svar (checkboxes). Answers are
+  local state; `answerFields()` turns them into form fields plus `omit` (unticked boxes the
+  loaded page has ticked) and the page posts back with "Gem" (`answerbt`, a draft) or
+  "Indsend" (`answercompletebt`, final). After Gem the page is re-read and the answers are
+  compared, so a silent rejection shows up as an error. Results, templates and creating a
+  questionnaire stay on Lectio.
 
 ## Assistent and MCP
 

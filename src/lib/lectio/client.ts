@@ -189,6 +189,8 @@ export interface PostbackOptions {
   submitter?: Element | null;
   /** Field values to override/add, by input name (or an element from the doc). */
   fields?: Record<string, string> | Array<[string | Element, string]>;
+  /** Field names to leave out (e.g. checkboxes that are checked in the loaded page but unticked now). */
+  omit?: string[];
   files?: Array<[string, File]>;
 }
 
@@ -199,6 +201,7 @@ export async function postback(doc: Document, options: PostbackOptions): Promise
   const entries = new Map<string, string[]>();
   for (const [k, v] of serializeForm(form, options.submitter)) entries.set(k, [...(entries.get(k) || []), v]);
   const set = (k: string, v: string) => entries.set(k, [v]);
+  for (const name of options.omit || []) entries.delete(name);
   set('__EVENTTARGET', options.target ?? '');
   set('__EVENTARGUMENT', options.argument ?? '');
   const fields = Array.isArray(options.fields) ? options.fields : Object.entries(options.fields || {});

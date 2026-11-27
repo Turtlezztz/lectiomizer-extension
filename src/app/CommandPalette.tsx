@@ -34,6 +34,9 @@ function cachedItems(client: ReturnType<typeof useQueryClient>, go: (to: string)
       const route = appRoute(a.href);
       if (id && route && a.title) out.push({ id: `a${id}`, label: a.title, hint: a.hold, group: 'Opgaver', run: () => go(route) });
     }
+    for (const q of Array.isArray(data.open) ? data.open : []) {
+      if (q.id && q.title) out.push({ id: `q${q.id}`, label: q.title, hint: q.owner, group: 'Spørgeskemaer', run: () => go(`/questionnaires/${q.id}`) });
+    }
     for (const m of data.messages ?? []) {
       const id = m.href && new URL(m.href).searchParams.get('id');
       if (id && m.subject) out.push({ id: `m${id}`, label: m.subject, hint: m.sender, group: 'Beskeder', run: () => go(`/messages/${id}`) });
