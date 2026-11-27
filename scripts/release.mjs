@@ -12,18 +12,26 @@
 //   AMO_JWT_SECRET=…
 // The signed XPI and an updates.json are attached to the release; the Firefox manifest's
 // update_url points at the latest release's updates.json, so installed copies update themselves.
+//
+// With --chrome-store, the Chrome zip is also uploaded to the Chrome Web Store and submitted for
+// review (API v2). It needs a service account (Developer Dashboard → Account → Service accounts):
+//   CHROME_PUBLISHER_ID=…                      the publisher ID from the dashboard's Account page
+//   CHROME_SERVICE_ACCOUNT_KEY_FILE=key.json   the service account's JSON key, or instead:
+//   CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL=… and CHROME_SERVICE_ACCOUNT_PRIVATE_KEY=…
+//   npm run release -- --chrome-store          # release and submit to the Chrome Web Store
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const REPO = 'Turtlezztz/lectiomizer-extension';
 const GECKO_ID = 'lectiomizer@local.extension';
-// Set this to the extension's Chrome Web Store page to link it from the release notes.
-const CHROME_WEB_STORE_URL = process.env.CHROME_WEB_STORE_URL || '';
+const CHROME_EXTENSION_ID = 'bcjodfpidkofibnfmdobgdmgdelekhdc';
+const CHROME_WEB_STORE_URL = process.env.CHROME_WEB_STORE_URL || `https://chromewebstore.google.com/detail/lectiomizer/${CHROME_EXTENSION_ID}`;
 
 const args = process.argv.slice(2);
 const draft = args.includes('--draft');
 const xpiArg = args.includes('--xpi') ? args[args.indexOf('--xpi') + 1] : null;
+const submitToChromeStore = args.includes('--chrome-store');
 
 const root = resolve(import.meta.dirname, '..');
 process.chdir(root);
@@ -62,6 +70,38 @@ if (!xpiArg && !(amoKey && amoSecret)) {
   fail('Set AMO_JWT_ISSUER and AMO_JWT_SECRET (in .env) to sign the Firefox build, or pass --xpi <signed.xpi>.');
 }
 if (xpiArg && !existsSync(xpiArg)) fail(`No such file: ${xpiArg}`);
+
+// Chrome Web Store credentials for `wxt submit` (only with --chrome-store).
+const chromeEnv = (() => {
+  if (!submitToChromeStore) return null;
+  let email = process.env.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL;
+  let key = process.env.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY;
+  const keyFile = process.env.CHROME_SERVICE_ACCOUNT_KEY_FILE;
+  if (keyFile) {
+    if (!existsSync(keyFile)) fail(`No such file: ${keyFile} (CHROME_SERVICE_ACCOUNT_KEY_FILE)`);
+    ({ client_email: email, private_key: key } = JSON.parse(readFileSync(keyFile, 'utf8')));
+  }
+  const publisher = process.env.CHROME_PUBLISHER_ID;
+  if (!(publisher && email && key)) {
+    fail('--chrome-store needs CHROME_PUBLISHER_ID and CHROME_SERVICE_ACCOUNT_KEY_FILE (or the client email and private key) in .env.');
+  }
+  return {
+    ...process.env,
+    CHROME_API_VERSION: 'v2',
+    CHROME_EXTENSION_ID,
+    CHROME_PUBLISHER_ID: publisher,
+    CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: email,
+    CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: key.replace(/\\n/g, '\n'),
+  };
+})();
+if (chromeEnv) {
+  step('Checking the Chrome Web Store credentials');
+  try {
+    run('npx', ['wxt', 'submit', '--dry-run', '--chrome-zip', 'package.json'], { env: chromeEnv });
+  } catch {
+    fail('The Chrome Web Store rejected the credentials. Fix them, or release without --chrome-store.');
+  }
+}
 
 // ── Check and build ──────────────────────────────────────────────────────────
 step('Typecheck and tests');
@@ -124,9 +164,7 @@ const changes = out('git', ['log', '--format=%s', '--no-merges', since ? `${sinc
   .map((s) => `- ${s}`)
   .join('\n');
 
-const chromeStore = CHROME_WEB_STORE_URL
-  ? `Lectiomizer is also on the [Chrome Web Store](${CHROME_WEB_STORE_URL}), which installs it in one click and keeps it updated.`
-  : 'Lectiomizer is also on the Chrome Web Store, which installs it in one click and keeps it updated.';
+const chromeStore = `Lectiomizer is also on the [Chrome Web Store](${CHROME_WEB_STORE_URL}), which installs it in one click and keeps it updated. Google reviews each update first, so the store can be a version or two behind this release.`;
 
 const notes = `${changes ? `## What's new\n\n${changes}\n\n` : ''}## Install
 
@@ -170,3 +208,16 @@ run('gh', [
 ]);
 
 console.log(`\n✔ ${tag} ${draft ? 'drafted' : 'released'}: https://github.com/${REPO}/releases/tag/${tag}`);
+
+// ── Chrome Web Store ─────────────────────────────────────────────────────────
+// Last, so a store failure never blocks the GitHub release; rerun it with `npx wxt submit`.
+if (chromeEnv) {
+  step('Uploading to the Chrome Web Store and submitting for review');
+  try {
+    run('npx', ['wxt', 'submit', '--chrome-zip', assets.chrome, '--chrome-cancel-pending'], { env: chromeEnv });
+    console.log(`\n✔ Submitted ${version} to the Chrome Web Store. It goes live when Google approves it.`);
+  } catch {
+    console.error(`\n✖ The Chrome Web Store upload failed. The GitHub release is out; retry with:\n  npx wxt submit --chrome-zip ${assets.chrome}  (with the CHROME_* variables set)`);
+    process.exitCode = 1;
+  }
+}

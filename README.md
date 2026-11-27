@@ -262,18 +262,25 @@ Udgivelser bygges lokalt og offentliggøres på [GitHub Releases](https://github
 Elever henter Firefox- og Chrome-versionen derfra; Chrome-versionen ligger også i [Chrome Web Store](https://chromewebstore.google.com/detail/lectiomizer/bcjodfpidkofibnfmdobgdmgdelekhdc).
 
 1. Læg dine API-nøgler til addons.mozilla.org ([hent dem her](https://addons.mozilla.org/developers/addon/api/key/)) i `.env`:
-   `AMO_JWT_ISSUER=user:…` og `AMO_JWT_SECRET=…`. Tilføj eventuelt `CHROME_WEB_STORE_URL=…` for at linke til butikssiden i udgivelsesnoterne.
+   `AMO_JWT_ISSUER=user:…` og `AMO_JWT_SECRET=…`.
+   For også at kunne uploade til Chrome Web Store: opret en servicekonto i Google Cloud, tilføj dens e-mail under
+   **Konto → Servicekonti** i [Developer Dashboard](https://chrome.google.com/webstore/devconsole), og læg
+   `CHROME_PUBLISHER_ID=…` og `CHROME_SERVICE_ACCOUNT_KEY_FILE=sti/til/nøgle.json` i `.env`.
 2. Hæv `version` i `package.json`, commit det (`Release x.y.z`), og kør så:
 
 ```bash
 npm run release              # typecheck, test, byg, signér Firefox, tag vX.Y.Z, udgiv
 npm run release -- --draft   # gem udgivelsen som kladde, så du kan rette noterne først
 npm run release -- --xpi signed.xpi   # brug en XPI, du allerede har signeret, i stedet for at signere igen
+npm run release -- --chrome-store    # upload også til Chrome Web Store og send til gennemgang
 ```
 
 Firefox-versionen signeres på AMO som en *unlisted* (selvdistribueret) version, fordi Firefox kun installerer
 signerede tilføjelser. Udgivelsen får den signerede `.xpi`, Chrome-`.zip`'en, kildekode-zip'en og `updates.json`,
 som Firefox-manifestets `update_url` læser, så installerede kopier opdaterer sig selv.
+
+Med `--chrome-store` uploades Chrome-`.zip`'en til sidst til Chrome Web Store og sendes til gennemgang (API v2). Fejler det, er
+GitHub-udgivelsen allerede ude, og scriptet viser, hvordan du prøver igen.
 
 </details>
 
