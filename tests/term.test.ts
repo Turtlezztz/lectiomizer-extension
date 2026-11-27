@@ -110,13 +110,14 @@ describe('background check in an earlier year', () => {
     const key = Object.keys(index).find((k) => k.split('?')[0] === path);
     return key ? readFileSync('fixtures/' + index[key], 'utf8') : null;
   };
-  const withYear = (year: number) =>
+  const withYear = (year: number, forside = year) =>
     setTransport({
       async request(url) {
         const html = fixture(url);
         if (!html) return { url, status: 404, html: '' };
-        const usable = /skemany/i.test(url);
-        const own = menu(year, usable ? [2026, 2025] : [year], !usable);
+        const usable = /skemany|opgaverelev/i.test(url);
+        const shown = /forside/i.test(url) ? forside : year;
+        const own = menu(shown, usable ? [2026, 2025] : [shown], !usable);
         const MENU = /<select[^>]*ChooseTerm_term[\s\S]*?<\/select>/;
         return { url, status: 200, html: MENU.test(html) ? html.replace(MENU, own) : html.replace(/<body[^>]*>/i, (b) => b + own) };
       },
@@ -125,6 +126,11 @@ describe('background check in an earlier year', () => {
 
   it('pauses instead of reading last year as this one', async () => {
     withYear(2025);
+    await expect(readLectio({ schoolId: '123', weekCount: 2, now })).rejects.toBeInstanceOf(PastTermError);
+  });
+
+  it('pauses when only Skema and Opgaver show the earlier year', async () => {
+    withYear(2025, 2026);
     await expect(readLectio({ schoolId: '123', weekCount: 2, now })).rejects.toBeInstanceOf(PastTermError);
   });
 

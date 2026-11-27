@@ -38,9 +38,9 @@ export function accountContext(doc: Document, schoolId: string): Context | null 
   return { scheduleHref: url.href, accountId };
 }
 
-async function readWeek(week: { dates: string[]; week: number; year: number }, context: Context): Promise<Week> {
+async function readWeek(week: { dates: string[]; week: number; year: number }, context: Context, load: (url: string) => Promise<Document>): Promise<Week> {
   try {
-    const doc = await getPage(weekUrl(context.scheduleHref, week));
+    const doc = await load(weekUrl(context.scheduleHref, week));
     assertAccount(doc, context);
     const lessons: Lesson[] = readSchedule(doc);
     const inWeek = lessons.filter((lesson) => week.dates.includes(lesson.start.slice(0, 10)));
@@ -73,10 +73,22 @@ export async function readLectio({ schoolId, weekCount, now = Date.now() }: { sc
   const context = accountContext(home, schoolId);
   if (!context) throw new Error('Kunne ikke se, hvem der er logget ind på Lectio');
   await assertCurrentTerm(home, context, new Date(now));
+  // Forside's greyed-out menu can't be trusted to tell the year apart, and the
+  // year can be switched while we read. Skema and Opgaver have the usable menu,
+  // so check the year on every page read and drop the whole check if any shows
+  // an earlier year: notifications are only for the newest year.
+  let past: number | null = null;
+  const load = async (url: string) => {
+    const doc = await getPage(url);
+    const term = readTerm(doc);
+    if (term && isPastTerm(term, new Date(now))) past = term.year;
+    return doc;
+  };
   const [weeks, feeds] = await Promise.all([
-    Promise.all(weeksFrom(new Date(now), weekCount).map((week: any) => readWeek(week, context))),
+    Promise.all(weeksFrom(new Date(now), weekCount).map((week: any) => readWeek(week, context, load))),
     // Reuse the Forside we already fetched.
-    readFeeds(context, (url: string) => (/\/forside\.aspx$/i.test(new URL(url).pathname) ? Promise.resolve(home) : getPage(url))),
+    readFeeds(context, (url: string) => (/\/forside\.aspx$/i.test(new URL(url).pathname) ? Promise.resolve(home) : load(url))),
   ]);
+  if (past !== null) throw new PastTermError(past);
   return { context, weeks, feeds };
 }
