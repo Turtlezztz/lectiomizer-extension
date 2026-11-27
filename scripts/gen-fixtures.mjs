@@ -45,5 +45,19 @@ put(base + 'FindSkema.aspx?type=elev', findPage('Find skema for elev', [], lette
 for (const [l, links] of Object.entries(byLetter)) put(base + `FindSkema.aspx?type=elev&forbogstav=${l}`, findPage('Find skema for elev', links, letterLinks));
 put(base + 'FindSkema.aspx?type=laerer', findPage('Find skema for lærer', [['Lene Madsen', 'lm'], ['Thomas Nielsen', 'tn'], ['Mette Sørensen', 'ms'], ['Karsten Ibsen', 'ki'], ['Pernille Vang', 'pv']].map(([n, c], i) => [`SkemaNy.aspx?laererid=${200001 + i}`, `${n} (${c})`])));
 put(base + 'FindSkema.aspx?type=lokale', findPage('Find skema for lokale', [['A12', 'Klasselokale'], ['A14', 'Klasselokale'], ['B02', 'Fysik'], ['B03', 'Kemi'], ['C11', 'Musik'], ['', 'Hal 1'], ['', 'Bibliotek']].map(([nr, n], i) => [`SkemaNy.aspx?type=lokale&amp;nosubnav=1&amp;id=${700001 + i}`, `<span class="findskema-symbol">${nr}</span>${n}`])));
+// Hold: an overview of subjects, one page per subject, and the members page of each hold.
+const holdSubjects = [['524', 'MA', 'Matematik', ['3a Ma', '2b Ma', '1c Ma']], ['507', 'DA', 'Dansk', ['3a Da', '2b Da']], ['562', 'ØH', 'Øvrige hold', ['Kor']]];
+put(base + 'FindSkema.aspx?type=hold', findPage('Vis Hold', holdSubjects.map(([id, code, name]) => [`FindSkema.aspx?type=hold&amp;fag=${id}&amp;prevurl=FindSkema.aspx%3ftype%3dhold`, `<span class="findskema-symbol">${code}</span>${name}`])));
+let holdId = 800001;
+for (const [fag, code, name, holds] of holdSubjects) {
+  const items = holds.map((h) => [`SkemaNy.aspx?type=holdelement&amp;holdelementid=${holdId++}`, h]);
+  put(base + `FindSkema.aspx?type=hold&fag=${fag}&prevurl=FindSkema.aspx%3ftype%3dhold`, findPage('Vis Hold', items).replace('<ul>', `<h4>${code} - ${name}</h4><ul>`));
+}
+const memberRow = (card, type, code, href, first, last) => `<tr><td data-lectiocontextcard="${card}"></td><td>${type}</td><td data-lectiocontextcard="${card}"><span>${code}</span></td><td data-lectiocontextcard="${card}"><a href="${base}${href}">${first}</a></td><td>${last}</td><td></td></tr>`;
+for (let id = 800001; id < holdId; id++) {
+  const rows = [memberRow('T200001', 'Lærer', 'lm', 'SkemaNy.aspx?laererid=200001', 'Lene', 'Madsen'), ...students.map(([n, cls, nr], i) => memberRow(`S${300001 + i}`, 'Elev', `${cls} ${nr}`, `SkemaNy.aspx?elevid=${300001 + i}`, n.split(' ')[0], n.split(' ').slice(1).join(' ')))];
+  put(base + `subnav/members.aspx?holdelementid=${id}&showteachers=1&showstudents=1`, `<!doctype html><html><head><title>Holdet Demo - Lærere og elever - Lectio</title></head><body><form id="aspnetForm"><table id="s_m_Content_Content_laerereleverpanel_alm_gv"><tr><th>Foto</th><th>Type</th><th>ID</th><th>Fornavn</th><th>Efternavn</th><th>Studieretning</th></tr>${rows.join('')}</table></form></body></html>`);
+  put(base + `SkemaNy.aspx?type=holdelement&holdelementid=${id}`, `<!doctype html><html><head><title>Holdet Demo - Skema - Lectio</title></head><body><form id="aspnetForm" action="SkemaNy.aspx"><div id="contenttable">${sched}</div></form></body></html>`);
+}
 writeFileSync(indexFile, JSON.stringify(index, null, 1));
 console.log(Object.keys(index).length, 'fixtures');

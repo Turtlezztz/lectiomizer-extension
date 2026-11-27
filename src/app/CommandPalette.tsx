@@ -27,6 +27,12 @@ function cachedItems(client: ReturnType<typeof useQueryClient>, go: (to: string)
       }
       continue;
     }
+    if (query.queryKey[0] === 'lectio-teams' && Array.isArray(query.state.data)) {
+      for (const t of query.state.data as Array<{ id: string; name: string; subject: string }>) {
+        out.push({ id: `hold${t.id}`, label: t.name, hint: t.subject || undefined, group: 'Hold', run: () => go(`/teams/${encodeURIComponent(t.id)}`) });
+      }
+      continue;
+    }
     const data = (query.state.data as any)?.data;
     if (!data) continue;
     for (const a of data.assignments ?? []) {

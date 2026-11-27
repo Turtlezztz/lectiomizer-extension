@@ -26,6 +26,8 @@ const DirectoryDetailPage = lazy(() => import('@/features/people/DirectoryDetail
 const QuestionnairesPage = lazy(() => import('@/features/questionnaires/QuestionnairesPage'));
 const QuestionnairePage = lazy(() => import('@/features/questionnaires/QuestionnairePage'));
 const RoomsPage = lazy(() => import('@/features/rooms/RoomsPage'));
+const TeamsPage = lazy(() => import('@/features/teams/TeamsPage'));
+const TeamPage = lazy(() => import('@/features/teams/TeamPage'));
 
 function Loading() {
   return (
@@ -67,6 +69,8 @@ const router = createHashRouter([
       { path: 'students/:id', element: lazyRoute(() => <DirectoryDetailPage kind="elev" />) },
       { path: 'teachers', element: lazyRoute(() => <PeoplePage kind="laerer" />) },
       { path: 'teachers/:id', element: lazyRoute(() => <DirectoryDetailPage kind="laerer" />) },
+      { path: 'teams', element: lazyRoute(TeamsPage) },
+      { path: 'teams/:id', element: lazyRoute(TeamPage) },
       { path: 'rooms', element: lazyRoute(RoomsPage) },
       { path: 'rooms/:id', element: lazyRoute(() => <DirectoryDetailPage kind="lokale" />) },
       { path: 'chat', element: lazyRoute(ChatPage) },

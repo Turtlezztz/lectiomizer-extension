@@ -45,6 +45,7 @@ export function appRoute(href: string | null | undefined): string | null {
     if ((type === 'elev' || !type) && q.get('elevid')) return `/students/${q.get('elevid')}`;
     if ((type === 'laerer' || !type) && q.get('laererid')) return `/teachers/${q.get('laererid')}`;
     if (type === 'lokale' && q.get('id')) return `/rooms/${q.get('id')}`;
+    if (type === 'holdelement' && q.get('holdelementid')) return `/teams/${q.get('holdelementid')}`;
   }
   if (/beskeder2\.aspx$/.test(path) && q.get('id')) return `/messages/${q.get('id')}`;
   if (/beskeder2\.aspx$/.test(path)) return '/messages';

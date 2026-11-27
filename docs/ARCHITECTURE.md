@@ -31,6 +31,8 @@ src/
     notice.ts       notice title/body/diff text shared by app + system notifications
   features/people/  Elever + Lærere (FindSkema.aspx lists) and the shared detail page (profile, "nu", week schedule)
   features/questionnaires/  Spørgeskemaer: overview + answer page (model.ts: answers ↔ Lectio form fields)
+  features/teams/   Hold: every team (FindSkema.aspx?type=hold, one page per subject), its week schedule
+                    (SkemaNy.aspx?type=holdelement) and teachers + students (subnav/members.aspx)
   features/rooms/   Lokaler: room list with live booked/free status from each room's week schedule
   lib/nav.ts        useBack(fallback): "Tilbage" via in-app history, else a fallback route
   lib/agent/         the Assistent and the MCP bridge
