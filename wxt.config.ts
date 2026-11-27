@@ -30,6 +30,8 @@ export default defineConfig({
             gecko: {
               id: 'lectiomizer@local.extension',
               strict_min_version: '142.0',
+              // Copies installed from a GitHub release update themselves (see scripts/release.mjs).
+              update_url: 'https://github.com/Turtlezztz/lectiomizer-extension/releases/latest/download/updates.json',
               data_collection_permissions: { required: ['none'], optional: ['websiteContent', 'personalCommunications'] },
             },
           },

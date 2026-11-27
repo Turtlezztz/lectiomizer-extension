@@ -44,6 +44,25 @@ npm run zip / zip:firefox
 - **Chrome**: `chrome://extensions` → enable Developer mode → *Load unpacked* → `.output/chrome-mv3`.
 - **Firefox**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `.output/firefox-mv2/manifest.json`.
 
+## Release
+
+Releases are built locally and published to [GitHub Releases](https://github.com/Turtlezztz/lectiomizer-extension/releases).
+Students download Firefox and Chrome from there; Chrome is also on the Chrome Web Store.
+
+1. Put your addons.mozilla.org API credentials ([get them here](https://addons.mozilla.org/developers/addon/api/key/)) in `.env`:
+   `AMO_JWT_ISSUER=user:…` and `AMO_JWT_SECRET=…`. Optionally add `CHROME_WEB_STORE_URL=…` to link the store page in the notes.
+2. Bump `version` in `package.json`, commit it (`Release x.y.z`), then run:
+
+```bash
+npm run release              # typecheck, test, build, sign Firefox, tag vX.Y.Z, publish
+npm run release -- --draft   # leave the release as a draft to edit the notes first
+npm run release -- --xpi signed.xpi   # use an XPI you already signed instead of signing again
+```
+
+The Firefox build is signed on AMO as an *unlisted* (self-distributed) version, because Firefox only installs
+signed add-ons. The release gets the signed `.xpi`, the Chrome `.zip`, the sources zip, and `updates.json`,
+which the Firefox manifest's `update_url` reads so installed copies update themselves.
+
 Click the toolbar button to open Lectiomizer, choose your school, then log in to
 Lectio in the tab that opens. You come back to the app automatically.
 

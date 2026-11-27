@@ -11,6 +11,7 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "release": "node scripts/release.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "postinstall": "wxt prepare",
@@ -40,6 +41,7 @@
     "typescript": "^5.9.3",
     "vite": "^8.3.8",
     "vitest": "^5.1.0",
+    "web-ext": "^10.8.0",
     "wxt": "^0.21.5"
   }
 }
