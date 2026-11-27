@@ -4,7 +4,7 @@
 // problem never costs the student their notifications.
 import { browser } from 'wxt/browser';
 import { compareFeeds, compareSchedule, messageTitle, scheduleScope, LOCK } from './changes.js';
-import { HISTORY_KEY, intervalOf, loadHistory, loadPrefs, updateHistory, type AccountState, type Notice } from './store';
+import { HISTORY_KEY, isCheckDue, loadHistory, loadPrefs, updateHistory, type AccountState, type Notice } from './store';
 import { getItem } from '../storage';
 import { syncToGoogle } from './calendar';
 import { noticeBody } from './notice';
@@ -25,7 +25,7 @@ async function setStatus(scope: string | undefined, patch: AccountState['status'
   });
 }
 
-export async function runCheck(read: Reader, { force = false } = {}) {
+export async function runCheck(read: Reader, { force = false, onOpen = false } = {}) {
   if (inFlight && Date.now() - lastStart < LOCK) return inFlight;
   const settings = await getItem<{ school?: { id: string } | null }>('settings', {});
   const schoolId = settings.school?.id;
@@ -33,8 +33,7 @@ export async function runCheck(read: Reader, { force = false } = {}) {
   const prefs = await loadPrefs();
   const history = await loadHistory();
   const status = history.current ? history.accounts[history.current]?.status : undefined;
-  const due = (status?.checkedAt ?? 0) + intervalOf(prefs).minutes * 60_000;
-  if (!force && Date.now() < due - 30_000) return { ok: true, skipped: true };
+  if (!isCheckDue(prefs, status?.checkedAt, { force, onOpen })) return { ok: true, skipped: true };
 
   lastStart = Date.now();
   inFlight = (async () => {

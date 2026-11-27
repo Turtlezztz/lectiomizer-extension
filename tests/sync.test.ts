@@ -6,6 +6,7 @@ import { readLectio } from '@/lib/sync/read';
 import { compareFeeds, compareSchedule, scheduleScope } from '@/lib/sync/changes.js';
 import { lessonToEvent, planSync } from '@/lib/sync/events.js';
 import { noticeChanges } from '@/lib/sync/notice';
+import { SYNC_DEFAULTS, isCheckDue } from '@/lib/sync/store';
 
 const lesson = (patch = {}) => ({ id: 'absid:1', start: '2030-01-07T08:15', end: '2030-01-07T09:45', title: '', status: 'normal', holds: ['3a Da'], teachers: ['lm'], rooms: ['A12'], details: '', href: 'https://www.lectio.dk/lectio/1/aktivitet/aktivitetforside2.aspx?absid=1', ...patch });
 const week = (lessons: object[]) => [{ dates: ['2030-01-07', '2030-01-08', '2030-01-09', '2030-01-10', '2030-01-11', '2030-01-12', '2030-01-13'], lessons }];
@@ -66,5 +67,26 @@ describe('readLectio over fixtures', () => {
     expect(Array.isArray(result.feeds.lectioMessages)).toBe(true);
     expect(Array.isArray(result.feeds.assignments)).toBe(true);
     expect(result.weeks[0].lessons?.length).toBeGreaterThan(0);
+  });
+});
+
+describe('check scheduling', () => {
+  const checkedAt = new Date('2030-01-06T12:00:00').getTime();
+  const fiveMinsLater = checkedAt + 5 * 60_000;
+  const hourLater = checkedAt + 60 * 60_000;
+
+  it('checks on open/reload regardless of interval when checkOnOpen is enabled', () => {
+    expect(SYNC_DEFAULTS.checkOnOpen).toBe(true);
+    expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: true }, checkedAt, { now: fiveMinsLater, onOpen: true })).toBe(true);
+    // Periodic alarms still wait for the interval.
+    expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: true }, checkedAt, { now: fiveMinsLater })).toBe(false);
+    expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: true }, checkedAt, { now: hourLater })).toBe(true);
+  });
+
+  it('skips open/reload checks before the interval when checkOnOpen is disabled', () => {
+    expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: false }, checkedAt, { now: fiveMinsLater, onOpen: true })).toBe(false);
+    // Still checks if the interval has elapsed or when forced.
+    expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: false }, checkedAt, { now: hourLater, onOpen: true })).toBe(true);
+    expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: false }, checkedAt, { now: fiveMinsLater, force: true })).toBe(true);
   });
 });

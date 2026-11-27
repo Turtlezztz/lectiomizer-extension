@@ -15,13 +15,14 @@ const ALARM = 'lectio-check';
 const BRIDGE_ALARM = 'mcp-bridge';
 const loginTabs = new Set<number>();
 
-async function openApp(route = '') {
+async function openApp(route = '', { check = false } = {}) {
   const url = browser.runtime.getURL(APP_PATH as any);
   const target = route ? `${url}#${route}` : url;
   const [existing] = await browser.tabs.query({ url: `${url}*` });
   if (existing?.id != null) {
     await browser.tabs.update(existing.id, { active: true, ...(route ? { url: target } : {}) });
     if (existing.windowId != null) await browser.windows.update(existing.windowId, { focused: true });
+    if (check) runCheck(read, { onOpen: true }).catch((e) => console.warn('Lectiomizer: tjek fejlede', e));
     return existing;
   }
   return browser.tabs.create({ url: target });
@@ -85,9 +86,9 @@ async function scheduleAlarm() {
 
 export default defineBackground(() => {
   browser.action?.onClicked.addListener(() => {
-    openApp();
+    openApp('', { check: true });
   });
-  (browser as any).browserAction?.onClicked.addListener(() => openApp());
+  (browser as any).browserAction?.onClicked.addListener(() => openApp('', { check: true }));
 
   browser.runtime.onInstalled.addListener(({ reason }) => {
     if (reason === 'install') openApp();
@@ -126,8 +127,9 @@ export default defineBackground(() => {
         return;
       case 'check-now':
         return reply(runCheck(read, { force: true }));
+      case 'check-on-open':
       case 'check-if-due':
-        return reply(runCheck(read));
+        return reply(runCheck(read, { onOpen: true }));
       case 'mark-read':
         return reply(markRead(message.ids));
       case 'calendar:connect':
