@@ -34,15 +34,39 @@ export interface Transport {
 /** Inside the extension: host permissions let us fetch Lectio with its cookies. */
 export const extensionTransport: Transport = {
   async request(url, init = {}) {
-    const response = await fetch(url, {
-      method: init.method ?? 'GET',
-      body: init.body,
-      credentials: 'include',
-      redirect: 'follow',
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: init.method ?? 'GET',
+        body: init.body,
+        credentials: 'include',
+        redirect: 'follow',
+      });
+    } catch (error) {
+      if (await loggedOut(url)) throw new NotLoggedInError();
+      throw error;
+    }
     return { url: response.url || url, status: response.status, html: await response.text() };
   },
 };
+
+/**
+ * Schools with UniLogin (or another outside login) send a logged-out request
+ * from login.aspx straight on to that site. We have no host permission there
+ * and it sends no CORS headers, so fetch just fails with a network error
+ * instead of landing on a login page. Ask the school's forside without
+ * following redirects: signed in it answers 200, signed out it redirects.
+ */
+async function loggedOut(url: string): Promise<boolean> {
+  const school = url.match(/^https:\/\/(?:www\.)?lectio\.dk\/lectio\/\d+\//i)?.[0];
+  if (!school) return false;
+  try {
+    const probe = await fetch(`${school}forside.aspx`, { credentials: 'include', redirect: 'manual' });
+    return probe.type === 'opaqueredirect' || (probe.status >= 300 && probe.status < 400);
+  } catch {
+    return false;
+  }
+}
 
 /** `npm run dev:app`: pages come from captured fixtures served by the dev server. */
 export const fixtureTransport: Transport = {
