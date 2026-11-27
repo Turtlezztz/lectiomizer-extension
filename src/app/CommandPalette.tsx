@@ -35,7 +35,7 @@ function cachedItems(client: ReturnType<typeof useQueryClient>, go: (to: string)
     }
     const data = (query.state.data as any)?.data;
     if (!data) continue;
-    for (const a of data.assignments ?? []) {
+    for (const a of Array.isArray(data.assignments) ? data.assignments : []) {
       const id = a.href && new URL(a.href).searchParams.get('exerciseid');
       const route = appRoute(a.href);
       if (id && route && a.title) out.push({ id: `a${id}`, label: a.title, hint: a.hold, group: 'Opgaver', run: () => go(route) });
@@ -43,7 +43,7 @@ function cachedItems(client: ReturnType<typeof useQueryClient>, go: (to: string)
     for (const q of Array.isArray(data.open) ? data.open : []) {
       if (q.id && q.title) out.push({ id: `q${q.id}`, label: q.title, hint: q.owner, group: 'Spørgeskemaer', run: () => go(`/questionnaires/${q.id}`) });
     }
-    for (const m of data.messages ?? []) {
+    for (const m of Array.isArray(data.messages) ? data.messages : []) {
       const id = m.href && new URL(m.href).searchParams.get('id');
       if (id && m.subject) out.push({ id: `m${id}`, label: m.subject, hint: m.sender, group: 'Beskeder', run: () => go(`/messages/${id}`) });
     }
