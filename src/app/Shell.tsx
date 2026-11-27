@@ -149,9 +149,9 @@ export function Shell({ children }: { children?: ReactNode }) {
   const collapsed = settings.sidebarCollapsed;
 
   useEffect(() => setMobileOpen(false), [location.pathname]);
-  // Opening the app is a good moment to look for news, if a check is due.
+  // Opening or reloading the app checks Lectio immediately when checkOnOpen is enabled (otherwise only if due).
   useEffect(() => {
-    send({ type: 'check-if-due' }).catch(() => {});
+    send({ type: 'check-on-open' }).catch(() => {});
   }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

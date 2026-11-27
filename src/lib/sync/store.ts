@@ -17,6 +17,8 @@ export const WEEK_CHOICES = [1, 2, 4, 8] as const;
 export interface SyncPrefs {
   /** Minutes between automatic checks of Lectio. */
   interval: number;
+  /** Also check Lectio whenever the user opens or reloads the app. */
+  checkOnOpen: boolean;
   /** Show system (OS) notifications for new items. */
   system: boolean;
   /** Google Calendar */
@@ -28,7 +30,7 @@ export interface SyncPrefs {
   /** OAuth client id entered in Indstillinger (overrides the build-time one). */
   googleClientId: string;
 }
-export const SYNC_DEFAULTS: SyncPrefs = { interval: 60, system: true, connected: false, email: '', calendarId: '', weeks: 4, cancelled: true, googleClientId: '' };
+export const SYNC_DEFAULTS: SyncPrefs = { interval: 60, checkOnOpen: true, system: true, connected: false, email: '', calendarId: '', weeks: 4, cancelled: true, googleClientId: '' };
 export const SYNC_KEY = 'sync';
 
 // Lectiomizer's own OAuth client (public, not a secret). WXT_GOOGLE_CLIENT_ID in
@@ -109,6 +111,16 @@ export async function saveCalendarStatus(patch: Partial<CalendarStatus>) {
 
 export function intervalOf(prefs: SyncPrefs) {
   return INTERVALS.find((c) => c.minutes === prefs.interval) ?? INTERVALS[3];
+}
+
+export function isCheckDue(
+  prefs: SyncPrefs,
+  checkedAt?: number,
+  { now = Date.now(), force = false, onOpen = false } = {},
+): boolean {
+  if (force || (onOpen && prefs.checkOnOpen)) return true;
+  const due = (checkedAt ?? 0) + intervalOf(prefs).minutes * 60_000;
+  return now >= due - 30_000;
 }
 
 /** Serialises read-modify-write updates of the history object. */

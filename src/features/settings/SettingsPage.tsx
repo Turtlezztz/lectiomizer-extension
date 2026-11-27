@@ -140,6 +140,9 @@ function NotificationSettings() {
           <RefreshCw className={cn(checking && 'animate-spin')} /> Tjek nu
         </Button>
       </Row>
+      <Row label="Tjek ved åbning og genindlæsning" hint="Hent også nyt fra Lectio, når du åbner eller genindlæser siden – ikke kun i det valgte interval.">
+        <Switch label="Tjek ved åbning og genindlæsning" checked={prefs.checkOnOpen} onChange={(checkOnOpen) => save({ checkOnOpen })} />
+      </Row>
       <StatusLine state={checking ? 'syncing' : status.state} message={status.state !== 'syncing' ? status.message : ''}>
         {checking ? 'Tjekker Lectio…' : `Sidst tjekket ${when(status.checkedAt)}.`}
       </StatusLine>
