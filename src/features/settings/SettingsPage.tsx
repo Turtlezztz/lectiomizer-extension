@@ -163,20 +163,8 @@ function CalendarSettings() {
     if (!r?.ok && r?.message) setError(r.message);
     setBusy('');
   };
-  const connect = () => {
-    // Firefox asks for the user's consent to send website content (the schedule) to Google.
-    // Must be requested directly in the click handler.
-    let consent: Promise<unknown> = Promise.resolve(true);
-    try {
-      consent = extApi?.permissions?.request?.({ data_collection: ['websiteContent'] }) ?? consent;
-    } catch {}
-    consent
-      .catch(() => true)
-      .then((granted) => {
-        if (granted === false) return setError('Uden tilladelse kan skemaet ikke sendes til Google.');
-        return run('connect', { type: 'calendar:connect' });
-      });
-  };
+  // Firefox's consent to send website content (the schedule) to Google is given at install.
+  const connect = () => run('connect', { type: 'calendar:connect' });
   return (
     <Section
       icon={<CalendarDays />}

@@ -7,7 +7,8 @@ export const USAGE_URL = 'https://chatgpt.com/settings/usage';
 /** Hosts the sign-in and the Responses API need, asked for when the student connects. */
 export const CHAT_ORIGINS = ['https://auth.openai.com/*', 'https://api.openai.com/*'];
 /** Firefox's built-in data consent: Lectio content goes to OpenAI. */
-export const CHAT_DATA = ['websiteContent', 'personalCommunications'];
+// websiteContent is a required permission (granted at install), so only this one is requested.
+export const CHAT_DATA = ['personalCommunications'];
 
 export interface Model {
   slug: string;

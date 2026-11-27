@@ -32,7 +32,9 @@ export default defineConfig({
               strict_min_version: '142.0',
               // Copies installed from a GitHub release update themselves (see scripts/release.mjs).
               update_url: 'https://github.com/Turtlezztz/lectiomizer-extension/releases/latest/download/updates.json',
-              data_collection_permissions: { required: ['none'], optional: ['websiteContent', 'personalCommunications'] },
+              // websiteContent (the schedule, sent to Google Calendar) is asked for at install:
+              // the runtime prompt for it failed in Firefox. The Assistent's is still asked on use.
+              data_collection_permissions: { required: ['websiteContent'], optional: ['personalCommunications'] },
             },
           },
         }
