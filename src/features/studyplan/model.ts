@@ -43,6 +43,9 @@ export interface PhaseActivity {
   title: string;
   note: string;
   sections: Array<{ title: string; items: ActivityItem[] }>;
+  /** ISO start/end from the lesson's tooltip, when it has one. */
+  start?: string | null;
+  end?: string | null;
 }
 
 export interface PhaseData {

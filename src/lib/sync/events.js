@@ -58,7 +58,8 @@ export function planSync(desired, existing, dates) {
   const remove = [];
   for (const event of existing) {
     const props = event.extendedProperties?.private || {};
-    if (props.lxSource !== SOURCE || !props.lxId) continue;
+    // Deadline events (lxKind=deadline) are planned separately by planDeadlines.
+    if (props.lxSource !== SOURCE || !props.lxId || props.lxKind === DEADLINE) continue;
     // A second event for the same lesson is left over from an interrupted sync.
     if (found.has(props.lxId)) remove.push(event.id);
     else found.set(props.lxId, event);
@@ -71,5 +72,69 @@ export function planSync(desired, existing, dates) {
     else if (current.extendedProperties.private.lxHash !== event.hash) update.push({ ...event, eventId: current.id });
   }
   for (const [id, event] of found) if (!wanted.has(id) && dates.has(startDate(event))) remove.push(event.id);
+  return { insert, update, remove };
+}
+
+// ---------------------------------------------------------------- deadlines
+
+export const DEADLINE = 'deadline';
+const DEADLINE_MINUTES = 30;
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+
+// item: an assignment from the sync feed (feeds.js): { id, title, href,
+// deadline (ISO), notify (false when handed in or passed), description }.
+// The event is a short block ending at the deadline that doesn't block time.
+export function deadlineToEvent(item) {
+  if (!item || typeof item.id !== 'string' || !item.id || typeof item.deadline !== 'string' || !ISO.test(item.deadline)) return null;
+  const end = new Date(item.deadline);
+  if (Number.isNaN(end.getTime())) return null;
+  const start = new Date(end.getTime() - DEADLINE_MINUTES * 60_000);
+  const href = /^https:\/\/(www\.)?lectio\.dk\//.test(item.href || '') ? item.href : null;
+  const title = typeof item.title === 'string' && item.title.trim() ? item.title.trim() : 'Opgave';
+  const body = {
+    summary: `Aflevering: ${title}`,
+    description: [typeof item.description === 'string' && item.description, href && `Åbn i Lectio: ${href}`].filter(Boolean).join('\n\n').slice(0, 6000),
+    start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
+    end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
+    transparency: 'transparent',
+    reminders: { useDefault: true },
+    source: href ? { title: 'Lectio', url: href } : undefined,
+  };
+  const hash = hashOf([FORMAT, DEADLINE, body]);
+  body.extendedProperties = { private: { lxSource: SOURCE, lxKind: DEADLINE, lxId: item.id, lxHash: hash } };
+  return { id: item.id, body, hash };
+}
+
+// Assignments still to hand in with a deadline after `now`.
+export function wantedDeadlines(items, now = Date.now()) {
+  const out = new Map();
+  for (const item of Array.isArray(items) ? items : []) {
+    if (!item || item.notify === false || item.delivered === true) continue;
+    const event = deadlineToEvent(item);
+    if (event && new Date(item.deadline).getTime() > now && !out.has(event.id)) out.set(event.id, event);
+  }
+  return Array.from(out.values());
+}
+
+// desired: from wantedDeadlines (from a successfully read assignment list).
+// existing: our deadline events listed from Google. Anything not wanted any
+// more (handed in, passed, gone from Lectio, or the option turned off) goes.
+export function planDeadlines(desired, existing) {
+  const wanted = new Map(desired.map(event => [event.id, event]));
+  const found = new Map();
+  const remove = [];
+  for (const event of existing) {
+    const props = event.extendedProperties?.private || {};
+    if (props.lxSource !== SOURCE || props.lxKind !== DEADLINE || !props.lxId) continue;
+    if (found.has(props.lxId) || !wanted.has(props.lxId)) remove.push(event.id);
+    else found.set(props.lxId, event);
+  }
+  const insert = [];
+  const update = [];
+  for (const event of wanted.values()) {
+    const current = found.get(event.id);
+    if (!current) insert.push(event);
+    else if (current.extendedProperties.private.lxHash !== event.hash) update.push({ ...event, eventId: current.id });
+  }
   return { insert, update, remove };
 }

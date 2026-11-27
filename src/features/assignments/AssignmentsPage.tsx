@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { CheckCircle2, ChevronRight, ClipboardList, ExternalLink, LoaderCircle, PartyPopper, Search, SearchX, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronRight, ClipboardList, ExternalLink, List, LoaderCircle, PartyPopper, Search, SearchX, X } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,24 @@ import { getTerm, isPastTerm, termLabel } from '@/lib/lectio/term';
 import { markCurrentFilterOff } from '@/lib/lectio/assignment-filter';
 import { useTerm } from '@/lib/lectio/useTerm';
 import { InlineError, StatusBadge, SubjectDot, UrgencyBadge } from './parts';
+import { MonthCalendar } from './MonthCalendar';
+import { useStudentStore } from '@/features/messages/store';
 
 type View = 'all' | Group;
+type Layout = 'list' | 'calendar';
+
+/** Liste or Kalender: remembered on wider screens; phones always start with the list. */
+function useLayout() {
+  const stored = useStudentStore<Layout>('assignments-layout', 'list');
+  const [narrow] = useState(() => typeof matchMedia === 'function' && matchMedia('(max-width: 639px)').matches);
+  const [chosen, setChosen] = useState<Layout | null>(null);
+  const layout = chosen ?? (narrow ? 'list' : stored.value);
+  const set = (next: Layout) => {
+    setChosen(next);
+    if (!narrow) stored.update(() => next);
+  };
+  return [layout, set] as const;
+}
 
 const read = readAssignments as (doc: Document) => AssignmentsData;
 
@@ -84,6 +100,7 @@ function AssignmentList({ loaded }: { loaded: Loaded<AssignmentsData> }) {
   const visible = useMemo(() => data.assignments.filter((a) => matches(a, search, hold)), [data.assignments, search, hold]);
   const grouped = useMemo(() => groupAssignments(visible, now), [visible, now]);
   const filtered = search.trim() !== '' || hold !== '';
+  const [layout, setLayout] = useLayout();
   const filters = useFilterToggle(loaded);
   const term = useTerm();
   const past = isPastTerm(term);
@@ -129,6 +146,15 @@ function AssignmentList({ loaded }: { loaded: Loaded<AssignmentsData> }) {
               <ChevronRight className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 rotate-90 text-fg-subtle" />
             </label>
           )}
+          <Segmented
+            value={layout}
+            onChange={setLayout}
+            className="shrink-0 [&>button]:px-2"
+            options={[
+              { value: 'list' as Layout, label: <span title="Liste" className="inline-flex"><List aria-hidden className="size-4" /><span className="sr-only">Liste</span></span> },
+              { value: 'calendar' as Layout, label: <span title="Kalender" className="inline-flex"><CalendarDays aria-hidden className="size-4" /><span className="sr-only">Kalender</span></span> },
+            ]}
+          />
         </div>
       </div>
 
@@ -171,6 +197,8 @@ function AssignmentList({ loaded }: { loaded: Loaded<AssignmentsData> }) {
         <Card>
           <GroupEmpty group={view as Group} />
         </Card>
+      ) : layout === 'calendar' ? (
+        <MonthCalendar items={view === 'all' ? visible : grouped[view]} now={now} />
       ) : (
         shown.map((g) => <GroupSection key={g} group={g} items={grouped[g]} now={now} />)
       )}

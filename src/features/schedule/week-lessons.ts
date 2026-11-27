@@ -1,13 +1,13 @@
 // Lessons of someone else's (or a room's) schedule for a given week, without
 // keeping Lectio's whole page around – used for status lists with many rows.
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery, type QueryClient } from '@tanstack/react-query';
 import { getPage } from '@/lib/lectio/client';
 import { pageUrl } from '@/lib/lectio/paths';
 import { useSchoolId } from '@/lib/lectio/query';
 import { readSchedule } from '@/lib/lectio/readers/schedule.js';
 import { limiter } from '@/features/people/directory';
 import { toLessons, type Lesson, type RawLesson } from './lessons';
-import { weekOf, weekParam, weekPath } from './week';
+import { weekDates, dayKey, weekOf, weekParam, weekPath } from './week';
 
 // Many rooms at once: never more than a few requests to Lectio in flight.
 const limit = limiter(4);
@@ -43,4 +43,16 @@ export function useManyWeekLessons(bases: string[], at: Date): Array<{ lessons?:
     queries: bases.map((base) => weekQuery(school, base, at)),
     combine: (results) => results.map((r) => ({ lessons: r.data, isPending: r.isPending, error: r.error })),
   });
+}
+
+/**
+ * Raw lessons (readSchedule shape) of the week containing `at`, through the
+ * same cache as useWeekLessons. Only lessons dated in that week are returned:
+ * Lectio shows another week when it doesn't like ?week=.
+ */
+export async function fetchWeekRaw(client: QueryClient, school: string, base: string, at: Date): Promise<RawLesson[]> {
+  const { select: _select, ...query } = weekQuery(school, base, at);
+  const raw = (await client.fetchQuery(query)) as RawLesson[];
+  const dates = new Set(weekDates(weekOf(at)).map(dayKey));
+  return raw.filter((l) => dates.has(l.start.slice(0, 10)));
 }

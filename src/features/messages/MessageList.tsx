@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Check,
   ChevronDown,
@@ -10,6 +11,7 @@ import {
   MailOpen,
   MoreHorizontal,
   Paperclip,
+  Pin,
   Search,
   Send,
   SquarePen,
@@ -25,6 +27,8 @@ import { EmptyState, ErrorState } from '@/components/ui/states';
 import { cn } from '@/lib/cn';
 import { fieldName, read } from './data';
 import { rowMatches, threadIdOf } from './model';
+import { PINS, pinnedFirst, threadIdFromUrl, threadText } from './local';
+import { useStudentStore } from './store';
 import { InlineError, Menu, MenuContent, MenuItem, MenuTrigger, MenuSeparator, PersonAvatar, errorText } from './parts';
 import type { Folder, MessageRow, MessagesData } from './types';
 import { Person } from '@/features/people/PersonPopover';
@@ -116,7 +120,7 @@ function FolderMenu({ folders, current, label, onSelect }: { folders: Folder[]; 
   );
 }
 
-function Row({ row, active, read: wasRead, onOpen }: { row: MessageRow; active: boolean; read: boolean; onOpen: () => void }) {
+function Row({ row, active, read: wasRead, pinned, onOpen }: { row: MessageRow; active: boolean; read: boolean; pinned?: boolean; onOpen: () => void }) {
   const unread = row.unread && !wasRead;
   const name = personName(row.sender) || row.sender || 'Ukendt';
   const meta = row.starter && personName(row.starter) !== name ? `Startet af ${personName(row.starter)}` : row.recipients ? `Til ${row.recipients}` : '';
@@ -152,6 +156,7 @@ function Row({ row, active, read: wasRead, onOpen }: { row: MessageRow; active: 
             </span>
             {row.attachment && <Paperclip className="size-3.5 shrink-0 text-fg-subtle" aria-label="Vedhæftet fil" />}
             {row.flagged && <Flag className="size-3.5 shrink-0 fill-warning text-warning" aria-label="Flag" />}
+            {pinned && <Pin className="size-3.5 shrink-0 text-fg-subtle" aria-label="Fastgjort" />}
             {unread && <span className="sr-only">Ulæst</span>}
           </span>
           {meta && (
@@ -220,7 +225,24 @@ export function MessageList({
   const action = useLectioAction(loaded, read);
   const [filter, setFilter] = useState('');
   const rows = useMemo(() => (data?.messages || []).map((row, i) => ({ row, id: threadIdOf(row, i) })), [data]);
-  const visible = rows.filter(({ row }) => rowMatches(row, filter));
+  // Threads already opened are in the cache: search their messages too (nothing extra is fetched).
+  const client = useQueryClient();
+  const bodies = useMemo(() => {
+    const out = new Map<string, string>();
+    if (!filter.trim()) return out;
+    for (const [key, value] of client.getQueriesData<Loaded<MessagesData>>({ queryKey: ['lectio'] })) {
+      const id = threadIdFromUrl(String(key[1] ?? ''));
+      const thread = value?.data?.thread;
+      if (id && thread) out.set(id, threadText(thread));
+    }
+    return out;
+  }, [client, filter]);
+  const pins = useStudentStore<string[]>(PINS, []);
+  const { pinned, rest } = pinnedFirst(
+    rows.filter(({ row, id }) => rowMatches(row, filter, bodies.get(id))),
+    pins.value,
+  );
+  const visible = [...pinned, ...rest];
   const unread = rows.filter(({ row, id }) => row.unread && !readIds.has(id)).length;
   const actions = data?.actions;
 
@@ -334,8 +356,11 @@ export function MessageList({
           />
         ) : (
           <ul className="space-y-0.5 p-2" aria-label="Tråde">
-            {visible.map(({ row, id }) => (
-              <Row key={id} row={row} active={id === activeId} read={readIds.has(id)} onOpen={() => onOpen(id)} />
+            {visible.map(({ row, id }, i) => (
+              <Fragment key={id}>
+                {pinned.length > 0 && i === pinned.length && <li aria-hidden className="mx-3 my-1.5 h-px bg-border" />}
+                <Row row={row} active={id === activeId} read={readIds.has(id)} pinned={i < pinned.length} onOpen={() => onOpen(id)} />
+              </Fragment>
             ))}
           </ul>
         )}

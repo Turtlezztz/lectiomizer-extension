@@ -95,6 +95,7 @@ function Writer({ loaded, url, backTo }: { loaded: Loaded<FeedbackData>; url: st
     mutationFn: async (then: 'stay' | 'leave') => {
       const ed = paper.editor;
       if (!ed) throw new Error('Din feedback kan ikke redigeres lige nu.');
+      if (loaded.offline) throw new Error('Lectio kan ikke nås lige nu, så siden er en gemt kopi. Prøv igen, når du er online.');
       const html = toLectioHtml(editor.current?.getHtml() ?? '');
       const saved = await postback(loaded.doc, {
         target: ed.target,

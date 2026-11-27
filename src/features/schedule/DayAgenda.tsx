@@ -10,6 +10,8 @@ import type { Lesson } from './lessons';
 import { LessonLink, StatusBadge } from './LessonLink';
 import type { Day } from './WeekGrid';
 import { dayKey, WEEKDAYS_LONG, WEEKDAYS_SHORT } from './week';
+import { MIN_GAP, minText } from './free-time';
+import { hoursText } from './workload';
 import { People } from '@/features/people/PersonPopover';
 import { Rooms } from '@/features/rooms/RoomPopover';
 
@@ -53,11 +55,13 @@ function Gap({ minutes }: { minutes: number }) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   const text = h ? (m ? `${h} t ${m} min` : `${h} t`) : `${m} min`;
+  // A mellemtime (a free module or more) gets a dashed rule so it stands out from a break.
+  const mellemtime = minutes >= MIN_GAP;
   return (
     <div className="flex items-center gap-3 py-1.5 pl-[60px] text-[12px] text-fg-subtle">
-      <span className="h-px flex-1 bg-border" />
-      {text} fri
-      <span className="h-px flex-1 bg-border" />
+      <span className={cn('flex-1', mellemtime ? 'border-t border-dashed border-border-strong' : 'h-px bg-border')} />
+      {mellemtime ? `Mellemtime · ${text} fri` : `${text} fri`}
+      <span className={cn('flex-1', mellemtime ? 'border-t border-dashed border-border-strong' : 'h-px bg-border')} />
     </div>
   );
 }
@@ -124,14 +128,23 @@ function AgendaItem({ lesson, now }: { lesson: Lesson; now: Date }) {
   );
 }
 
-export function DayAgenda({ day, now }: { day: Day; now: Date }) {
+export function DayAgenda({ day, now, compareName }: { day: Day; now: Date; compareName?: string }) {
   const lessons = day.lessons;
+  const load = day.load;
   return (
     <section aria-label={WEEKDAYS_LONG[day.index]}>
       <h2 className="mb-2.5 text-[13px] font-medium text-fg-muted">
         {WEEKDAYS_LONG[day.index]} {day.date.getDate()}. {day.date.toLocaleDateString('da-DK', { month: 'long' })}
         {dayKey(day.date) === dayKey(now) && <span className="text-accent"> · i dag</span>}
+        {!!load?.hours && <span className="font-normal text-fg-subtle tabular-nums"> · {hoursText(load.hours)} elevtid afleveres</span>}
       </h2>
+      {day.compare && (
+        <p className={cn('mb-2.5 rounded-lg px-3 py-2 text-[12.5px]', day.free?.length ? 'bg-success-soft text-success-soft-fg' : 'bg-surface-2 text-fg-muted')}>
+          {day.free?.length
+            ? <>I har begge fri <span className="tabular-nums">{day.free.map((f) => `${minText(f.startMin)}–${minText(f.endMin)}`).join(', ')}</span></>
+            : `Ingen fælles fritid i skoletiden${compareName ? ` med ${compareName}` : ''}.`}
+        </p>
+      )}
       {lessons.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border">
           <EmptyState icon={<CalendarCheck />} title="Ingen moduler" description="Der er intet på skemaet denne dag." />

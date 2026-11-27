@@ -20,7 +20,7 @@ En udvidelse til Firefox og Chrome, der åbner sin egen app med det Lectio-login
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black&style=flat-square)](https://react.dev/)
 [![WXT](https://img.shields.io/badge/WXT-67D55E?logo=wxt&logoColor=white&style=flat-square)](https://wxt.dev/)
 [![Tailwind CSS 4](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white&style=flat-square)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/tests-150%20best%C3%A5et-6E9F18?logo=vitest&logoColor=white&style=flat-square)](tests)
+[![Vitest](https://img.shields.io/badge/tests-331%20best%C3%A5et-6E9F18?logo=vitest&logoColor=white&style=flat-square)](tests)
 
 [**Download**](https://github.com/Turtlezztz/lectiomizer-extension/releases/latest) ·
 [**Chrome Web Store**](https://chromewebstore.google.com/detail/lectiomizer/bcjodfpidkofibnfmdobgdmgdelekhdc) ·
@@ -56,23 +56,23 @@ formularer.
 
 | Funktion | Lectio | [BetterLectio](https://betterlectio.dk) | Lectiomizer |
 | --- | :---: | :---: | :---: |
-| Skema med ændrede og aflyste moduler | ✅ | ✅ | ✅ farver pr. fag og en "nu"-linje |
+| Skema med ændrede og aflyste moduler | ✅ | ✅ | ✅ farver pr. fag, "nu"-linje, sammenlign med en anden, .ics-eksport |
 | Opgaver med aflevering og upload | ✅ | ✅ | ✅ |
-| Lektier | ✅ | ✅ | ✅ hele teksten, dag for dag |
-| Beskeder | ✅ | ✅ | ✅ samtaletråde som i et mailprogram |
+| Lektier | ✅ | ✅ | ✅ hele teksten, dag for dag, sæt flueben og egne to-dos |
+| Beskeder | ✅ | ✅ | ✅ samtaletråde, kladder, skabeloner og fastgjorte tråde |
 | Besvar spørgeskemaer | ✅ | ➖ | ✅ med kladde |
-| Karakterer med snit | ➖ uden snit | ✅ vægtet snit | ✅ eksamenssnit med og uden bonus og en fordeling |
-| Fravær og fraværsårsager | ✅ | ✅ | ✅ |
+| Karakterer med snit | ➖ uden snit | ✅ vægtet snit | ✅ eksamenssnit med og uden bonus, fordeling og "Hvad nu hvis" |
+| Fravær og fraværsårsager | ✅ | ✅ | ✅ med fraværsberegner mod din egen grænse |
 | Lektionsnoter og materialer | ✅ | ✅ | ✅ |
 | Elevfeedback med editor | ✅ | ✅ | ✅ |
 | Find elever, lærere, hold og lokaler | ✅ | ✅ | ✅ |
 | Tidligere skoleår | ✅ | ➖ | ✅ skema, opgaver, karakterer, fravær og hold |
-| Overblik over dagen | ➖ forsiden | ✅ | ✅ næste modul med nedtælling |
+| Overblik over dagen | ➖ forsiden | ✅ | ✅ næste modul med nedtælling, kort du selv vælger |
 | Søgning | ➖ | ✅ `⌘K` | ✅ `⌘K` og genvejene `1`–`6` |
 | Mørkt tema | ❌ | ✅ | ✅ |
 | På mobil | ➖ | ✅ egne apps til iOS og Android | ➖ mobilvenlig app i browseren |
-| Notifikationer om ændringer | ❌ | ✅ i mobilappen | ✅ i browseren, også når fanen er lukket |
-| Skemaet i Google Kalender | ❌ | ❌ | ✅ med ét klik |
+| Notifikationer om ændringer | ❌ | ✅ i mobilappen | ✅ i browseren, også når fanen er lukket; vælg typer og stilletimer |
+| Skemaet i Google Kalender | ❌ | ❌ | ✅ med ét klik, også afleveringsfrister |
 | Spørg en assistent om dit skema og dine opgaver | ❌ | ❌ | ✅ med dit eget ChatGPT-abonnement |
 | MCP-server til Claude, Cursor m.fl. | ❌ | ❌ | ✅ |
 | Ingen server ud over Lectio | – | ❌ konto, indstillinger og profiler ligger hos dem | ✅ |
@@ -80,12 +80,12 @@ formularer.
 | Dokumenter | ✅ | ✅ | ❌ kun via Assistenten |
 | Profil og indstillinger | ✅ | ✅ | ❌ |
 | Eksamener og terminsprøver | ✅ | ✅ | ❌ |
-| Studieplan | ✅ | ➖ | ❌ |
-| Digitalt studiekort | ✅ | ➖ | ❌ |
-| Bøger | ✅ | ➖ | ❌ |
-| SPS | ✅ | ➖ | ❌ |
-| Dags- og ugeændringer, månedskalender | ✅ | ➖ | ❌ |
-| Undervisningsbeskrivelser | ✅ | ➖ | ❌ |
+| Studieplan | ✅ | ➖ | ✅ |
+| Digitalt studiekort | ✅ | ➖ | ✅ |
+| Bøger | ✅ | ➖ | ✅ |
+| SPS | ✅ | ➖ | ✅ |
+| Dags- og ugeændringer, månedskalender | ✅ | ➖ | ➖ månedskalender kun for opgaver |
+| Undervisningsbeskrivelser | ✅ | ➖ | ✅ |
 
 <sub>BetterLectio-kolonnen bygger på deres kildekode ([udvidelsen](https://github.com/jonbng/betterlectio) og
 [Android-appen](https://github.com/jonbng/betterlectio-android), november 2026). Ret os gerne med et issue.</sub>
@@ -134,25 +134,28 @@ Du kommer automatisk tilbage til appen bagefter.
 
 | | Funktion | Hvad den gør |
 | --- | --- | --- |
-| 🏠 | **Overblik** | Det nuværende eller næste modul med nedtælling, dagens moduler, kommende afleveringer, de nyeste beskeder og aktuelt. |
-| 📅 | **Skema** | En ugekalender med farver pr. fag, ændrede og aflyste moduler og en levende "nu"-linje. På mobil vises en dagsoversigt. |
-| 📝 | **Opgaver** | Kommende, manglende og afleverede opgaver, med aflevering, upload og grupper på opgavesiden. |
-| 📚 | **Lektier** | Alle kommende moduler med lektier samlet på én side, dag for dag, med hele lektieteksten og modulets note. |
+| 🏠 | **Overblik** | Det nuværende eller næste modul med nedtælling, dagens moduler, kommende afleveringer, de nyeste beskeder og aktuelt. **I aften** samler lektier og frister til næste skoledag med flueben; egne nedtællinger (fx SOP) vises som chips. **Tilpas** vælger og ordner kortene. |
+| 📅 | **Skema** | En ugekalender med farver pr. fag, ændrede og aflyste moduler, en levende "nu"-linje, mellemtimer og elevtid pr. dag. Under **⋯**: sammenlign med en elev eller lærer, skjul hold, eksportér til kalender (.ics) og udskriv. På mobil vises en dagsoversigt. |
+| 📝 | **Opgaver** | Kommende, manglende og afleverede opgaver som liste eller månedskalender, med aflevering, upload og grupper på opgavesiden. En frist kan fastgøres som nedtælling på overblikket. |
+| 📚 | **Lektier** | Alle kommende moduler med lektier samlet på én side, dag for dag, med hele lektieteksten og modulets note. Sæt flueben, når du er færdig, og tilføj dine egne to-dos. |
 | 🗺️ | **Studieplan** | Hvad hvert hold arbejder med lige nu, en tidslinje over årets forløb og en side pr. forløb med beskrivelse, skriftligt arbejde og alle moduler med lektier og materialer. |
 | 📄 | **Undervisningsbeskrivelser** | Fag for fag: stamoplysninger og hvert gennemført forløb med indhold og omfang. |
 | 🪪 | **Studiekort**, **Bøger** og **SPS** | Det digitale studiekort med billede, QR-kode og et levende ur; dine boglån med afleveringsfrist; dine SPS-indstillinger og registreringer. |
-| ✉️ | **Beskeder** | En indbakke som i et mailprogram, med samtaletråde, svar og nye beskeder. |
-| 📋 | **Spørgeskemaer** | Besvar spørgeskemaer (ét valg, flere valg og fritekst), gem en kladde eller aflever. |
-| 🎓 | **Karakterer** | Standpunkter, årskarakterer, eksamenssnit med og uden bonus og en fordeling af dine karakterer. |
-| 🩺 | **Fravær** og **Lektion** | Fravær og fraværsårsager; lektionsnoter, lektier og materialer for hvert modul. |
+| ✉️ | **Beskeder** | En indbakke som i et mailprogram, med samtaletråde, svar og nye beskeder. Kladder gemmes lokalt, faste tekster ligger som skabeloner, og vigtige tråde kan fastgøres øverst. |
+| 📋 | **Spørgeskemaer** | Besvar spørgeskemaer (ét valg, flere valg og fritekst), gem en kladde eller aflever. Skjul dem, du ikke vil svare på, eller vis kun dem fra lærere. |
+| 🎓 | **Karakterer** | Standpunkter, årskarakterer, eksamenssnit med og uden bonus, en fordeling og udviklingen pr. fag. **Hvad nu hvis** prøver andre karakterer af og regner ud, hvad der skal til for et mål-snit. |
+| 🩺 | **Fravær** og **Lektion** | En fraværsberegner (hvor mange moduler du kan misse før din grænse), manglende årsager, som kan vælges flere ad gangen, og registreringer; lektionsnoter, lektier og materialer for hvert modul. |
 | 🗓️ | **Skoleår** | Skift til et tidligere skoleår og se dets skema, opgaver, karakterer, fravær, dokumenter og hold. |
-| 🏫 | **Skolen** | Find elever, lærere, hold og lokaler og se deres skema. Hvert hold viser sit ugeskema, lærere og elever. |
+| 🏫 | **Skolen** | Find elever, lærere, hold og lokaler og se deres skema; stjernemarkér favoritter. Hvert hold viser sit ugeskema, lærere og elever og **Eksamenslæsning**: årets noter, lektier og filer samlet, søgbart og som én zip. Giv fagene dine egne navne, farver og links. |
 | 💬 | **Elevfeedback** | Læs feedback fra lærer og klassekammerater, og skriv dit eget svar i en fuld editor med formatering, tabeller, billeder og filer. |
-| 🔔 | **Notifikationer** | Tjekker Lectio i baggrunden (som standard hver time, ned til hvert 3. minut) og giver besked om ændrede, aflyste og genoprettede moduler, nye beskeder og nye opgaver. |
+| 🔔 | **Notifikationer** | Tjekker Lectio i baggrunden (som standard hver time, ned til hvert 3. minut) og giver besked om ændrede, aflyste og genoprettede moduler, lokaleændringer, lektier til næste skoledag, nye beskeder og opgaver, frister (24 og 2 timer før), nye karakterer og nyt fravær – og, hvis du vil, "Din dag" hver morgen. Vælg typerne selv og sæt stilletimer. Knappen i værktøjslinjen viser næste modul og nyt. |
 | ✨ | **Assistent** <sub>valgfri</sub> | Spørg om dit skema, dine opgaver, beskeder, karakterer og fravær. Svarer med dit eget ChatGPT-abonnement og kan kun læse. |
 | 🔌 | **MCP-server** <sub>valgfri</sub> | De samme skrivebeskyttede Lectio-værktøjer i Claude, Cursor eller en anden MCP-klient. |
 | 📆 | **Google Kalender** <sub>valgfri</sub> | Forbind med ét klik, så kopieres dit skema til en separat "Lectio"-kalender, der holdes opdateret. |
 | ⌨️ | **Tastatur** | `⌘K` / `Ctrl+K`-søgning og genvejene `1`–`6`. |
+| 🎨 | **Udseende** | Lyst eller mørkt tema, accentfarve, normal eller kompakt tæthed og startside. |
+| 🎉 | **Lectio Wrapped** | Dit skoleår i tal, også som billede. |
+| 📴 | **Offline** | Kan Lectio ikke nås, viser appen det, den sidst hentede, med en diskret bjælke øverst. |
 
 ## Skærmbilleder
 
@@ -228,6 +231,10 @@ eller har passeret fristen, giver ingen besked. Historikken (de seneste 100
 notifikationer fra de sidste 90 dage) og øjebliksbillederne gemmes lokalt for
 hver elev. Hvis din Lectio-session udløber, viser klokken en "log ind"-besked,
 og tjekkene fortsætter, når du har logget ind igen.
+
+Under **Indstillinger → Notifikationer → Vælg typer** slår du de enkelte typer til og fra (karakterer og
+fravær hentes kun, når de er slået til), og **Stilletimer** holder systemnotifikationerne tilbage om natten;
+de ligger stadig under klokken i appen.
 
 </details>
 

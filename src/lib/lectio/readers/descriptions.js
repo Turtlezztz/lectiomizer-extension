@@ -51,6 +51,8 @@ export function readDescriptions(doc) {
       subject: field('fag og niveau'),
       teachers: field('lærer'),
       hold: field('hold'),
+      // Each hold is a context card: "2024 Ld bi (<span data-lectiocontextcard="HE123">L1d bi</span>)".
+      holds: Array.from(tables[0]?.querySelectorAll('[data-lectiocontextcard^="HE"]') || []).map(el => ({ id: el.getAttribute('data-lectiocontextcard').slice(2), label: text(el) })),
       info,
       phases,
     };

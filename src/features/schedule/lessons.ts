@@ -1,5 +1,6 @@
 // Turns readSchedule() output into view-ready lessons and lays out a day.
 import { dayKey } from './week';
+import { activeSubjectName } from '@/lib/subjects';
 
 export type LessonStatus = 'normal' | 'changed' | 'cancelled';
 
@@ -48,8 +49,10 @@ const SUBJECTS: Record<string, string> = {
   kl: 'Klassens time', te: 'Teknologi', tk: 'Teknikfag', vi: 'Virksomhedsøkonomi', af: 'Afsætning',
 };
 
-/** "3a Da" → "Dansk", "1x Ma A" → "Matematik", unknown → hold without class prefix. */
+/** "3a Da" → "Dansk", "1x Ma A" → "Matematik", unknown → hold without class prefix. The user's own name wins. */
 export function subjectName(hold: string): string {
+  const own = activeSubjectName(hold);
+  if (own) return own;
   const parts = hold.trim().split(/\s+/).filter(Boolean);
   const rest = parts.length > 1 ? parts.slice(1) : parts;
   const code = (rest[0] || '').toLocaleLowerCase('da');
@@ -102,7 +105,7 @@ export function toLesson(raw: RawLesson): Lesson | null {
     endMin,
     hold,
     subject: hold ? subjectName(hold) : raw.title || 'Modul',
-    name: [(raw.holds || []).join(', '), raw.title].filter(Boolean).join(' – ') || 'Modul',
+    name: [(raw.holds || []).map((h: string) => activeSubjectName(h) || h).join(', '), raw.title].filter(Boolean).join(' – ') || 'Modul',
     homeworkText: sections.homework,
     noteText: sections.note,
     hasHomework: raw.homework ?? !!sections.homework,

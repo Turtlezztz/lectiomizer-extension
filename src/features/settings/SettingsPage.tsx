@@ -18,6 +18,9 @@ import { cn } from '@/lib/cn';
 import { BRIDGE_DEFAULTS, BRIDGE_KEY, BRIDGE_ORIGINS, BRIDGE_STATUS_KEY, DEFAULT_PORT, newToken, saveBridge, type BridgePrefs, type BridgeStatus } from '@/lib/agent/bridge';
 import { connectChatGPT, useChatAccount, useStored } from '@/features/chat/hooks';
 import { SubjectColorSettings } from './SubjectColors';
+import { Row } from './Row';
+import { AppearanceSettings } from './AppearanceSettings';
+import { NoticeTypes, QuietHours } from './NotificationOptions';
 
 const redirectUrl: string = (() => {
   try {
@@ -85,17 +88,6 @@ function Section({ icon, title, description, children, aside }: { icon: ReactNod
   );
 }
 
-function Row({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3.5">
-      <div className="min-w-0 flex-1 basis-56">
-        <div className="text-[13.5px] font-medium text-fg">{label}</div>
-        {hint && <div className="mt-0.5 text-[12.5px] text-fg-muted">{hint}</div>}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">{children}</div>
-    </div>
-  );
-}
 
 function StatusLine({ state, message, children }: { state?: string; message?: string; children: ReactNode }) {
   const Icon = state === 'error' ? TriangleAlert : state === 'syncing' ? Loader2 : state === 'paused' ? CirclePause : CheckCircle2;
@@ -125,11 +117,13 @@ function NotificationSettings() {
     <Section
       icon={<Bell />}
       title="Notifikationer"
-      description="Lectiomizer tjekker Lectio i baggrunden – også når appen er lukket – og giver besked om ændrede og aflyste moduler, nye beskeder og nye opgaver."
+      description="Lectiomizer tjekker Lectio i baggrunden – også når appen er lukket – og giver besked om ændringer i skemaet, nye beskeder, opgaver, karakterer og frister."
     >
       <Row label="Systemnotifikationer" hint="Vis en notifikation fra browseren, når der er nyt.">
         <Switch label="Systemnotifikationer" checked={prefs.system} onChange={(system) => save({ system })} />
       </Row>
+      <NoticeTypes prefs={prefs} save={save} />
+      <QuietHours prefs={prefs} save={save} />
       <Row label="Tjek Lectio" hint="Hvor ofte der tjekkes for nyt, mens browseren er åben.">
         <Select value={prefs.interval} onChange={(e) => save({ interval: Number(e.target.value) })} aria-label="Interval">
           {INTERVALS.map((i) => (
@@ -198,6 +192,9 @@ function CalendarSettings() {
           </Row>
           <Row label="Medtag aflyste moduler" hint="Vises som “Aflyst: …” og blokerer ikke tiden.">
             <Switch label="Medtag aflyste moduler" checked={prefs.cancelled} onChange={(cancelled) => save({ cancelled })} />
+          </Row>
+          <Row label="Afleveringsfrister" hint="Opgaver, du ikke har afleveret, som “Aflevering: …” ved fristen. Forsvinder, når du har afleveret.">
+            <Switch label="Afleveringsfrister" checked={prefs.deadlines} onChange={(deadlines) => save({ deadlines })} />
           </Row>
           <Row label="Synkronisér" hint="Sker automatisk ved hvert tjek af Lectio.">
             <Button onClick={() => run('sync', { type: 'calendar:sync-now', schoolId: settings.school?.id })} disabled={!!busy || status.state === 'syncing'}>
@@ -334,12 +331,10 @@ export default function SettingsPage() {
   const { settings, update } = useSettings();
   return (
     <Page className="max-w-[760px]">
-      <PageHeader title="Indstillinger" description="Notifikationer, Google Kalender, assistent og udseende." />
+      <PageHeader title="Indstillinger" description="Notifikationer, kalender, udseende og assistent." />
       <div className="space-y-5">
         <NotificationSettings />
         <CalendarSettings />
-        <AssistantSettings />
-        <McpSettings />
         <Section icon={<Palette />} title="Udseende">
           <Row label="Tema">
             <Segmented
@@ -352,6 +347,10 @@ export default function SettingsPage() {
               ]}
             />
           </Row>
+          <AppearanceSettings />
+          <Row label="Vis overblik fra værktøjslinjen" hint="Knappen i værktøjslinjen viser næste modul og nyt. Slået fra åbner den appen direkte.">
+            <Switch label="Vis overblik fra værktøjslinjen" checked={settings.toolbarPopup !== false} onChange={(toolbarPopup) => update({ toolbarPopup })} />
+          </Row>
           <SubjectColorSettings />
         </Section>
         <Section icon={<MessageSquare />} title="Beskeder">
@@ -359,6 +358,9 @@ export default function SettingsPage() {
             <Switch label="Sendt med Lectiomizer" checked={settings.messageSignature} onChange={(messageSignature) => update({ messageSignature })} />
           </Row>
         </Section>
+        {/* The technical integrations last, so everyday settings stay at the top. */}
+        <AssistantSettings />
+        <McpSettings />
         <Section icon={<School />} title="Skole">
           <Row label={settings.school?.name ?? 'Ingen skole'} hint="Lectiomizer bruger dit eget Lectio-login på denne skole.">
             {settings.school && (
@@ -371,6 +373,9 @@ export default function SettingsPage() {
             <Button onClick={() => update({ school: null })}>Skift skole</Button>
           </Row>
         </Section>
+        <p className="pt-2 text-center text-[12.5px] text-fg-subtle">
+          <a href="#/wrapped" className="hover:text-accent hover:underline">Lectio Wrapped – dit skoleår i tal</a>
+        </p>
       </div>
     </Page>
   );

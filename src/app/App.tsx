@@ -8,6 +8,7 @@ import { pageUrl, PATHS } from '@/lib/lectio/paths';
 import { Shell } from './Shell';
 import { LoginGate, SchoolPicker } from './Onboarding';
 import { Skeleton } from '@/components/ui/skeleton';
+import { rememberLaunch } from '@/lib/nav';
 
 const HomePage = lazy(() => import('@/features/home/HomePage'));
 const SchedulePage = lazy(() => import('@/features/schedule/SchedulePage'));
@@ -55,6 +56,7 @@ const lazyRoute = (Comp: React.ComponentType) => (
   </Suspense>
 );
 
+rememberLaunch(); // before the router touches the URL: decides whether the start page applies
 const router = createHashRouter([
   {
     element: <Shell />,
@@ -90,6 +92,7 @@ const router = createHashRouter([
       { path: 'chat', element: lazyRoute(ChatPage) },
       { path: 'chat/:id', element: lazyRoute(ChatPage) },
       { path: 'settings', element: lazyRoute(SettingsPage) },
+      { path: 'wrapped', element: lazyRoute(lazy(() => import('@/features/wrapped/WrappedPage'))) },
     ],
   },
 ]);

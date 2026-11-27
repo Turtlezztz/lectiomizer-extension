@@ -12,6 +12,11 @@ import { useLectioPage, useSchoolId } from '@/lib/lectio/query';
 import { appRoute, descriptionsPath, pageUrl } from '@/lib/lectio/paths';
 import { readDescriptions } from '@/lib/lectio/readers/descriptions.js';
 import { cn } from '@/lib/cn';
+import { PATHS } from '@/lib/lectio/paths';
+import { readHome } from '@/lib/lectio/readers/home.js';
+import { sanitize } from '@/components/RichText';
+import { ExamPack } from '@/features/teams/ExamPack';
+import type { PackDescription } from '@/features/teams/exam-pack';
 
 export interface UvbField {
   label: string;
@@ -35,6 +40,8 @@ export interface UvbDescription {
   subject: string;
   teachers: string;
   hold: string;
+  /** The holds behind the description (one per school year), with their holdelement ids. */
+  holds: Array<{ id: string; label: string }>;
   info: UvbField[];
   phases: UvbPhase[];
 }
@@ -111,7 +118,33 @@ export default function DescriptionsPage() {
   );
 }
 
+/** The description as plain data for the eksamenspakke document. */
+function toPack(d: UvbDescription): PackDescription {
+  return {
+    subject: d.subject,
+    info: d.info.map((f) => ({ label: f.label, text: f.text })),
+    phases: d.phases.map((p) => ({
+      id: p.href?.match(/phaseid=(\d+)/i)?.[1] ?? p.id,
+      number: p.number,
+      title: p.title,
+      html: p.description ? sanitize(p.description) : '',
+      fields: p.fields.filter((f) => f.node).map((f) => ({ label: f.label, html: sanitize(f.node) })),
+    })),
+  };
+}
+
+/** Holdelement ids of the holds the student has this school year (from Forsiden's "Hold og grupper"). */
+function useOwnHoldIds(): Set<string> | null {
+  const home = useLectioPage(PATHS.home, readHome as (doc: Document) => { groups: Array<{ label: string; href: string }> });
+  const groups = home.data?.data.groups;
+  if (!groups) return null;
+  return new Set(groups.flatMap((g) => g.href.match(/holdelementid=(\d+)/i)?.[1] ?? []));
+}
+
 function Description({ description: d }: { description: UvbDescription }) {
+  const own = useOwnHoldIds();
+  // This year's hold, if the subject is still running: its schedule adds lessons outside any forløb.
+  const current = own ? (d.holds ?? []).find((h) => own.has(h.id)) : undefined;
   return (
     <section className="animate-in space-y-4">
       <Card>
@@ -129,6 +162,11 @@ function Description({ description: d }: { description: UvbDescription }) {
               </div>
             ))}
         </dl>
+        {d.phases.length > 0 && (
+          <div className="border-t border-border px-5 py-3.5">
+            <ExamPack teamId={current?.id ?? null} name={d.subject || d.hold} description={toPack(d)} />
+          </div>
+        )}
       </Card>
       {d.phases.length > 0 && (
         <div>

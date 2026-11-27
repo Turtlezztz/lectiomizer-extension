@@ -9,6 +9,9 @@ import { ErrorState } from '@/components/ui/states';
 import { cn } from '@/lib/cn';
 import { fieldName, keyOf, read, recipientSources, useCompose, useDirectory } from './data';
 import { fold, searchDirectory, withSignature } from './model';
+import { useDraft } from './drafts';
+import { composeDraftId, insertTemplate, isEmptyDraft, type Draft } from './local';
+import { TemplateMenu } from './Templates';
 import { useSettings } from '@/lib/settings';
 import { InlineError, PersonAvatar, errorText } from './parts';
 import type { Compose, MessagesData, Recipient } from './types';
@@ -56,7 +59,7 @@ export function ComposePane({
       ) : q.error ? (
         <ErrorState className="flex-1" error={q.error} onRetry={() => q.refetch()} href={lectioHref} />
       ) : compose && q.data ? (
-        <ComposeForm loaded={q.data} compose={compose} onSent={onSent} />
+        <ComposeForm loaded={q.data} compose={compose} draftId={composeDraftId(to)} onSent={onSent} />
       ) : (
         <div className="flex flex-1 items-center justify-center text-[13px] text-fg-muted">Beskeden er sendt.</div>
       )}
@@ -64,7 +67,7 @@ export function ComposePane({
   );
 }
 
-function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>; compose: Compose; onSent: () => void }) {
+function ComposeForm({ loaded, compose, draftId, onSent }: { loaded: Loaded<MessagesData>; compose: Compose; draftId: string; onSent: () => void }) {
   const client = useQueryClient();
   const action = useLectioAction(loaded, read);
   const { settings } = useSettings();
@@ -79,6 +82,13 @@ function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>
   const [active, setActive] = useState(0);
   const [pending, setPending] = useState<null | { type: 'add'; title: string } | { type: 'remove'; index: number } | { type: 'send' }>(null);
   const [error, setError] = useState('');
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
 
   const sources = compose.sources.length ? compose.sources : recipientSources();
   const directory = useDirectory(sources);
@@ -98,6 +108,46 @@ function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>
   useEffect(() => {
     toRef.current?.focus();
   }, []);
+
+  // A draft of this message from earlier: offered once, saved while typing.
+  const drafts = useDraft(draftId);
+  const restoredOnce = useRef(false);
+  const [restored, setRestored] = useState<Draft | null>(null);
+  useEffect(() => {
+    if (restoredOnce.current || !drafts.loaded) return;
+    restoredOnce.current = true;
+    const d = drafts.stored;
+    if (d && !isEmptyDraft(d) && !subject.trim() && !body.trim()) {
+      setSubject(d.subject || '');
+      setBody(d.body);
+      setRestored(d);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafts.loaded]);
+  const recipientNames = recipients.map((r) => r.name).join('\n');
+  useEffect(() => {
+    if (!restoredOnce.current) return;
+    drafts.save({ subject, body, to: recipientNames ? recipientNames.split('\n') : [] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subject, body, recipientNames, drafts.loaded]);
+  const missingFromDraft = restored?.to?.filter((name) => !recipients.some((r) => r.name === name)) ?? [];
+  const discardDraft = () => {
+    drafts.discard();
+    setRestored(null);
+    setSubject('');
+    setBody('');
+    bodyRef.current?.focus();
+  };
+  const insert = (text: string) => {
+    const el = bodyRef.current;
+    const next = insertTemplate(body, text, el && document.activeElement === el ? el.selectionStart : body.length);
+    setBody(next.text);
+    setError('');
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(next.cursor, next.cursor);
+    });
+  };
 
   const keep = () => ({
     [fieldName(compose.subject)]: subject,
@@ -167,25 +217,27 @@ function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>
     setPending({ type: 'send' });
     const fields: Record<string, string> = { ...keep(), [fieldName(compose.body)]: withSignature(body, settings.messageSignature) };
     if (noReply && compose.noReply) fields[fieldName(compose.noReply.input)] = 'on';
-    action.mutate(
-      { element: compose.send, fields },
-      {
-        onSuccess: (next) => {
+    // mutateAsync: the draft is dropped even if the pane closed while sending.
+    const discard = drafts.discard;
+    action
+      .mutateAsync({ element: compose.send, fields })
+      .then(
+        (next) => {
           const again = next.data.compose;
           if (again) {
             setError(again.errors.join(' ') || 'Lectio sendte ikke beskeden. Tjek felterne, eller skriv beskeden i Lectio.');
             return;
           }
+          discard();
           client.removeQueries({ queryKey: keyOf(loaded.url), exact: true });
           client.invalidateQueries({
             predicate: (q) => q.queryKey[0] === 'lectio' && /beskeder2\.aspx(\?mappeid=[^&]*)?$/i.test(String(q.queryKey[1])),
           });
-          onSent();
+          if (mounted.current) onSent();
         },
-        onError: (e) => setError(errorText(e)),
-        onSettled: () => setPending(null),
-      },
-    );
+        (e) => setError(errorText(e)),
+      )
+      .finally(() => setPending(null));
   };
 
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -378,6 +430,17 @@ function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>
       />
       {/* Footer */}
       <div className="space-y-2 border-t border-border px-4 py-3">
+        {restored && (
+          <p role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-fg-muted">
+            <span>
+              Din kladde er gendannet.
+              {missingFromDraft.length > 0 && ` Vælg modtagerne igen: ${missingFromDraft.join(', ')}.`}
+            </span>
+            <button type="button" onClick={discardDraft} className="font-medium text-fg underline-offset-2 hover:underline">
+              Kassér kladden
+            </button>
+          </p>
+        )}
         {shownErrors && <InlineError>{shownErrors}</InlineError>}
         <div className="flex flex-wrap items-center gap-3">
           {compose.noReply && (
@@ -388,6 +451,7 @@ function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>
           )}
           <span className="flex-1" />
           <span className="hidden text-[11.5px] text-fg-subtle sm:inline">⌘/Ctrl + Enter sender</span>
+          <TemplateMenu body={body} onInsert={insert} disabled={sending} />
           <Button type="submit" variant="primary" disabled={busy}>
             {sending ? <Loader2 className="animate-spin" /> : <Send />} {sending ? 'Sender …' : 'Send'}
           </Button>

@@ -5,9 +5,67 @@ export interface OpenQuestionnaire {
   href: string | null;
   title: string;
   owner: string;
+  /** The owner's context-card id when the page links one (T… teacher, S… student), else "". */
+  ownerId?: string;
   anonymous: boolean;
   deadline: Date | null;
   deadlineText: string;
+}
+
+// ------------------------------------------------------------ overview: hide & filter
+
+/**
+ * Who made a questionnaire, from what Lectio shows in "Ejer": a context card
+ * when there is one, else the suffix Lectio puts on names everywhere –
+ * a class and number for students ("Emma Larsen (2b 04)"), initials for
+ * teachers ("Lene Madsen (lm)"). Null when the text says neither.
+ */
+export function ownerKind(q: Pick<OpenQuestionnaire, 'owner' | 'ownerId'>): 'teacher' | 'student' | null {
+  if (/^S\d+$/.test(q.ownerId || '')) return 'student';
+  if (/^T\d+$/.test(q.ownerId || '')) return 'teacher';
+  const code = [...(q.owner || '').matchAll(/\(([^()]+)\)/g)].map((m) => m[1].trim()).filter((c) => c !== 'k').pop();
+  if (!code) return null;
+  if (/^\S+\s+\d{1,3}$/.test(code)) return 'student';
+  if (/^[a-zæøå]{1,6}$/i.test(code)) return 'teacher';
+  return null;
+}
+
+/** A stable key for hiding: Lectio's id, else title and owner. */
+export const hideKey = (q: Pick<OpenQuestionnaire, 'id' | 'title' | 'owner'>) => q.id || `${q.title}|${q.owner}`;
+
+export const HIDDEN_QUESTIONNAIRES = 'questionnaires-hidden';
+export interface QuestionnairePrefs {
+  hidden: string[];
+  teachersOnly: boolean;
+}
+export const PREFS_DEFAULT: QuestionnairePrefs = { hidden: [], teachersOnly: false };
+
+/**
+ * Split the open questionnaires into what is shown, what the student hid and
+ * what "Kun fra lærere" filters out (student-made ones; unknown owners stay).
+ * `canFilter` is false unless the owners can be told apart (both kinds present).
+ */
+export function sortOpen<T extends Pick<OpenQuestionnaire, 'id' | 'title' | 'owner' | 'ownerId'>>(open: T[], prefs: QuestionnairePrefs) {
+  const hidden = new Set(prefs.hidden || []);
+  const kinds = open.map((q) => ownerKind(q));
+  const canFilter = kinds.includes('student') && kinds.includes('teacher');
+  const shown: T[] = [];
+  const hiddenItems: T[] = [];
+  let filtered = 0;
+  open.forEach((q, i) => {
+    if (hidden.has(hideKey(q))) hiddenItems.push(q);
+    else if (canFilter && prefs.teachersOnly && kinds[i] === 'student') filtered++;
+    else shown.push(q);
+  });
+  return { shown, hidden: hiddenItems, filtered, canFilter };
+}
+
+/** Hide or show one questionnaire; keys of questionnaires that are gone are dropped. */
+export function toggleHidden(prefs: QuestionnairePrefs, key: string, present?: string[]): QuestionnairePrefs {
+  const list = prefs.hidden || [];
+  let hidden = list.includes(key) ? list.filter((k) => k !== key) : [...list, key];
+  if (present) hidden = hidden.filter((k) => present.includes(k));
+  return { ...prefs, hidden };
 }
 
 export interface ReportQuestionnaire {

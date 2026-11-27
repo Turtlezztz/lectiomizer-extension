@@ -35,6 +35,8 @@ export function readQuestionnaires(doc) {
       const deadline = date(cells.Svarfrist);
       return {
         id: idOf(href), href, title: text(cells.Titel), owner: text(cells.Ejer),
+        // A context card on the owner (T… teacher, S… student) when Lectio links one.
+        ownerId: (cells.Ejer?.querySelector('[data-lectiocontextcard]')?.getAttribute('data-lectiocontextcard') || '').trim(),
         anonymous: /^ja$/i.test(text(cells.Anonym)), deadline: deadline.date, deadlineText: deadline.text,
       };
     }),

@@ -12,6 +12,9 @@ src/
     background.ts   toolbar button → open/focus app tab; closes login tab after sign-in;
                     alarm-driven Lectio checks, system notifications, badge, Google sync
     offscreen/      Chrome only: DOMParser host for background reads (service workers have no DOM)
+    popup/          toolbar popup: next lesson + new counts from the last check's stored snapshot (never
+                    reads Lectio); attached at runtime by the background only when "Vis overblik fra
+                    værktøjslinjen" is on, otherwise the button opens the app directly
   app/              shell: App.tsx (routes), Shell.tsx (sidebar), CommandPalette, Onboarding
   features/<name>/  one folder per page (HomePage, SchedulePage, …) – default-exported page component
   components/ui/    design-system primitives (Button, Card, Badge, Avatar, Input, Segmented, Skeleton, states, page)
@@ -51,6 +54,16 @@ src/
     bridge.ts       background: long-polls the local MCP server for tool calls (when turned on)
     run-tool.ts     runs one tool for the bridge (Firefox background page / Chrome offscreen document)
   features/chat/    Assistent page; jobs.ts keeps running answers alive across route changes
+  features/home/    Overblik: fixed cards + personal ones (I aften, Nedtællinger) in a layout the student can
+                    reorder/hide ("Tilpas", overview.ts); I aften's items are left out of "Brug for dig"
+  features/schedule/extras.tsx  own schedule only: one "⋯" menu (compare with a person via ?med=, hide holds,
+                    .ics export, print), next-school-day line, mellemtime bands, elevtid per day
+  features/grades/  simulator.ts + SimControls: "Hvad nu hvis" (local overrides, mål-snit) and trend per subject
+  features/absence/ absence-calc.ts: one overall calculator against the student's own limit; multi-select of
+                    lessons missing a cause (each still opens Lectio's own form)
+  features/teams/StudyView.tsx  "Eksamenslæsning": a hold's notes/homework/files for the year, searchable, as a zip
+  features/wrapped/ Lectio Wrapped: the school year in numbers (reads every week once, cached), saved as an image
+  lib/lectio/offline.ts  last good HTML of the student's own pages; shown with OfflineBanner when Lectio is unreachable
   lib/format.ts     Danish date helpers (relativeDay, untilText, urgency, fmtTime…)
   lib/subjects.ts   subjectColor(hold) – stable colour per subject
   styles/app.css    Tailwind v4 theme tokens (light + .dark)
@@ -97,6 +110,16 @@ const { data, isPending, error, refetch } = useLectioPage(PATHS.assignments, rea
   "Indsend" (`answercompletebt`, final). After Gem the page is re-read and the answers are
   compared, so a silent rejection shows up as an error. Results, templates and creating a
   questionnaire stay on Lectio.
+
+* Local-only, per-student state (homework ticks, to-dos, message drafts/templates/pins, hidden
+  questionnaires, favourites, countdowns, overview layout, hidden holds) lives in extension storage via
+  `lib/storage.ts`, keyed `<name>:<school>:<elevid>` where it is personal. It is never sent to Lectio.
+* Start page (Indstillinger → Udseende): applies only when the app is opened without a route (toolbar
+  button, plain `app.html`); `lib/nav.ts` notes this before the router starts. Reloading `#/`, the menu's
+  Overblik and links always stay on Overblik.
+* Notifications: `lib/sync/store.ts` `NOTICE_TYPES` lists the kinds the student can turn on/off; grades
+  and absence are only read when their type is on. Stilletimer hold back system notifications but the
+  notice is still stored for the bell.
 
 ## Assistent and MCP
 

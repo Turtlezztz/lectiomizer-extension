@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useIsFetching } from '@tanstack/react-query';
 import {
-  BookCopy, BookOpen, CalendarDays, FileText, HandHelping, IdCard, ListTree, ClipboardList, ListChecks, DoorOpen, ExternalLink, GraduationCap, House, Layers, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sparkles, Sun, SunMoon, UserX, X,
+  BookCopy, BookOpen, CalendarDays, ChevronDown, FileText, HandHelping, IdCard, ListTree, ClipboardList, ListChecks, DoorOpen, ExternalLink, GraduationCap, House, Layers, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sparkles, Sun, SunMoon, UserX, X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSettings } from '@/lib/settings';
@@ -14,6 +14,7 @@ import { NotificationBell } from './NotificationCenter';
 import { send } from '@/lib/sync/hooks';
 import { useReloadOnTermChange } from '@/lib/lectio/useTerm';
 import { PastTermBanner, YearSelect } from './YearSwitcher';
+import { OfflineBanner } from './OfflineBanner';
 
 export const NAV = [
   { to: '/', label: 'Overblik', icon: House, end: true },
@@ -69,8 +70,38 @@ function NavItem({ to, label, icon: Icon, end, collapsed, onNavigate }: { to: st
   );
 }
 
-function NavHeading({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
-  return collapsed ? <div aria-hidden className="mx-auto my-2 h-px w-6 bg-border" /> : <div className="px-2.5 pt-4 pb-1 text-[11.5px] font-medium tracking-wide text-fg-subtle uppercase">{children}</div>;
+type NavEntry = { to: string; label: string; icon: typeof House };
+
+/**
+ * A foldable group of pages ("Studie", "Skolen"). Folded by default so the menu fits
+ * smaller windows; the group holding the current page is always shown.
+ */
+function NavGroup({ id, label, items, collapsed, onNavigate }: { id: 'study' | 'school'; label: string; items: readonly NavEntry[]; collapsed: boolean; onNavigate?: () => void }) {
+  const { settings, update } = useSettings();
+  const { pathname } = useLocation();
+  const active = items.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
+  const open = !!settings.navOpen?.[id];
+  const shown = open || active;
+  const toggle = () => update({ navOpen: { ...settings.navOpen, [id]: !open } });
+  return (
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={shown}
+        title={collapsed ? label : undefined}
+        aria-label={collapsed ? label : undefined}
+        className={cn(
+          'mt-2 flex h-8 w-full items-center rounded-lg text-[11.5px] font-medium tracking-wide text-fg-subtle uppercase transition-colors hover:bg-surface-3/60 hover:text-fg-muted',
+          collapsed ? 'justify-center border-t border-border' : 'justify-between px-2.5',
+        )}
+      >
+        {!collapsed && label}
+        <ChevronDown className={cn('size-3.5 transition-transform', !shown && '-rotate-90')} />
+      </button>
+      {shown && items.map(({ to, label: text, icon }) => <NavItem key={to} to={to} label={text} icon={icon} collapsed={collapsed} onNavigate={onNavigate} />)}
+    </>
+  );
 }
 
 function Logo({ compact }: { compact?: boolean }) {
@@ -104,20 +135,14 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
   const { settings } = useSettings();
   return (
     <>
-      <nav className="flex-1 space-y-0.5 px-3" aria-label="Hovedmenu">
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-2" aria-label="Hovedmenu">
         {NAV.map(({ to, label, icon, ...rest }) => (
           <NavItem key={to} to={to} label={label} icon={icon} end={'end' in rest} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
-        <NavHeading collapsed={collapsed}>Studie</NavHeading>
-        {NAV_STUDY.map(({ to, label, icon }) => (
-          <NavItem key={to} to={to} label={label} icon={icon} collapsed={collapsed} onNavigate={onNavigate} />
-        ))}
-        <NavHeading collapsed={collapsed}>Skolen</NavHeading>
-        {NAV_SCHOOL.map(({ to, label, icon }) => (
-          <NavItem key={to} to={to} label={label} icon={icon} collapsed={collapsed} onNavigate={onNavigate} />
-        ))}
+        <NavGroup id="study" label="Studie" items={NAV_STUDY} collapsed={collapsed} onNavigate={onNavigate} />
+        <NavGroup id="school" label="Skolen" items={NAV_SCHOOL} collapsed={collapsed} onNavigate={onNavigate} />
       </nav>
-      <div className="space-y-0.5 px-3 pb-3">
+      <div className="shrink-0 space-y-0.5 border-t border-border px-3 pt-2 pb-3">
         <YearSelect collapsed={collapsed} />
         <NavLink
           to="/settings"
@@ -268,6 +293,7 @@ export function Shell({ children }: { children?: ReactNode }) {
           <NotificationBell collapsed />
         </header>
         <main className="flex-1">
+          <OfflineBanner />
           <PastTermBanner />
           {children ?? <Outlet />}
         </main>

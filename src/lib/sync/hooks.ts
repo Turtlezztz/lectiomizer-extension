@@ -53,6 +53,11 @@ const demoAccount: AccountState = {
   status: { state: 'ok', checkedAt: t0 - 12 * 60_000, message: '' },
   messages: [
     {
+      id: 'd0', kind: 'deadline', reminder: '24h', createdAt: t0 - 0.1 * h, read: false,
+      item: { id: 'a1', title: 'Rapport om energi', href: 'https://www.lectio.dk/lectio/123/ElevAflevering.aspx?exerciseid=1001', description: '3a Fy · Frist: 27/11-2026 23:59', deadline: new Date(t0 + 20 * h).toISOString(), delivered: false },
+    },
+    { id: 'd00', kind: 'grade', createdAt: t0 - 0.2 * h, read: false, item: { id: 'g1', title: 'Dansk A, Skriftlig', value: '10', type: '1.standpunkt', href: 'https://www.lectio.dk/lectio/123/grades/grade_report.aspx' } },
+    {
       id: 'd1', kind: 'changed', createdAt: t0 - 0.3 * h, read: false,
       lesson: { id: 'absid:102', start: '2026-11-16T10:00', end: '2026-11-16T11:30', title: 'Prøve', holds: ['3a Ma'], rooms: ['B14'], teachers: ['tn'], href: 'https://www.lectio.dk/lectio/123/aktivitet/aktivitetforside2.aspx?absid=102' },
       before: { id: 'absid:102', start: '2026-11-16T10:00', end: '2026-11-16T11:30', title: 'Prøve', holds: ['3a Ma'], rooms: ['B21'], teachers: ['tn'] },

@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarClock, DoorOpen, ExternalLink, MapPin, UserRound, Users } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Columns2, DoorOpen, ExternalLink, MapPin, Star, UserRound, Users } from 'lucide-react';
 import { Page } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
@@ -17,6 +17,7 @@ import { useWeekLessons } from '@/features/schedule/week-lessons';
 import { DayStrip } from '@/features/schedule/DayStrip';
 import { cardIdOf, schedulePath, type DirectoryEntry, type DirectoryKind } from './directory';
 import { nowStatus, useProfile } from './person';
+import { useFavorites } from './favorites';
 
 const META: Record<DirectoryKind, { list: string; listLabel: string; noun: string }> = {
   elev: { list: '/students', listLabel: 'Elever', noun: 'eleven' },
@@ -43,6 +44,9 @@ export default function DirectoryDetailPage({ kind }: { kind: DirectoryKind }) {
   const name = entry?.name || profile.data?.name || (kind === 'lokale' ? 'Lokale' : '');
   const code = entry?.code || '';
   const details = (profile.data?.details ?? []).filter((d) => !/^(billede|foto)$/i.test(d.label)).slice(0, 4);
+  const favorites = useFavorites();
+  const person = kind === 'elev' || kind === 'laerer' ? kind : null;
+  const starred = !!person && favorites.has(person, id);
 
   return (
     <Page wide>
@@ -52,11 +56,32 @@ export default function DirectoryDetailPage({ kind }: { kind: DirectoryKind }) {
             <ArrowLeft /> {canGoBack() ? 'Tilbage' : meta.listLabel}
           </Link>
         </Button>
-        <Button variant="ghost" size="sm" asChild>
-          <a href={pageUrl(school, base)} target="_blank" rel="noreferrer">
-            <ExternalLink /> Åbn i Lectio
-          </a>
-        </Button>
+        <div className="flex items-center gap-1">
+          {person && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-pressed={starred}
+                disabled={!name}
+                onClick={() => favorites.toggle({ kind: person, id, name, code })}
+                title={starred ? 'Fjern fra favoritter' : 'Føj til favoritter, så de står øverst og kan sammenlignes med dit skema'}
+              >
+                <Star className={cn(starred && 'fill-current text-warning')} /> {starred ? 'Favorit' : 'Gør til favorit'}
+              </Button>
+              <Button variant="ghost" size="sm" asChild title="Se jeres skemaer side om side og hvornår I begge har fri">
+                <Link to={`/schedule?med=${person}:${encodeURIComponent(id)}`}>
+                  <Columns2 /> Sammenlign med mit skema
+                </Link>
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" size="sm" asChild>
+            <a href={pageUrl(school, base)} target="_blank" rel="noreferrer">
+              <ExternalLink /> Åbn i Lectio
+            </a>
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-6 overflow-hidden">

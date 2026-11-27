@@ -64,6 +64,7 @@ function useActivityNav(loaded: Loaded<ActivityData>) {
   const navigate = useNavigate();
   return useMutation({
     mutationFn: async (el: Element) => {
+      if (loaded.offline) throw new Error('Lectio kan ikke nås lige nu, så siden er en gemt kopi. Prøv igen, når du er online.');
       const doc = await activate(loaded.doc, el);
       return { doc, data: readActivity(doc) as ActivityData, id: absidOf(doc) };
     },

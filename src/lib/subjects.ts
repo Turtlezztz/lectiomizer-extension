@@ -2,6 +2,9 @@
 // so every lesson of a subject shares a colour. The user can pick their own colour
 // per subject (Settings → Udseende); those are applied as CSS variables, so every
 // subjectColor() call picks them up without re-rendering.
+import { useCallback, useMemo } from 'react';
+import { useSettings } from './settings';
+
 const PALETTE = [
   { bg: 'oklch(0.95 0.04 25)', fg: 'oklch(0.45 0.14 25)', bar: 'oklch(0.65 0.17 25)' },
   { bg: 'oklch(0.95 0.045 250)', fg: 'oklch(0.42 0.13 250)', bar: 'oklch(0.62 0.15 250)' },
@@ -102,4 +105,116 @@ export function applySubjectColors(choices: SubjectColors = {}) {
 /** Preview colours for a choice id (for swatches). */
 export function choicePreview(id: string) {
   return choiceColors(id)!;
+}
+
+// ---------------------------------------------------------------- own names and links per subject
+// Stored in Settings next to subjectColors and keyed the same way (subjectKey), so
+// "L3d MA" and "L3d Ma" share a name and links, just as they share a colour.
+
+/** Subject key → the user's own display name ("ma" → "Matematik"). */
+export type SubjectNames = Record<string, string>;
+
+export interface SubjectLink {
+  label: string;
+  url: string;
+}
+
+/** Subject key → the user's own links (Systime, OneNote, Teams…). */
+export type SubjectLinksMap = Record<string, SubjectLink[]>;
+
+/** At most this many links per subject: they are shortcuts, not a bookmark manager. */
+export const MAX_SUBJECT_LINKS = 6;
+
+/** The user's own name for a hold, if any. */
+export function customSubjectName(hold = '', names: SubjectNames = {}): string | null {
+  const name = names[subjectKey(hold)]?.trim();
+  return name || null;
+}
+
+/**
+ * What to call a hold: the user's own name, else `fallback` (default: the hold
+ * itself). Pass subjectName(hold) as fallback where a subject name is shown.
+ */
+export function subjectLabel(hold = '', names: SubjectNames = {}, fallback?: string): string {
+  return customSubjectName(hold, names) ?? fallback ?? hold;
+}
+
+// The names currently in Settings, for code outside React (subjectName() in schedule/lessons.ts).
+let activeNames: SubjectNames = {};
+export function applySubjectNames(names: SubjectNames = {}) {
+  activeNames = names;
+}
+/** The user's own name for a hold from the current settings, if any. */
+export const activeSubjectName = (hold = '') => customSubjectName(hold, activeNames);
+
+/** The user's own links for a hold (empty when none). */
+export function subjectLinks(hold = '', links: SubjectLinksMap = {}): SubjectLink[] {
+  return links[subjectKey(hold)] ?? [];
+}
+
+const KNOWN_LINKS: Array<[RegExp, string]> = [
+  [/(^|\.)systime\.dk$/, 'Systime'],
+  [/(^|\.)onenote\.(com|office\.com)$|^onenote\./, 'OneNote'],
+  [/(^|\.)teams\.(microsoft|live)\.com$/, 'Teams'],
+  [/(^|\.)sharepoint\.com$/, 'SharePoint'],
+  [/(^|\.)docs\.google\.com$/, 'Google Docs'],
+  [/(^|\.)drive\.google\.com$/, 'Google Drive'],
+  [/(^|\.)classroom\.google\.com$/, 'Classroom'],
+  [/(^|\.)youtube\.com$|^youtu\.be$/, 'YouTube'],
+  [/(^|\.)gyldendal\.dk$/, 'Gyldendal'],
+  [/(^|\.)praxis\.dk$/, 'Praxis'],
+  [/(^|\.)lectio\.dk$/, 'Lectio'],
+];
+
+/** A typed-in address as an http(s) URL ("systime.dk/x" → "https://systime.dk/x"), else null. */
+export function normalizeLinkUrl(input: string): string | null {
+  const raw = input.trim();
+  if (!raw || /\s/.test(raw)) return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    if (!url.hostname.includes('.') && url.hostname !== 'localhost') return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/** A short name for a link: known services by name, else the host without "www.". */
+export function linkLabel(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    return KNOWN_LINKS.find(([re]) => re.test(host))?.[1] ?? host;
+  } catch {
+    return url;
+  }
+}
+
+/** A new link from what the user typed, or null when the address isn't usable. */
+export function makeSubjectLink(urlInput: string, labelInput = ''): SubjectLink | null {
+  const url = normalizeLinkUrl(urlInput);
+  if (!url) return null;
+  return { url, label: labelInput.trim().slice(0, 40) || linkLabel(url) };
+}
+
+/** Copy of a per-subject map with `key` set, or removed when the value is empty. */
+export function withSubjectValue<T>(map: Record<string, T> | undefined, key: string, value: T | null | undefined): Record<string, T> {
+  const next = { ...(map ?? {}) };
+  const empty = value == null || (typeof value === 'string' && !value.trim()) || (Array.isArray(value) && !value.length);
+  if (empty) delete next[key];
+  else next[key] = typeof value === 'string' ? (value.trim() as T) : value;
+  return next;
+}
+
+/** `(hold, fallback?) => label` with the user's own subject names. */
+export function useSubjectLabel(): (hold: string, fallback?: string) => string {
+  const names = useSettings().settings.subjectNames;
+  return useCallback((hold: string, fallback?: string) => subjectLabel(hold, names, fallback), [names]);
+}
+
+/** The user's own links for a hold. */
+export function useSubjectLinks(hold: string): SubjectLink[] {
+  const links = useSettings().settings.subjectLinks;
+  return useMemo(() => subjectLinks(hold, links), [hold, links]);
 }

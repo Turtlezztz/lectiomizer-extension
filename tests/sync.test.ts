@@ -19,7 +19,7 @@ describe('change detection', () => {
     expect(first.messages).toHaveLength(0);
     const second = compareSchedule(first, week([lesson({ rooms: ['B21'] })]), now + 1000);
     expect(second.messages).toHaveLength(1);
-    expect(second.messages[0].kind).toBe('changed');
+    expect(second.messages[0].kind).toBe('room');
     expect(noticeChanges(second.messages[0])).toEqual([{ label: 'Lokale', before: 'A12', after: 'B21' }]);
   });
   it('reports cancelled, removed and restored lessons', () => {

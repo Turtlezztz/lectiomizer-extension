@@ -1,0 +1,78 @@
+/* Udskriv: the week schedule on one landscape page, without the app's chrome.
+   Applies only while the own schedule (.lx-schedule-print) is on screen. Dark
+   mode prints light: the tokens get their light values and light-dark() (the
+   subject colours) follows color-scheme. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  html:has(.lx-schedule-print),
+  html.dark:has(.lx-schedule-print) {
+    color-scheme: light !important;
+    --color-bg: oklch(1 0 0);
+    --color-surface: oklch(1 0 0);
+    --color-surface-2: oklch(0.97 0.003 75);
+    --color-surface-3: oklch(0.94 0.004 75);
+    --color-border: oklch(0.86 0.005 75);
+    --color-border-strong: oklch(0.78 0.006 75);
+    --color-fg: oklch(0.22 0.01 60);
+    --color-fg-muted: oklch(0.42 0.01 60);
+    --color-fg-subtle: oklch(0.55 0.008 60);
+    --color-accent: oklch(0.62 0.19 28);
+    --color-accent-fg: oklch(0.99 0.01 28);
+    --color-accent-soft: oklch(0.95 0.035 28);
+    --color-accent-soft-fg: oklch(0.48 0.16 28);
+    --color-success-soft: oklch(0.95 0.04 155);
+    --color-success-soft-fg: oklch(0.42 0.11 155);
+    --color-warning-soft: oklch(0.96 0.05 85);
+    --color-warning-soft-fg: oklch(0.5 0.12 65);
+    --color-danger-soft: oklch(0.95 0.04 25);
+    --color-danger-soft-fg: oklch(0.5 0.19 25);
+    --color-info-soft: oklch(0.95 0.03 250);
+    --color-info-soft-fg: oklch(0.45 0.14 250);
+  }
+
+  html:has(.lx-schedule-print) body {
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* App chrome: sidebar, mobile bar, year banner. */
+  html:has(.lx-schedule-print) aside,
+  html:has(.lx-schedule-print) header.sticky,
+  html:has(.lx-schedule-print) main > [role='status'] {
+    display: none !important;
+  }
+
+  .lx-schedule-print {
+    zoom: 0.8;
+  }
+  .lx-schedule-print header {
+    margin-bottom: 8px;
+  }
+
+  /* Always the week grid, never the phone agenda. */
+  .lx-schedule-print .lx-print-grid {
+    display: block !important;
+    break-inside: avoid;
+  }
+  .lx-schedule-print .lx-print-agenda {
+    display: none !important;
+  }
+
+  .lx-schedule-print * {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .lx-schedule-print .sticky {
+    position: static !important;
+  }
+  .lx-schedule-print .lx-free-gap {
+    border-color: oklch(0.8 0.006 75) !important;
+  }
+}

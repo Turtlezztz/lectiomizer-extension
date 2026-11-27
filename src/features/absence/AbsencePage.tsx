@@ -13,16 +13,20 @@ import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
-import { absenceTone, groupByWeek, lessonWhen, parseAmount, parsePercent, type AbsenceData, type AbsenceRow, type AbsenceTable, type AbsenceTone } from './absence-utils';
-
-const SCALE_MAX = 20;
-const BAR: Record<AbsenceTone, string> = { ok: 'bg-fg-muted', warn: 'bg-warning', high: 'bg-danger' };
+import { Input } from '@/components/ui/input';
+import { groupByWeek, lessonWhen, parseAmount, type AbsenceData, type AbsenceRow, type AbsenceTable } from './absence-utils';
+import { groupByDay, toggleAll } from './absence-calc';
+import { AbsenceCalculator } from './AbsenceCalculator';
+import { AbsenceBreakdown, AbsenceRemarks } from './AbsenceBreakdown';
+import { useAbsenceOverview } from './useAbsenceOverview';
 
 export default function AbsencePage() {
   const school = useSchoolId();
   const href = pageUrl(school, PATHS.absence);
   const { data, isPending, error, refetch } = useLectioPage(PATHS.absence, readAbsence);
   const absence = data?.data as AbsenceData | undefined;
+  // Lectio's "Oversigt": counts per hold. Optional – the page works from the totals without it.
+  const overview = useAbsenceOverview(absence?.overview ?? null).data;
 
   // After registering a cause in Lectio (new tab), reload when the user comes back.
   const awaitingReturn = useRef(false);
@@ -48,7 +52,7 @@ export default function AbsencePage() {
     <Page>
       <PageHeader
         title="Fravær"
-        description="Dit samlede fravær, manglende årsager og registreringer"
+        description="Almindeligt og skriftligt fravær, fordelt på fag, og dine registreringer"
         actions={
           <Button size="sm" variant="ghost" asChild>
             <a href={href} target="_blank" rel="noreferrer"><ExternalLink /> Åbn i Lectio</a>
@@ -59,56 +63,14 @@ export default function AbsencePage() {
         <Card><ErrorState error={error} onRetry={() => refetch()} href={href} /></Card>
       ) : absence ? (
         <div className="space-y-6">
-          <Totals totals={absence.totals} missing={absence.missing?.rows.length ?? null} />
+          <AbsenceCalculator absence={absence} overview={overview} />
+          {overview && <AbsenceRemarks remarks={overview.remarks} />}
+          {overview && <AbsenceBreakdown overview={overview} />}
           {absence.missing && <MissingCard table={absence.missing} onEdit={onEdit} />}
           {absence.history && <HistoryCard table={absence.history} onEdit={onEdit} />}
         </div>
       ) : null}
     </Page>
-  );
-}
-
-function Totals({ totals, missing }: { totals: AbsenceData['totals']; missing: number | null }) {
-  if (!totals.length && missing === null) return null;
-  return (
-    <section aria-label="Samlet fravær" className={cn('grid gap-3', totals.length + (missing !== null ? 1 : 0) > 2 ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2')}>
-      {totals.map((t) => <TotalTile key={t.label} label={t.label} value={t.value} />)}
-      {missing !== null && (
-        <Card className={cn('flex flex-col justify-between gap-3 p-4', totals.length % 2 === 0 && 'col-span-2 lg:col-span-1', missing > 0 && 'border-warning/40 bg-warning-soft/40')}>
-          <p className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg-muted">
-            {missing > 0 ? <AlertCircle className="size-3.5 text-warning" /> : <CheckCircle2 className="size-3.5 text-success" />} Mangler årsag
-          </p>
-          <div>
-            <p className={cn('text-[28px] leading-none font-semibold tracking-[-0.03em] tabular-nums', missing > 0 ? 'text-warning-soft-fg' : 'text-fg')}>{missing}</p>
-            <p className="mt-1.5 text-[12px] text-fg-subtle">{missing === 0 ? 'Alt er registreret' : missing === 1 ? 'fraværsregistrering' : 'fraværsregistreringer'}</p>
-          </div>
-        </Card>
-      )}
-    </section>
-  );
-}
-
-function TotalTile({ label, value }: { label: string; value: string }) {
-  const pct = parsePercent(value);
-  const tone = pct === null ? 'ok' : absenceTone(pct);
-  return (
-    <Card className="flex flex-col justify-between gap-3 p-4">
-      <p className="text-[12.5px] font-medium text-fg-muted">{label || 'Fravær'}</p>
-      <div>
-        <p className={cn('text-[28px] leading-none font-semibold tracking-[-0.03em] tabular-nums', tone === 'high' ? 'text-danger-soft-fg' : tone === 'warn' ? 'text-warning-soft-fg' : 'text-fg')}>{value}</p>
-        {pct !== null && (
-          <div className="mt-3">
-            <div className="relative h-1.5 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={label}>
-              <div className={cn('h-full rounded-full transition-[width] duration-500', BAR[tone])} style={{ width: `${Math.min(100, (pct / SCALE_MAX) * 100)}%` }} />
-              <span aria-hidden className="absolute inset-y-0 left-1/2 w-px bg-surface" />
-            </div>
-            <div className="mt-1 flex justify-between text-[10.5px] text-fg-subtle tabular-nums">
-              <span>0 %</span><span>10 %</span><span>{SCALE_MAX} %</span>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
   );
 }
 
@@ -147,36 +109,120 @@ function AmountBadge({ amount }: { amount: string }) {
   );
 }
 
+const keyOf = (row: AbsenceRow) => row.edit || '';
+
 function MissingCard({ table, onEdit }: { table: AbsenceTable; onEdit: () => void }) {
   const [all, setAll] = useState(false);
-  const rows = all ? table.rows : table.rows.slice(0, 8);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [opened, setOpened] = useState<Set<string>>(() => new Set());
+  const [comment, setComment] = useState('');
   const count = table.rows.length;
+  const days = useMemo(() => groupByDay(table.rows), [table]);
+  // Whole days only, so "vælg hele dagen" never hides part of a day.
+  const visible = useMemo(() => {
+    if (all) return days;
+    const out: typeof days = [];
+    let n = 0;
+    for (const d of days) {
+      if (n >= 8) break;
+      out.push(d);
+      n += d.rows.length;
+    }
+    return out;
+  }, [days, all]);
+  const shown = visible.reduce((n, d) => n + d.rows.length, 0);
+  // Day headers only earn their place when a day has several modules ("Vælg hele dagen"); else the row already says the date.
+  const dayHeaders = days.some((d) => d.rows.length > 1);
+  // Rows that got a cause disappear from Lectio's list; the selection follows automatically.
+  const chosen = table.rows.filter((r) => r.edit && selected.has(keyOf(r)));
+  const next = chosen.find((r) => !opened.has(keyOf(r))) ?? chosen[0];
+  const done = chosen.filter((r) => opened.has(keyOf(r))).length;
+
+  const toggle = (keys: string[]) => setSelected((s) => toggleAll(s, keys));
+  const openNext = () => {
+    if (!next) return;
+    if (comment.trim()) navigator.clipboard?.writeText(comment.trim()).catch(() => {});
+    setOpened((s) => new Set(s).add(keyOf(next)));
+    onEdit();
+  };
+  const clear = () => {
+    setSelected(new Set());
+    setOpened(new Set());
+  };
+
   return (
     <Card className={cn(count > 0 && 'ring-1 ring-warning/30')}>
       <CardHeader
         icon={count > 0 ? <AlertCircle className="text-warning" /> : <UserCheck />}
         title={<span className="flex items-center gap-2">Mangler fraværsårsag {count > 0 && <Badge tone="warning">{count}</Badge>}</span>}
-        description={count > 0 ? 'Angiv en årsag i Lectio. Listen opdateres, når du vender tilbage hertil.' : undefined}
+        description={count ? 'Angiv en årsag i Lectio. Listen opdateres, når du vender tilbage hertil.' : undefined}
       />
       {count ? (
         <>
-          <ul className="divide-y divide-border border-t border-border">
-            {rows.map((row, i) => (
-              <li key={(row.edit || '') + i} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 px-5 py-3 sm:flex">
-                <LessonCell row={row} />
-                {row.remark && <span className="hidden max-w-48 truncate text-[12.5px] text-fg-muted italic md:inline" title={row.remark}>“{row.remark}”</span>}
-                <AmountBadge amount={row.amount} />
-                {row.edit && (
-                  <Button size="sm" variant="primary" asChild className="col-span-2 h-8 sm:h-7">
-                    <a href={row.edit} target="_blank" rel="noreferrer" onClick={onEdit}><Pencil /> Angiv årsag</a>
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-          {count > rows.length && (
+          <div className="border-t border-border">
+            {visible.map(({ day, rows }) => {
+              const keys = rows.filter((r) => r.edit).map(keyOf);
+              const allOn = keys.length > 0 && keys.every((k) => selected.has(k));
+              return (
+                <section key={day} aria-label={day || 'Uden dato'} className={cn(!dayHeaders && 'border-b border-border last:border-b-0')}>
+                  {dayHeaders && <div className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-1.5 text-[12px] font-medium text-fg-muted">
+                    <span className="capitalize">{day || 'Uden dato'}{rows[0]?.week && <span className="font-normal text-fg-subtle"> · uge {rows[0].week}</span>}</span>
+                    {keys.length > 1 && (
+                      <button type="button" onClick={() => toggle(keys)} className="text-[12px] font-medium text-fg-muted hover:text-accent">
+                        {allOn ? 'Fravælg dagen' : 'Vælg hele dagen'}
+                      </button>
+                    )}
+                  </div>}
+                  <ul className="divide-y divide-border">
+                    {rows.map((row, i) => {
+                      const key = keyOf(row);
+                      const isOn = !!row.edit && selected.has(key);
+                      return (
+                        <li key={key + i} className={cn('flex items-center gap-3 px-5 py-2.5 transition-colors', isOn && 'bg-accent-soft/40')}>
+                          <input
+                            type="checkbox"
+                            className="size-4 shrink-0 accent-accent disabled:opacity-40"
+                            checked={isOn}
+                            disabled={!row.edit}
+                            onChange={() => toggle([key])}
+                            aria-label={`Vælg ${lessonWhen(row)}`}
+                          />
+                          <LessonCell row={row} />
+                          {row.remark && <span className="hidden max-w-48 truncate text-[12.5px] text-fg-muted italic md:inline" title={row.remark}>“{row.remark}”</span>}
+                          <AmountBadge amount={row.amount} />
+                          {row.edit && (
+                            <Button size="icon-sm" variant="ghost" asChild>
+                              <a href={row.edit} target="_blank" rel="noreferrer" onClick={onEdit} title="Angiv årsag i Lectio" aria-label={`Angiv årsag for ${lessonWhen(row)}`}><Pencil /></a>
+                            </Button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+          {count > shown && (
             <div className="border-t border-border px-5 py-2.5">
               <Button size="sm" variant="ghost" onClick={() => setAll(true)}>Vis alle {count}</Button>
+            </div>
+          )}
+          {chosen.length > 0 && next && (
+            <div className="space-y-2 border-t border-border bg-surface-2 px-5 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[13px] font-medium text-fg tabular-nums">{chosen.length} valgt</span>
+                <Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Fælles kommentar (valgfri)" className="h-8 min-w-40 flex-1 text-[13px]" aria-label="Fælles kommentar" />
+                <Button size="sm" variant="primary" asChild className="h-8">
+                  <a href={next.edit!} target="_blank" rel="noreferrer" onClick={openNext}>
+                    <ExternalLink /> {chosen.length === 1 ? 'Åbn i Lectio' : `Åbn ${Math.min(done + 1, chosen.length)} af ${chosen.length} i Lectio`}
+                  </a>
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={clear}>Ryd</Button>
+              </div>
+              <p className="text-[12px] text-fg-subtle">
+                Lectio har én formular pr. modul, så vælg samme årsag i hver.{comment.trim() ? ' Kommentaren kopieres, så du kan sætte den ind.' : ''} Modulerne forsvinder herfra, når de har fået en årsag.
+              </p>
             </div>
           )}
         </>
@@ -265,15 +311,14 @@ function HistoryCard({ table, onEdit }: { table: AbsenceTable; onEdit: () => voi
 function AbsenceSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Indlæser fravær">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {Array.from({ length: 3 }, (_, i) => (
-          <Card key={i} className="space-y-3 p-4">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-7 w-16" />
-            <Skeleton className="h-1.5 w-full" />
-          </Card>
-        ))}
-      </div>
+      <Card className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center">
+        <Skeleton className="mx-auto size-32 shrink-0 rounded-full sm:mx-0" />
+        <div className="flex-1 space-y-2.5">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      </Card>
       {[3, 5].map((n, k) => (
         <Card key={k} className="p-5">
           <Skeleton className="mb-5 h-4 w-44" />

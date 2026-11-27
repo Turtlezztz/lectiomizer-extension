@@ -9,6 +9,8 @@ import {
   MoreHorizontal,
   Paperclip,
   Pencil,
+  Pin,
+  PinOff,
   Plus,
   Printer,
   Reply,
@@ -26,6 +28,10 @@ import { fmtLongDate, fmtTime } from '@/lib/format';
 import { fieldName, read, useLectioChain, useThread } from './data';
 import { groupThread, hasPhoto, listNames, ownTitle, timeOf, withSignature } from './model';
 import { useSettings } from '@/lib/settings';
+import { useDraft } from './drafts';
+import { PINS, canPin, insertTemplate, replyDraftId, togglePin } from './local';
+import { useStudentStore } from './store';
+import { TemplateMenu } from './Templates';
 import { InlineError, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, PersonAvatar, errorText, touchScreen, useAutoGrow } from './parts';
 import type { Person, RecipientGroup, Thread, ThreadMessage } from './types';
 import { AttachmentView } from './AttachmentView';
@@ -176,10 +182,11 @@ export function ThreadPane({
       </div>
     );
   }
-  return <ThreadView loaded={q.data} thread={q.data.data.thread} lectioHref={lectioHref} onBack={onBack} onDeleted={onDeleted} onWrite={onWrite} />;
+  return <ThreadView id={id} loaded={q.data} thread={q.data.data.thread} lectioHref={lectioHref} onBack={onBack} onDeleted={onDeleted} onWrite={onWrite} />;
 }
 
 function ThreadView({
+  id,
   loaded,
   thread,
   lectioHref,
@@ -187,6 +194,7 @@ function ThreadView({
   onDeleted,
   onWrite,
 }: {
+  id: string;
   loaded: NonNullable<ReturnType<typeof useThread>['data']>;
   thread: Thread;
   lectioHref: string;
@@ -205,6 +213,33 @@ function ThreadView({
   const [sendError, setSendError] = useState('');
   const [peopleOpen, setPeopleOpen] = useState(false);
   useAutoGrow(field, draft);
+
+  // The reply being written is kept locally until it is sent or emptied.
+  const drafts = useDraft(replyDraftId(id));
+  const restoredOnce = useRef(false);
+  useEffect(() => {
+    if (restoredOnce.current || !drafts.loaded) return;
+    restoredOnce.current = true;
+    if (drafts.stored?.body && !draft) setDraft(drafts.stored.body);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafts.loaded]);
+  useEffect(() => {
+    if (restoredOnce.current) drafts.save({ body: draft });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, drafts.loaded]);
+  const insert = (text: string) => {
+    const el = field.current;
+    const next = insertTemplate(draft, text, el && document.activeElement === el ? el.selectionStart : draft.length);
+    setDraft(next.text);
+    setSendError('');
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(next.cursor, next.cursor);
+    });
+  };
+
+  const pins = useStudentStore<string[]>(PINS, []);
+  const isPinned = pins.value.includes(id);
 
   // Everyone once: the recipients, then anyone else who wrote.
   const people = useMemo(() => {
@@ -261,23 +296,26 @@ function ThreadView({
       if (reply.title && !reply.title.value.trim() && fieldName(reply.title)) fields[fieldName(reply.title)] = `Re: ${thread.subject}`;
       return { element: reply.send, fields };
     });
-    chain.mutate(steps, {
-      onSuccess: (next) => {
+    // mutateAsync: the draft is dropped even if the thread was left while sending.
+    const discard = drafts.discard;
+    chain.mutateAsync(steps).then(
+      (next) => {
         setSending(null);
         const after = next.data.thread?.messages.length ?? 0;
         const echoed = next.data.thread?.reply?.body.value?.trim();
         if (after > before || (next.data.thread && !echoed)) {
+          discard();
           setDraft('');
           if (!touchScreen()) requestAnimationFrame(() => field.current?.focus());
         } else {
           setSendError('Lectio bekræftede ikke beskeden. Tjek tråden i Lectio, før du prøver igen.');
         }
       },
-      onError: (error) => {
+      (error) => {
         setSending(null);
         setSendError(errorText(error));
       },
-    });
+    );
   };
 
   const menu = thread.actions.menu.filter((item) => !(item.icon === 'flag' && thread.actions.flag) && item.icon !== 'edit');
@@ -368,6 +406,11 @@ function ThreadView({
                     </MenuItem>
                   );
                 })}
+              {canPin(id) && (
+                <MenuItem disabled={!pins.ready} onSelect={() => pins.update((list) => togglePin(list, id))}>
+                  {isPinned ? <PinOff /> : <Pin />} {isPinned ? 'Frigør tråden' : 'Fastgør øverst i listen'}
+                </MenuItem>
+              )}
               <MenuItem asChild>
                 <a href={lectioHref} target="_blank" rel="noreferrer">
                   <ExternalLink /> Åbn i Lectio
@@ -500,6 +543,7 @@ function ThreadView({
                   }}
                   className="max-h-[180px] min-h-[24px] flex-1 resize-none self-center bg-transparent py-1 text-[14px] leading-relaxed text-fg outline-none placeholder:text-fg-subtle disabled:opacity-60"
                 />
+                <TemplateMenu body={draft} onInsert={insert} disabled={!!sending} className="size-8 rounded-xl" />
                 <Button
                   variant="primary"
                   size="icon-sm"

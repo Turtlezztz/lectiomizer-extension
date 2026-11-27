@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { BookOpen, CalendarX2, ChevronLeft, ChevronRight, ExternalLink, StickyNote } from 'lucide-react';
+import { BookOpen, CalendarX2, ChevronLeft, ChevronRight, Clock, Columns2, ExternalLink, Loader2, StickyNote, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { getPage } from '@/lib/lectio/client';
 import { pageUrl, PATHS } from '@/lib/lectio/paths';
@@ -20,8 +20,13 @@ import { useDarkClass, useNow } from './hooks';
 import { inSchoolYear, isPastTerm, sameDayIn, schoolYearOf, termLabel } from '@/lib/lectio/term';
 import { useSwitchTerm, useTerm } from '@/lib/lectio/useTerm';
 import { addDays, dayKey, fmtRange, mondayOf, parseWeekParam, relativeWeek, sameWeek, shiftWeek, weekDates, weekOf, weekParam, weekPath, type WeekRef } from './week';
+import { commonFree, gapsOfDay } from './free-time';
+import { holdChoices, splitHidden } from './hidden-holds';
+import { ComparePicker, HiddenBadge, ScheduleMenu, meetText, useAssignments, useCompare, useHiddenHolds, useIcsExport, useNextSchoolDay } from './extras';
+import './print.css';
 
 const read = readSchedule as (doc: Document) => RawLesson[];
+const NONE: string[] = [];
 /** Warm the cache for neighbouring weeks (same key shape as useLectioPage). */
 function usePrefetchWeeks(base: string, center: WeekRef | null) {
   const client = useQueryClient();
@@ -48,7 +53,7 @@ function usePrefetchWeeks(base: string, center: WeekRef | null) {
 export default function SchedulePage() {
   return (
     <Page wide>
-      <WeekSchedule base={PATHS.schedule} eyebrow="Skema" />
+      <WeekSchedule base={PATHS.schedule} eyebrow="Skema" own />
     </Page>
   );
 }
@@ -57,7 +62,7 @@ export default function SchedulePage() {
  * A week of a Lectio schedule (SkemaNy.aspx): your own, or a student's,
  * teacher's or room's when `base` carries ?type=…. The week lives in ?week=.
  */
-export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: string; eyebrow?: ReactNode; emptyText?: (week: number) => string; keys?: boolean }) {
+export function WeekSchedule({ base, eyebrow, emptyText, keys = true, own = false }: { base: string; eyebrow?: ReactNode; emptyText?: (week: number) => string; keys?: boolean; /** The student's own schedule: extras such as compare, hidden holds, workload, export. */ own?: boolean }) {
   useDarkClass(); // subject colours depend on the theme
   const now = useNow();
   const school = useSchoolId();
@@ -72,21 +77,49 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
   const path = weekPath(base, requested);
   const { data, isPending, error, refetch } = useLectioPage(path, read);
 
-  const lessons = useMemo(() => toLessons(data?.data), [data]);
+  const allLessons = useMemo(() => toLessons(data?.data), [data]);
   const current = weekOf(now);
   // Without ?week Lectio picks the week (normally the current one); follow
   // whatever week its lessons are in so the header matches what we show.
-  const shown: WeekRef = requested ?? (lessons.length ? weekOf(dominant(lessons, (l) => weekParam(weekOf(l.startDate)))!.startDate) : current);
+  const shown: WeekRef = requested ?? (allLessons.length ? weekOf(dominant(allLessons, (l) => weekParam(weekOf(l.startDate)))!.startDate) : current);
   const dates = weekDates(shown);
+  const weekKeys = new Set(dates.map(dayKey));
+
+  // Own schedule only: hidden holds, comparing with someone, workload, next school day.
+  const holds = useHiddenHolds();
+  const hiddenHolds = own ? holds.hidden : NONE;
+  const split = useMemo(() => splitHidden(allLessons, hiddenHolds), [allLessons, hiddenHolds]);
+  const lessons = split.shown;
+  const hiddenInWeek = split.hidden.filter((l) => weekKeys.has(l.day)).length;
+  const compare = useCompare(mondayOf(shown), own);
+  const comparing = own && !!compare.person && !!compare.lessons;
+  const assignments = useAssignments(own && !past);
+  const [picking, setPicking] = useState(false);
+  const ics = useIcsExport({ hidden: hiddenHolds, assignments: assignments.items });
 
   const days: Day[] = useMemo(() => {
     const byDay = new Map<string, Lesson[]>();
     for (const l of lessons) byDay.set(l.day, [...(byDay.get(l.day) || []), l]);
+    const otherByDay = new Map<string, Lesson[]>();
+    if (comparing) for (const l of compare.lessons!) otherByDay.set(l.day, [...(otherByDay.get(l.day) || []), l]);
     return dates
-      .map((date, index) => ({ date, index, lessons: byDay.get(dayKey(date)) || [] }))
-      .filter((d) => d.index < 5 || d.lessons.length > 0);
-  }, [lessons, shown.week, shown.year]);
+      .map((date, index) => {
+        const key = dayKey(date);
+        const mine = byDay.get(key) || [];
+        const other = comparing ? otherByDay.get(key) || [] : undefined;
+        return {
+          date,
+          index,
+          lessons: mine,
+          compare: other,
+          free: !own ? undefined : other ? commonFree(mine, other) : gapsOfDay(mine),
+          load: own && assignments.load ? (assignments.load.get(key) ?? null) : undefined,
+        };
+      })
+      .filter((d) => d.index < 5 || d.lessons.length > 0 || !!d.compare?.length);
+  }, [lessons, shown.week, shown.year, comparing, compare.lessons, own, assignments.load]);
   const inWeek = days.flatMap((d) => d.lessons);
+  const nextDay = useNextSchoolDay(sameWeek(shown, current) && data ? lessons : null, now, hiddenHolds, own && !past);
 
   usePrefetchWeeks(base, data ? shown : null);
 
@@ -136,7 +169,7 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
   const homework = inWeek.filter((l) => l.hasHomework && l.status !== 'cancelled').length;
 
   return (
-    <>
+    <div className={cn(own && 'lx-schedule-print')}>
       <PageHeader
         eyebrow={eyebrow}
         title={
@@ -149,9 +182,30 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
             )}
           </span>
         }
-        description={<span className="tabular-nums">{visibleRange}</span>}
-        actions={
+        description={
           <>
+            <span className="tabular-nums">{visibleRange}</span>
+            {nextDay && (
+              <span className="mt-0.5 flex items-center gap-1.5 text-[13px] text-fg-subtle tabular-nums">
+                <Clock className="size-3.5" /> {meetText(nextDay, now)}
+              </span>
+            )}
+          </>
+        }
+        actions={
+          <div className="flex items-center gap-2 print:hidden">
+            {own && (
+              <ScheduleMenu
+                holds={holdChoices(allLessons.filter((l) => weekKeys.has(l.day)), holds.hidden)}
+                hidden={holds.hidden}
+                onToggleHold={holds.toggle}
+                comparing={!!compare.person}
+                onCompare={compare.set}
+                onSearch={() => setPicking(true)}
+                onExport={ics.run}
+                exporting={ics.busy}
+              />
+            )}
             <Button variant="ghost" size="icon" asChild title="Åbn i Lectio" aria-label="Åbn i Lectio">
               <a href={pageUrl(school, weekPath(base, shown))} target="_blank" rel="noreferrer">
                 <ExternalLink />
@@ -168,9 +222,21 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
                 <ChevronRight />
               </Button>
             </div>
-          </>
+          </div>
         }
       />
+      {own && <ComparePicker open={picking} onOpenChange={setPicking} onPick={(f) => compare.set(f)} />}
+      {ics.message && (
+        <p role="status" className={cn('-mt-3 mb-4 flex items-center gap-2 text-[13px] print:hidden', ics.error ? 'text-danger-soft-fg' : 'text-fg-muted')}>
+          {ics.busy && <Loader2 className="size-3.5 animate-spin" />}
+          {ics.message}
+          {!ics.busy && (
+            <button type="button" onClick={ics.dismiss} aria-label="Luk" className="rounded p-0.5 text-fg-subtle hover:bg-surface-2 hover:text-fg">
+              <X className="size-3.5" />
+            </button>
+          )}
+        </p>
+      )}
 
       {error ? (
         <Card>
@@ -214,12 +280,24 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
           <EmptyState
             icon={<CalendarX2 />}
             title="Ingen moduler denne uge"
-            description={emptyText ? emptyText(shown.week) : `Der er ikke noget på dit skema i uge ${shown.week}.`}
+            description={
+              (emptyText ? emptyText(shown.week) : `Der er ikke noget på dit skema i uge ${shown.week}.`) +
+              (hiddenInWeek ? ` ${hiddenInWeek} ${hiddenInWeek === 1 ? 'modul er' : 'moduler er'} skjult.` : '')
+            }
             action={
-              !isCurrent && (
-                <Button size="sm" onClick={goToday}>
-                  Gå til denne uge
-                </Button>
+              (hiddenInWeek > 0 || !isCurrent) && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {hiddenInWeek > 0 && (
+                    <Button size="sm" variant="secondary" onClick={() => holds.show('all')}>
+                      Vis skjulte hold
+                    </Button>
+                  )}
+                  {!isCurrent && (
+                    <Button size="sm" onClick={goToday}>
+                      Gå til denne uge
+                    </Button>
+                  )}
+                </div>
               )
             }
           />
@@ -237,23 +315,33 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
                 <BookOpen /> {homework} med lektier
               </Badge>
             )}
+            {own && <HiddenBadge count={hiddenInWeek} hidden={holds.hidden} onToggle={holds.toggle} onShowAll={() => holds.show('all')} />}
+            {own && compare.person && (
+              <span className={cn('inline-flex h-6 items-center gap-1.5 rounded-full pr-1 pl-2.5 text-[12px] font-medium print:pr-2.5', compare.error ? 'bg-danger-soft text-danger-soft-fg' : 'bg-success-soft text-success-soft-fg')}>
+                {compare.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Columns2 className="size-3.5" />}
+                {compare.error ? `${compare.name}s skema kunne ikke hentes` : compare.isPending ? `Henter ${compare.name}s skema…` : `Sammenlignet med ${compare.name} · grøn: I har begge fri`}
+                <button type="button" onClick={() => compare.set(null)} aria-label="Stop sammenligning" title="Stop sammenligning" className="rounded-full p-0.5 hover:bg-surface/60 print:hidden">
+                  <X className="size-3.5" />
+                </button>
+              </span>
+            )}
             <span className="ml-auto hidden items-center gap-3 text-[12px] text-fg-subtle lg:flex">
               <span className="inline-flex items-center gap-1"><BookOpen className="size-3.5" /> Lektier</span>
               <span className="inline-flex items-center gap-1"><StickyNote className="size-3.5" /> Note</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] ring-2 ring-accent" /> Ændret</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] bg-fg-subtle/40" /> Aflyst</span>
-              <span className="text-fg-subtle/80">← → skifter uge</span>
+              <span className="text-fg-subtle/80 print:hidden">← → skifter uge</span>
             </span>
           </div>
-          <div className="hidden md:block">
-            <WeekGrid days={days} now={now} />
+          <div className="lx-print-grid hidden md:block">
+            <WeekGrid days={days} now={now} compareName={comparing ? compare.name : undefined} />
           </div>
-          <div className={cn('space-y-4 md:hidden')}>
+          <div className={cn('lx-print-agenda space-y-4 md:hidden')}>
             <DayPicker days={days} selected={selected} onSelect={(index) => setPicked({ week: weekParam(shown), index })} now={now} />
-            <DayAgenda day={selectedDay} now={now} />
+            <DayAgenda day={selectedDay} now={now} compareName={comparing ? compare.name : undefined} />
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }

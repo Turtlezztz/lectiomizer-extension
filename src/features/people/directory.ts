@@ -115,9 +115,10 @@ export async function loadDirectory(school: string, kind: DirectoryKind): Promis
   return Array.from(all.values()).map(parseEntry);
 }
 
-export function useDirectory(kind: DirectoryKind) {
+export function useDirectory(kind: DirectoryKind, enabled = true) {
   const school = useSchoolId();
   return useQuery({
+    enabled,
     queryKey: ['lectio-directory', school, kind],
     queryFn: () => loadDirectory(school, kind),
     staleTime: 6 * 60 * 60_000,

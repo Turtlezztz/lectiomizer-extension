@@ -151,7 +151,10 @@ export function readPhase(doc) {
     const note = heading ? text(heading.nextElementSibling) : '';
     const content = act.querySelector('.ls-phase-activity-content');
     const sections = content ? readSections(flatten(content)).filter(s => s.items.length) : [];
-    return { id: act.id, lesson, title: lesson?.title || '', note, sections };
+    // The brick only says "ti 5/11"; its tooltip has the full "5/11-2024 08:15 til 09:15".
+    const when = (brick?.getAttribute('data-tooltip') || '').match(/(\d{1,2})\/(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{2})\s+til\s+(\d{1,2}):(\d{2})/);
+    const at = (h, m) => new Date(+when[3], +when[2] - 1, +when[1], +h, +m).toISOString();
+    return { id: act.id, lesson, title: lesson?.title || '', note, sections, start: when ? at(when[4], when[5]) : null, end: when ? at(when[6], when[7]) : null };
   });
   return { title, fields, exercises, activities };
 }

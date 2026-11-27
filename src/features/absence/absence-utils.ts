@@ -33,6 +33,48 @@ export interface AbsenceData {
   totals: Array<{ value: string; label: string }>;
   missing: AbsenceTable | null;
   history: AbsenceTable | null;
+  /** Lectio's link to the per-hold overview (subnav/fravaerelev.aspx), if the page has one. */
+  overview: string | null;
+}
+
+/** Absence over a set of modules (or elevtimer): any part Lectio does not show is null. */
+export interface AbsenceGroup {
+  absent: number | null;
+  total: number | null;
+  percent: number | null;
+}
+
+/** "Periode" = the date range on Lectio's page (a month by default); "settled" = opgjort, the year so far. */
+export interface AbsenceKind {
+  period: AbsenceGroup;
+  settled: AbsenceGroup;
+}
+
+export interface AbsenceHoldRow {
+  hold: string;
+  href: string | null;
+  /** Almindeligt fravær, counted in modules. */
+  regular: AbsenceKind;
+  /** Skriftligt fravær, counted in elevtimer. */
+  written: AbsenceKind;
+}
+
+export interface AbsenceRemark {
+  date: string;
+  by: string;
+  type: string;
+  note: string;
+}
+
+/** readAbsenceOverview() output: subnav/fravaerelev.aspx. */
+export interface AbsenceOverview {
+  holds: AbsenceHoldRow[];
+  total: Pick<AbsenceHoldRow, 'regular' | 'written'>;
+  detailed: boolean;
+  /** Lectio's "Vis detaljer" checkbox when it is off (a postback handle), else null. */
+  detailToggle: Element | null;
+  period: { from: string; to: string } | null;
+  remarks: AbsenceRemark[];
 }
 
 /** "6,9%" → 6.9; non-percent values → null. */

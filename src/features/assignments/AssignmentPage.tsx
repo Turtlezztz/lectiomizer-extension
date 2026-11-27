@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, CalendarClock, ExternalLink, FileText, Info, MessageSquare } from 'lucide-react';
+import { ArrowLeft, CalendarClock, ExternalLink, FileText, Info, MessageSquare, Pin, PinOff } from 'lucide-react';
 import { Page } from '@/components/ui/page';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { FileLink, StatusBadge, SubjectDot } from './parts';
 import { HandInCard, HandInClosed } from './HandInCard';
 import { GroupCard } from './GroupCard';
 import { Person } from '@/features/people/PersonPopover';
+import { usePinnedCountdowns } from '@/features/home/personal';
 
 const read = readAssignment as (doc: Document) => AssignmentData;
 
@@ -63,13 +64,13 @@ export default function AssignmentPage() {
           <ErrorState error={error} onRetry={() => (path ? refetch() : account.refetch())} href={lectioUrl} />
         </Card>
       ) : (
-        <AssignmentDetail loaded={loaded!} lectioUrl={lectioUrl} />
+        <AssignmentDetail id={id} loaded={loaded!} lectioUrl={lectioUrl} />
       )}
     </Page>
   );
 }
 
-function AssignmentDetail({ loaded, lectioUrl }: { loaded: Loaded<AssignmentData>; lectioUrl: string }) {
+function AssignmentDetail({ id, loaded, lectioUrl }: { id: string; loaded: Loaded<AssignmentData>; lectioUrl: string }) {
   const data = loaded.data;
   const handInAction = useLectioAction(loaded, read);
   const groupAction = useLectioAction(loaded, read);
@@ -86,7 +87,16 @@ function AssignmentDetail({ loaded, lectioUrl }: { loaded: Loaded<AssignmentData
 
   return (
     <div className="space-y-6">
-      <Header data={data} hold={hold} status={status} kind={kind} overdue={overdue} awaiting={me?.awaiting} now={now} />
+      <Header
+        data={data}
+        hold={hold}
+        status={status}
+        kind={kind}
+        overdue={overdue}
+        awaiting={me?.awaiting}
+        now={now}
+        pin={data.deadline && kind !== 'delivered' && !overdue ? <PinCountdown source={`exercise:${id}`} title={data.title} at={data.deadline} href={loaded.url} /> : null}
+      />
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
@@ -126,7 +136,7 @@ function AssignmentDetail({ loaded, lectioUrl }: { loaded: Loaded<AssignmentData
   );
 }
 
-function Header({ data, hold, status, kind, overdue, awaiting, now }: { data: AssignmentData; hold: string; status: string; kind: ReturnType<typeof kindOfStatus>; overdue: boolean; awaiting?: string; now: Date }) {
+function Header({ data, hold, status, kind, overdue, awaiting, now, pin }: { data: AssignmentData; hold: string; status: string; kind: ReturnType<typeof kindOfStatus>; overdue: boolean; awaiting?: string; now: Date; pin?: ReactNode }) {
   const color = subjectColor(hold);
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
@@ -145,8 +155,27 @@ function Header({ data, hold, status, kind, overdue, awaiting, now }: { data: As
       </div>
       <div className="w-full sm:w-auto">
         <Countdown deadline={data.deadline} fallback={data.info.Afleveringsfrist?.text} delivered={kind === 'delivered'} now={now} />
+        {pin}
       </div>
     </header>
+  );
+}
+
+/** Pin (or unpin) this deadline as a countdown on the overview. */
+function PinCountdown({ source, title, at, href }: { source: string; title: string; at: Date; href: string }) {
+  const pins = usePinnedCountdowns();
+  if (!pins.ready) return null;
+  const pinned = pins.isPinned(source);
+  return (
+    <button
+      type="button"
+      onClick={() => (pinned ? pins.removeSource(source) : pins.add({ title: title || 'Aflevering', at: at.getTime(), href, source }))}
+      aria-pressed={pinned}
+      className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-1 text-[12.5px] text-fg-muted transition-colors hover:text-fg [&_svg]:size-3.5"
+    >
+      {pinned ? <PinOff /> : <Pin />}
+      {pinned ? 'Fjern nedtællingen fra overblikket' : 'Fastgør nedtælling på overblikket'}
+    </button>
   );
 }
 

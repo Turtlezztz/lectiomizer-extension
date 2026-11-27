@@ -9,6 +9,14 @@ export default defineConfig({
   // The sources zip for Mozilla's review: never captured Lectio pages (personal data) or scratch files.
   zip: { excludeSources: ['fixtures/**', 'scripts/tmp-*', '.idea/**', '.claude/**', '.impeccable/**', '.env*'] },
   vite: () => ({ plugins: [tailwindcss()] }),
+  hooks: {
+    // The toolbar popup (entrypoints/popup) is attached at runtime by the background
+    // (action.setPopup), so it can be turned off and stays off until a school is chosen.
+    'build:manifestGenerated': (_wxt, manifest) => {
+      delete (manifest as any).action?.default_popup;
+      delete (manifest as any).browser_action?.default_popup;
+    },
+  },
   manifest: ({ browser, manifestVersion }) => ({
     name: 'Lectiomizer',
     description: 'Et nyt, hurtigt Lectio – dit skema, opgaver, beskeder og karakterer samlet ét sted.',

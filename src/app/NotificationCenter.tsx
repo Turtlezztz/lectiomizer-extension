@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Dialog } from 'radix-ui';
-import { ArrowRight, Bell, BellOff, CalendarClock, CalendarPlus, CalendarX2, CheckCheck, ClipboardList, LogIn, Mail, RefreshCw, Settings, X } from 'lucide-react';
+import { AlarmClock, ArrowRight, Bell, BellOff, BookOpen, CalendarClock, CalendarPlus, CalendarX2, CheckCheck, ClipboardList, DoorOpen, GraduationCap, LogIn, Mail, RefreshCw, Settings, Sunrise, UserX, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/states';
@@ -9,16 +9,22 @@ import { appRoute } from '@/lib/lectio/paths';
 import { fmtTime, relativeDay } from '@/lib/format';
 import { send, useNotices } from '@/lib/sync/hooks';
 import { noticeBody, noticeChanges, noticeTitle } from '@/lib/sync/notice';
-import type { Notice } from '@/lib/sync/store';
+import type { Notice, NoticeKind } from '@/lib/sync/store';
 
-const KIND = {
+const KIND: Record<NoticeKind, { icon: typeof Bell; tone: string; label: string }> = {
   changed: { icon: CalendarClock, tone: 'bg-warning-soft text-warning-soft-fg', label: 'Ændret' },
   cancelled: { icon: CalendarX2, tone: 'bg-danger-soft text-danger-soft-fg', label: 'Aflyst' },
   removed: { icon: CalendarX2, tone: 'bg-surface-3 text-fg-muted', label: 'Fjernet' },
   restored: { icon: CalendarPlus, tone: 'bg-success-soft text-success-soft-fg', label: 'Tilbage' },
   message: { icon: Mail, tone: 'bg-info-soft text-info-soft-fg', label: 'Besked' },
   assignment: { icon: ClipboardList, tone: 'bg-accent-soft text-accent-soft-fg', label: 'Opgave' },
-} as const;
+  room: { icon: DoorOpen, tone: 'bg-warning-soft text-warning-soft-fg', label: 'Lokale' },
+  homework: { icon: BookOpen, tone: 'bg-info-soft text-info-soft-fg', label: 'Lektier' },
+  deadline: { icon: AlarmClock, tone: 'bg-accent-soft text-accent-soft-fg', label: 'Frist' },
+  grade: { icon: GraduationCap, tone: 'bg-success-soft text-success-soft-fg', label: 'Karakter' },
+  absence: { icon: UserX, tone: 'bg-surface-3 text-fg-muted', label: 'Fravær' },
+  digest: { icon: Sunrise, tone: 'bg-surface-3 text-fg-muted', label: 'Din dag' },
+};
 
 function ago(ts?: number) {
   if (!ts) return 'aldrig';
@@ -57,7 +63,7 @@ function Item({ notice, onOpen }: { notice: Notice; onOpen: (n: Notice) => void 
           <span className={cn('flex-1 text-[13.5px] leading-snug', notice.read ? 'text-fg-muted' : 'font-medium text-fg')}>{noticeTitle(notice)}</span>
           {!notice.read && <span aria-label="Ulæst" className="mt-1.5 size-2 shrink-0 rounded-full bg-accent" />}
         </span>
-        {noticeBody(notice) && <span className="mt-0.5 block truncate text-[12.5px] text-fg-muted">{noticeBody(notice)}</span>}
+        {noticeBody(notice) && <span className={cn('mt-0.5 block text-[12.5px] text-fg-muted', notice.kind === 'digest' || notice.kind === 'homework' ? 'line-clamp-2' : 'truncate')}>{noticeBody(notice)}</span>}
         {changes.length > 0 && (
           <span className="mt-1.5 block space-y-0.5 rounded-lg bg-surface-2 px-2.5 py-1.5 text-[12px] group-hover:bg-surface-3">
             {changes.map((c) => (
@@ -160,7 +166,7 @@ export function NotificationBell({ collapsed }: { collapsed?: boolean }) {
               <EmptyState
                 icon={<BellOff />}
                 title="Ingen notifikationer endnu"
-                description="Lectiomizer tjekker Lectio i baggrunden og giver besked om ændrede eller aflyste moduler, nye beskeder og nye opgaver."
+                description="Lectiomizer tjekker Lectio i baggrunden og giver besked om ændringer i skemaet, nye beskeder, opgaver, karakterer og mere. Vælg hvad i Indstillinger."
                 className="py-16"
               />
             ) : (

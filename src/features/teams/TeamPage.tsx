@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, ExternalLink, GraduationCap, Layers, Presentation, Users } from 'lucide-react';
+import { Popover } from 'radix-ui';
+import { ArrowLeft, ExternalLink, GraduationCap, Layers, Link2, Pencil, Presentation, Users } from 'lucide-react';
 import { Page } from '@/components/ui/page';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
@@ -13,13 +14,16 @@ import { EmptyState, ErrorState } from '@/components/ui/states';
 import { pageUrl } from '@/lib/lectio/paths';
 import { useSchoolId } from '@/lib/lectio/query';
 import { canGoBack, useBack } from '@/lib/nav';
-import { subjectColor } from '@/lib/subjects';
+import { subjectColor, useSubjectLabel, useSubjectLinks } from '@/lib/subjects';
+import { SubjectEditor } from '@/features/settings/SubjectColors';
 import { WeekSchedule } from '@/features/schedule/SchedulePage';
 import { useDarkClass } from '@/features/schedule/hooks';
 import { compareText } from '@/features/people/directory';
 import { teamMembersPath, teamSchedulePath, useTeamMembers, type Team, type TeamMember } from './teams';
+import { StudyView } from './StudyView';
 
-type Tab = 'skema' | 'deltagere';
+type Tab = 'skema' | 'deltagere' | 'laesning';
+const TABS: Tab[] = ['skema', 'deltagere', 'laesning'];
 
 export default function TeamPage() {
   useDarkClass();
@@ -27,7 +31,7 @@ export default function TeamPage() {
   const school = useSchoolId();
   const back = useBack('/teams');
   const [params, setParams] = useSearchParams();
-  const tab: Tab = params.get('vis') === 'deltagere' ? 'deltagere' : 'skema';
+  const tab: Tab = TABS.find((t) => t !== 'skema' && t === params.get('vis')) ?? 'skema';
   const setTab = (t: Tab) =>
     setParams(
       (p) => {
@@ -44,6 +48,8 @@ export default function TeamPage() {
   const members = useTeamMembers(id);
   const name = team?.name || members.data?.data.title || '';
   const color = subjectColor(name);
+  const label = useSubjectLabel()(name);
+  const links = useSubjectLinks(name);
   const base = teamSchedulePath(id);
   const teachers = members.data?.data.teachers ?? [];
   const students = members.data?.data.students ?? [];
@@ -57,7 +63,7 @@ export default function TeamPage() {
           </Link>
         </Button>
         <Button variant="ghost" size="sm" asChild>
-          <a href={pageUrl(school, tab === 'skema' ? base : teamMembersPath(id))} target="_blank" rel="noreferrer">
+          <a href={pageUrl(school, tab === 'deltagere' ? teamMembersPath(id) : base)} target="_blank" rel="noreferrer">
             <ExternalLink /> Åbn i Lectio
           </a>
         </Button>
@@ -69,8 +75,17 @@ export default function TeamPage() {
             <Layers className="size-7" />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 text-[12.5px] font-medium text-fg-subtle">Hold{team?.subject ? ` · ${team.subject}` : ''}</div>
-            {name ? <h1 className="truncate text-[26px] leading-tight font-semibold tracking-[-0.025em] text-fg">{name}</h1> : <Skeleton className="h-8 w-56" />}
+            <div className="mb-1 text-[12.5px] font-medium text-fg-subtle">
+              Hold{label !== name ? ` · ${name}` : team?.subject ? ` · ${team.subject}` : ''}
+            </div>
+            {name ? (
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h1 className="truncate text-[26px] leading-tight font-semibold tracking-[-0.025em] text-fg">{label}</h1>
+                <CustomizeButton hold={name} />
+              </div>
+            ) : (
+              <Skeleton className="h-8 w-56" />
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {members.isPending ? (
                 <Skeleton className="h-5 w-40" />
@@ -86,6 +101,22 @@ export default function TeamPage() {
                 </>
               ) : null}
             </div>
+            {links.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {links.map((l) => (
+                  <a
+                    key={l.url}
+                    href={l.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={l.url}
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-[12.5px] font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
+                  >
+                    <Link2 className="size-3.5" /> {l.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -97,11 +128,14 @@ export default function TeamPage() {
           options={[
             { value: 'skema', label: 'Skema' },
             { value: 'deltagere', label: 'Lærere og elever', count: members.data ? teachers.length + students.length : undefined },
+            { value: 'laesning', label: <><span className="sm:hidden">Læsning</span><span className="hidden sm:inline">Eksamenslæsning</span></> },
           ]}
         />
       </div>
 
-      {tab === 'skema' ? (
+      {tab === 'laesning' ? (
+        <StudyView teamId={id} name={label || name} lectioHref={pageUrl(school, base)} />
+      ) : tab === 'skema' ? (
         <WeekSchedule base={base} eyebrow={`Skema for ${name || 'holdet'}`} emptyText={(week) => `Holdet har ingen moduler i uge ${week}.`} />
       ) : members.isPending ? (
         <MembersSkeleton />
@@ -158,5 +192,23 @@ function MembersSkeleton() {
         </div>
       ))}
     </Card>
+  );
+}
+
+/** Own name, colour and links for the hold's subject (the same values as in Indstillinger). */
+function CustomizeButton({ hold }: { hold: string }) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label="Tilpas navn, farve og links" title="Tilpas navn, farve og links" className="shrink-0 text-fg-subtle">
+          <Pencil className="size-3.5" />
+        </Button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content align="start" sideOffset={6} className="z-50 w-[288px] animate-pop rounded-xl border border-border bg-surface p-3 shadow-pop">
+          <SubjectEditor hold={hold} />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

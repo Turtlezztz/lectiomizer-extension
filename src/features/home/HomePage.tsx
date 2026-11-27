@@ -1,6 +1,12 @@
-import { useMemo } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router';
+import { SlidersHorizontal } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useSettings } from '@/lib/settings';
+import { cn } from '@/lib/cn';
+import { forgetLaunch, openedWithoutRoute } from '@/lib/nav';
 import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/states';
 import { useLectioPage, useSchoolId } from '@/lib/lectio/query';
@@ -12,16 +18,25 @@ import { NowCard } from './NowCard';
 import { Timeline } from './Timeline';
 import { MessagesCard, NeedsCard, NoticesCard, OtherCard } from './sections';
 import { currentOrNext, focusDayIndex, greeting, needs, useIsDark, useNow, type HomeData } from './model';
+import { columnSections, moveSection, toggleSection, tonightItems, type SectionId } from './overview';
+import { useHomeLayout, usePinnedCountdowns } from './personal';
+import { CountdownsCard, CustomizePanel, TonightCard } from './PersonalCards';
+import { homeworkKey } from '@/features/homework/todo-model';
+import { useHomeworkTicks, useTodos } from '@/features/homework/store';
+
+const START_ROUTES: Record<string, string> = { schedule: '/schedule', assignments: '/assignments', homework: '/homework', messages: '/messages' };
 
 const capital = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
 
 /** Hero + side column on desktop; on mobile the side column (today's lessons) sits right below the hero. */
 function Layout({ hero, side, main }: { hero: React.ReactNode; side: React.ReactNode; main: React.ReactNode }) {
+  const hasHero = !(Array.isArray(hero) && hero.length === 0);
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_1fr] lg:gap-6">
-      <div className="min-w-0 lg:col-start-1 lg:row-start-1">{hero}</div>
-      <aside className="min-w-0 space-y-5 lg:col-start-2 lg:row-span-2 lg:row-start-1" aria-label="Skema">{side}</aside>
-      <div className="min-w-0 space-y-5 lg:col-start-1 lg:row-start-2">{main}</div>
+      {hasHero && <div className="min-w-0 lg:col-start-1 lg:row-start-1">{hero}</div>}
+      {/* flex + gap rather than space-y: cards that are hidden at this width (display:none) leave no gap behind */}
+      <aside className="flex min-w-0 flex-col gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1" aria-label="Skema">{side}</aside>
+      <div className={cn('flex min-w-0 flex-col gap-5 lg:col-start-1', hasHero ? 'lg:row-start-2' : 'lg:row-span-2 lg:row-start-1')}>{main}</div>
     </div>
   );
 }
@@ -68,11 +83,30 @@ function HomeSkeleton() {
   );
 }
 
+/**
+ * The index route. When the app is opened without a route (toolbar button, plain
+ * app.html) and another start page is chosen, go there instead. Overblik itself –
+ * via the menu, a reload of #/ or a link – always stays here.
+ */
 export default function HomePage() {
+  const { settings } = useSettings();
+  const location = useLocation();
+  const start = START_ROUTES[settings.startPage ?? ''];
+  useEffect(() => forgetLaunch, []);
+  if (start && location.key === 'default' && openedWithoutRoute()) return <Navigate to={start} replace />;
+  return <Overview />;
+}
+
+function Overview() {
   const school = useSchoolId();
   const { data: loaded, isPending, error, refetch } = useLectioPage(PATHS.home, readHome);
   const now = useNow();
   useIsDark(); // re-render so subjectColor() picks the right palette after a theme switch
+  const ticks = useHomeworkTicks();
+  const todos = useTodos();
+  const pinned = usePinnedCountdowns();
+  const { layout, change, reset, isDefault } = useHomeLayout();
+  const [customizing, setCustomizing] = useState(false);
 
   const data = loaded?.data as unknown as HomeData | undefined;
   const firstName = useMemo(() => {
@@ -97,6 +131,32 @@ export default function HomePage() {
 
   const current = currentOrNext(data.days, now);
   const focus = focusDayIndex(data.days, now);
+  // Homework ticked off on Lektier (or below) no longer needs the student.
+  const tonight = tonightItems(items, todos.todos, ticks.isDone, now);
+  // What "I aften" shows isn't repeated in "Brug for dig" (same homework/assignment twice on one screen).
+  const inTonight = new Set(layout.hidden.includes('tonight') ? [] : tonight.flatMap((t) => (t.kind !== 'todo' && t.href ? [`${t.kind}:${t.href}:${t.due?.getTime()}`] : [])));
+  const open = items.filter(
+    (n) => (n.kind !== 'homework' || !ticks.isDone(homeworkKey(n.href, n.due))) && !inTonight.has(`${n.kind}:${n.href}:${n.due?.getTime()}`),
+  );
+
+  const cards: Record<SectionId, () => ReactNode> = {
+    now: () => <NowCard current={current} now={now} />,
+    countdowns: () => <CountdownsCard countdowns={pinned.countdowns} now={now} onAdd={pinned.add} onRemove={pinned.remove} />,
+    tonight: () => (
+      <TonightCard
+        items={tonight}
+        now={now}
+        onToggle={(item) => (item.kind === 'todo' ? item.key && todos.toggle(item.key) : ticks.toggle(item.key, item.due))}
+      />
+    ),
+    needs: () => <NeedsCard items={open} now={now} homeworkHref={data.homework?.href} />,
+    messages: () => <MessagesCard block={data.messages} now={now} />,
+    notices: () => <NoticesCard block={data.notices} />,
+    timeline: () => <Timeline days={data.days} focus={focus} now={now} groups={data.groups} />,
+    other: () => <div className="hidden lg:block"><OtherCard blocks={data.other} now={now} /></div>,
+  };
+  const render = (ids: SectionId[]) => ids.map((id) => <Fragment key={id}>{cards[id]()}</Fragment>);
+  const showOther = !layout.hidden.includes('other');
 
   return (
     <Page wide>
@@ -104,21 +164,32 @@ export default function HomePage() {
         eyebrow={capital(fmtLongDate(now))}
         title={firstName ? `${greeting(now)}, ${firstName}` : greeting(now)}
         description={summary(data, now)}
-      />
-      <Layout
-        hero={<NowCard current={current} now={now} />}
-        side={
-          <>
-            <Timeline days={data.days} focus={focus} now={now} groups={data.groups} />
-            <div className="hidden lg:block"><OtherCard blocks={data.other} now={now} /></div>
-          </>
+        actions={
+          !customizing && (
+            <Button variant="ghost" size="sm" onClick={() => setCustomizing(true)} className="text-fg-subtle">
+              <SlidersHorizontal /> Tilpas
+            </Button>
+          )
         }
+      />
+      {customizing && (
+        <CustomizePanel
+          layout={layout}
+          isDefault={isDefault}
+          onMove={(id, dir) => change((l) => moveSection(l, id, dir))}
+          onToggle={(id) => change((l) => toggleSection(l, id))}
+          onReset={reset}
+          onDone={() => setCustomizing(false)}
+          onAddCountdown={pinned.add}
+        />
+      )}
+      <Layout
+        hero={render(columnSections(layout, 'hero'))}
+        side={render(columnSections(layout, 'side'))}
         main={
           <>
-            <NeedsCard items={items} now={now} homeworkHref={data.homework?.href} />
-            <MessagesCard block={data.messages} now={now} />
-            <NoticesCard block={data.notices} />
-            <div className="lg:hidden"><OtherCard blocks={data.other} now={now} /></div>
+            {render(columnSections(layout, 'main'))}
+            {showOther && <div className="lg:hidden"><OtherCard blocks={data.other} now={now} /></div>}
           </>
         }
       />

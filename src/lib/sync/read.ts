@@ -1,5 +1,5 @@
 // Reads everything a background check needs from Lectio: who is signed in,
-// the coming schedule weeks, and the message/assignment feeds. Needs a DOM
+// the coming schedule weeks, and the message/assignment (+ grade/absence) feeds. Needs a DOM
 // (DOMParser), so on Chrome it runs in the offscreen document and on Firefox
 // directly in the background page. Returns plain, serialisable data.
 import { ORIGIN, getPage } from '../lectio/client';
@@ -21,7 +21,13 @@ export interface Week {
 export interface LectioRead {
   context: Context;
   weeks: Week[];
-  feeds: { lectioMessages: FeedItem[] | null; assignments: FeedItem[] | null };
+  /** null: the page couldn't be read. undefined: not asked for (that notice type is off). */
+  feeds: { lectioMessages: FeedItem[] | null; assignments: FeedItem[] | null; grades?: FeedItem[] | null; absence?: FeedItem[] | null };
+}
+/** Optional pages: only read when their notice type is on. */
+export interface ReadExtras {
+  grades?: boolean;
+  absence?: boolean;
 }
 
 /** The signed-in student's own schedule address and stable id (S… or U…). */
@@ -68,7 +74,7 @@ async function assertCurrentTerm(home: Document, context: Context, now: Date) {
 }
 
 /** Throws NotLoggedInError when the Lectio session has expired, PastTermError when it shows an earlier school year. */
-export async function readLectio({ schoolId, weekCount, now = Date.now() }: { schoolId: string; weekCount: number; now?: number }): Promise<LectioRead> {
+export async function readLectio({ schoolId, weekCount, now = Date.now(), grades = false, absence = false }: { schoolId: string; weekCount: number; now?: number } & ReadExtras): Promise<LectioRead> {
   const home = await getPage(`${ORIGIN}/lectio/${schoolId}/forside.aspx`);
   const context = accountContext(home, schoolId);
   if (!context) throw new Error('Kunne ikke se, hvem der er logget ind på Lectio');
@@ -87,7 +93,7 @@ export async function readLectio({ schoolId, weekCount, now = Date.now() }: { sc
   const [weeks, feeds] = await Promise.all([
     Promise.all(weeksFrom(new Date(now), weekCount).map((week: any) => readWeek(week, context, load))),
     // Reuse the Forside we already fetched.
-    readFeeds(context, (url: string) => (/\/forside\.aspx$/i.test(new URL(url).pathname) ? Promise.resolve(home) : load(url))),
+    readFeeds(context, (url: string) => (/\/forside\.aspx$/i.test(new URL(url).pathname) ? Promise.resolve(home) : load(url)), { grades, absence }),
   ]);
   if (past !== null) throw new PastTermError(past);
   return { context, weeks, feeds };

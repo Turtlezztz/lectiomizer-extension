@@ -8,6 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { hourRange, layoutDay, splitPerson, type Lesson } from './lessons';
 import { LessonHover, LessonLink } from './LessonLink';
 import { dayKey, WEEKDAYS_SHORT } from './week';
+import { minText, minutesText, type Span } from './free-time';
+import { hoursText, loadRatio, type DayLoad } from './workload';
 
 const HOUR_PX = 68;
 const PX_PER_MIN = HOUR_PX / 60;
@@ -18,6 +20,24 @@ export interface Day {
   date: Date;
   index: number; // 0 = Monday
   lessons: Lesson[];
+  /** Someone else's lessons that day, when comparing schedules. */
+  compare?: Lesson[];
+  /** Free stretches to mark: mellemtimer, or (when comparing) time both are free. */
+  free?: Span[];
+  /** Elevtimer of assignments due that day; undefined when not shown. */
+  load?: DayLoad | null;
+}
+
+/** Thin bar of the day's elevtimer under the date (empty but reserved when nothing is due). */
+export function LoadBar({ load, className }: { load: DayLoad | null; className?: string }) {
+  if (!load || !load.hours) return <span aria-hidden className={cn('block h-1 w-10', className)} />;
+  const label = `${hoursText(load.hours)} elevtid afleveres: ${load.items.map((i) => `${i.title}${i.hold ? ` (${i.hold})` : ''} ${hoursText(i.hours)}`).join(', ')}`;
+  const heavy = load.hours >= 4;
+  return (
+    <span role="img" aria-label={label} title={label} className={cn('block h-1 w-10 overflow-hidden rounded-full bg-surface-3', className)}>
+      <span className={cn('block h-full rounded-full', heavy ? 'bg-warning' : 'bg-fg-subtle/70')} style={{ width: `${Math.max(12, loadRatio(load.hours) * 100)}%` }} />
+    </span>
+  );
 }
 
 function DayHeader({ day, today }: { day: Day; today: boolean }) {
@@ -32,6 +52,52 @@ function DayHeader({ day, today }: { day: Day; today: boolean }) {
       >
         {day.date.getDate()}
       </span>
+      {day.load !== undefined && <LoadBar load={day.load} className="mt-1" />}
+    </div>
+  );
+}
+
+/** A free stretch in a day column: a quiet dashed mellemtime, or a green "I har begge fri" when comparing. */
+function FreeBand({ span, from, common }: { span: Span; from: number; common: boolean }) {
+  const top = (span.startMin - from * 60) * PX_PER_MIN;
+  const height = (span.endMin - span.startMin) * PX_PER_MIN - 3;
+  const range = `${minText(span.startMin)}–${minText(span.endMin)}`;
+  const label = common ? `I har begge fri ${range}` : `Mellemtime ${range} (${minutesText(span.endMin - span.startMin)})`;
+  return (
+    <div
+      title={label}
+      aria-label={label}
+      role="note"
+      className={cn(
+        'absolute inset-x-[3px] flex flex-col items-center justify-center overflow-hidden rounded-[9px] px-1 text-center text-[11px] leading-tight',
+        common ? 'lx-free-common bg-success-soft text-success-soft-fg ring-1 ring-success/30' : 'lx-free-gap border border-dashed border-border-strong text-fg-subtle',
+      )}
+      style={{ top, height }}
+    >
+      {height >= 18 && <span className="truncate font-medium">{common ? 'I har begge fri' : `${minutesText(span.endMin - span.startMin)} fri`}</span>}
+      {common && height >= 34 && <span className="truncate tabular-nums opacity-80">{range}</span>}
+    </div>
+  );
+}
+
+/** The other person's lesson in the comparison lane: muted, name and room only. */
+function CompareBlock({ lesson, from }: { lesson: Lesson; from: number }) {
+  const c = subjectColor(lesson.hold);
+  const top = (lesson.startMin - from * 60) * PX_PER_MIN;
+  const height = Math.max(18, (lesson.endMin - lesson.startMin) * PX_PER_MIN - 3);
+  const cancelled = lesson.status === 'cancelled';
+  const room = lesson.rooms.join(', ');
+  const label = `${lesson.name}, ${fmtTime(lesson.startDate)}–${fmtTime(lesson.endDate)}${room ? `, ${room}` : ''}${cancelled ? ' (aflyst)' : ''}`;
+  return (
+    <div
+      title={label}
+      aria-label={label}
+      className={cn('absolute inset-x-[2px] overflow-hidden rounded-[7px] border border-border bg-surface-2 py-1 pr-1 pl-2 text-[11px] leading-tight text-fg-muted', cancelled && 'line-through opacity-50')}
+      style={{ top, height }}
+    >
+      <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: c.bar }} />
+      <span className="block truncate font-semibold">{lesson.hold || lesson.name}</span>
+      {height >= 34 && room && <span className="block truncate opacity-80">{room}</span>}
     </div>
   );
 }
@@ -150,8 +216,9 @@ function Grid({ days, from, to, children, header }: { days: number; from: number
   );
 }
 
-export function WeekGrid({ days, now }: { days: Day[]; now: Date }) {
-  const all = days.flatMap((d) => d.lessons);
+export function WeekGrid({ days, now, compareName }: { days: Day[]; now: Date; compareName?: string }) {
+  const comparing = days.some((d) => d.compare);
+  const all = days.flatMap((d) => [...d.lessons, ...(d.compare || [])]);
   const [from, to] = hourRange(all);
   const todayKey = dayKey(now);
   const todayIndex = days.findIndex((d) => dayKey(d.date) === todayKey);
@@ -174,9 +241,21 @@ export function WeekGrid({ days, now }: { days: Day[]; now: Date }) {
         const past = dayKey(d.date) < todayKey;
         return (
           <div key={d.index} className={cn('relative border-l border-border', isToday && 'bg-accent-soft/25', past && 'bg-surface-2/40')} style={{ height: (to - from) * HOUR_PX }}>
-            {layoutDay(d.lessons).map(({ item, col, cols }) => (
-              <LessonBlock key={item.id} lesson={item} col={col} cols={cols} from={from} />
+            {(d.free || []).map((span) => (
+              <FreeBand key={span.startMin} span={span} from={from} common={comparing} />
             ))}
+            <div className={cn('pointer-events-none absolute inset-y-0 left-0 [&>*]:pointer-events-auto', comparing ? 'right-[36%]' : 'right-0')}>
+              {layoutDay(d.lessons).map(({ item, col, cols }) => (
+                <LessonBlock key={item.id} lesson={item} col={col} cols={cols} from={from} />
+              ))}
+            </div>
+            {comparing && (
+              <div className="absolute inset-y-0 right-0 left-[64%] border-l border-dashed border-border" aria-label={compareName ? `Skema for ${compareName}` : 'Sammenligning'}>
+                {(d.compare || []).map((l) => (
+                  <CompareBlock key={l.id} lesson={l} from={from} />
+                ))}
+              </div>
+            )}
             {isToday && <NowLine now={now} from={from} to={to} />}
           </div>
         );

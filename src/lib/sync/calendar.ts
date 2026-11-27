@@ -2,10 +2,11 @@
 // access token lives in session storage (memory only, gone when the browser
 // closes); silent renewal uses the saved Google email as login hint.
 import { browser } from 'wxt/browser';
-import { GoogleError, authorize, createClient, ensureCalendar, syncCalendar } from './google.js';
+import { GoogleError, authorize, createClient, ensureCalendar, syncCalendar, syncDeadlines } from './google.js';
 import { weeksFrom } from '../lectio/readers/schedule.js';
 import { BUILT_IN_CLIENT_ID, loadPrefs, savePrefs, saveCalendarStatus } from './store';
 import type { Week } from './read';
+import { getItem, setItem } from '../storage';
 
 
 /** Client id from Indstillinger, else the one baked in at build time. */
@@ -81,8 +82,35 @@ async function hasConsent() {
 
 let running: Promise<unknown> = Promise.resolve();
 
-/** Push the read weeks (only those within the chosen range) to Google. */
-export function syncToGoogle(weeks: Week[], now = Date.now()) {
+// Whether deadline events may exist in the calendar, so turning the option off
+// cleans them up once instead of asking Google on every sync.
+const DEADLINES_KEY = 'calendarDeadlines';
+
+/**
+ * Deadlines are synced only from an assignment list that was read (an array);
+ * a failed read (null/undefined) leaves the existing deadline events alone.
+ * Returns a warning for the status line, or ''.
+ */
+async function syncDeadlineEvents(calendarId: string, wanted: boolean, assignments: unknown[] | null | undefined, now: number): Promise<string> {
+  if (!Array.isArray(assignments)) return '';
+  const present = await getItem<number>(DEADLINES_KEY, 0);
+  if (!wanted && !present) return '';
+  try {
+    const result = await syncDeadlines(client, { calendarId, assignments: wanted ? assignments : [], now });
+    await setItem(DEADLINES_KEY, result.deadlines);
+    return '';
+  } catch (error) {
+    if (!(error instanceof GoogleError)) console.error('Lectiomizer:', error);
+    return 'Afleveringsfristerne kunne ikke synkroniseres.';
+  }
+}
+
+/**
+ * Push the read weeks (only those within the chosen range) to Google, and the
+ * assignment deadlines when that's turned on. `assignments` is the assignment
+ * feed from the same read (feeds.js); without it deadlines are left as they are.
+ */
+export function syncToGoogle(weeks: Week[], now = Date.now(), assignments?: unknown[] | null) {
   const run = running.then(async () => {
     const prefs = await loadPrefs();
     if (!prefs.connected) return { ok: false };
@@ -101,7 +129,8 @@ export function syncToGoogle(weeks: Week[], now = Date.now()) {
       const calendarId = await ensureCalendar(client, prefs.calendarId);
       if (calendarId !== prefs.calendarId) await savePrefs({ calendarId });
       const result = await syncCalendar(client, { calendarId, weeks: read, cancelled: prefs.cancelled });
-      const message = unread > 0 ? `${unread} af ${prefs.weeks} uger kunne ikke læses og blev sprunget over.` : '';
+      const deadlineWarning = await syncDeadlineEvents(calendarId, prefs.deadlines, assignments, now);
+      const message = [unread > 0 ? `${unread} af ${prefs.weeks} uger kunne ikke læses og blev sprunget over.` : '', deadlineWarning].filter(Boolean).join(' ');
       await finish({ state: 'ok', message, syncedAt: Date.now(), lessons: result.lessons, weeks: read.length, reconnect: false });
       return { ok: true, ...result };
     } catch (error) {

@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { BookOpen, ChevronRight, Clock, ExternalLink, MapPin, StickyNote, UserRound } from 'lucide-react';
+import { activeSubjectName } from '@/lib/subjects';
+import { useMemo, useState } from 'react';
+import { BookOpen, ChevronRight, Clock, ExternalLink, Eye, EyeOff, ListChecks, MapPin, Plus, StickyNote, UserRound, X } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,46 +20,90 @@ import { absidFromHref, activityPath, type ActivityData } from '@/features/lesso
 import { detailSections } from '@/features/schedule/lessons';
 import { People } from '@/features/people/PersonPopover';
 import { Rooms } from '@/features/rooms/RoomPopover';
-import { groupByDay, type HomeworkData, type HomeworkDay, type HomeworkRow } from './model';
+import { groupByDay, type HomeworkData, type HomeworkRow } from './model';
+import { homeworkKey, mergeTodos, type PlanDay, type Todo } from './todo-model';
+import { useHideDone, useHomeworkTicks, useTodos } from './store';
+import { CheckButton, TodoForm } from './parts';
 
 const read = readHomework as (doc: Document) => HomeworkData;
+
+type Ticks = ReturnType<typeof useHomeworkTicks>;
+type Todos = ReturnType<typeof useTodos>;
 
 export default function HomeworkPage() {
   const school = useSchoolId();
   const { data: loaded, isPending, error, refetch } = useLectioPage(PATHS.homework, read);
   const lectioUrl = pageUrl(school, PATHS.homework);
   const rows = loaded?.data.rows;
-  const days = useMemo(() => groupByDay(rows ?? []), [rows]);
+  const ticks = useHomeworkTicks();
+  const todos = useTodos();
+  const [hideDone, setHideDone] = useHideDone();
+  const [adding, setAdding] = useState(false);
+  const plan = useMemo(() => mergeTodos(groupByDay(rows ?? []), todos.todos), [rows, todos.todos]);
   const now = new Date();
+
+  const rowDone = (row: HomeworkRow) => ticks.isDone(homeworkKey(row.lesson.href, row.start));
+  const doneCount = plan.reduce((n, d) => n + d.rows.filter(rowDone).length + d.todos.filter((t) => t.done).length, 0);
+  const shown = hideDone
+    ? plan.map((d) => ({ ...d, rows: d.rows.filter((r) => !rowDone(r)), todos: d.todos.filter((t) => !t.done) })).filter((d) => d.rows.length || d.todos.length)
+    : plan;
+  const open = rows ? rows.filter((r) => !rowDone(r)).length : 0;
 
   return (
     <Page>
       <PageHeader
         title="Lektier"
-        description={rows ? (rows.length ? `${rows.length} ${rows.length === 1 ? 'modul' : 'moduler'} med lektier forude` : 'Ingen lektier lige nu') : 'Lektier til de kommende moduler'}
+        description={
+          rows
+            ? !rows.length
+              ? 'Ingen lektier lige nu'
+              : open === rows.length
+                ? `${rows.length} ${rows.length === 1 ? 'modul' : 'moduler'} med lektier forude`
+                : `${open} af ${rows.length} moduler med lektier mangler`
+            : 'Lektier til de kommende moduler'
+        }
         actions={
-          <Button variant="ghost" size="sm" asChild>
-            <a href={lectioUrl} target="_blank" rel="noreferrer">
-              <ExternalLink /> Åbn i Lectio
-            </a>
-          </Button>
+          <>
+            {doneCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setHideDone(!hideDone)} aria-pressed={hideDone}>
+                {hideDone ? <Eye /> : <EyeOff />} {hideDone ? `Vis færdige (${doneCount})` : 'Skjul færdige'}
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setAdding(true)} disabled={!todos.ready}>
+              <Plus /> Ny to-do
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <a href={lectioUrl} target="_blank" rel="noreferrer">
+                <ExternalLink /> Åbn i Lectio
+              </a>
+            </Button>
+          </>
         }
       />
+      {adding && (
+        <Card className="mb-6 p-3">
+          <TodoForm onAdd={todos.add} onClose={() => setAdding(false)} />
+        </Card>
+      )}
       {isPending ? (
         <ListSkeleton />
       ) : error ? (
         <Card>
           <ErrorState error={error} onRetry={() => refetch()} href={lectioUrl} />
         </Card>
-      ) : days.length ? (
+      ) : shown.length ? (
         <div className="space-y-7">
-          {days.map((day) => (
-            <DaySection key={day.key} day={day} now={now} />
+          {shown.map((day) => (
+            <DaySection key={day.key || 'undated'} day={day} now={now} ticks={ticks} todos={todos} />
           ))}
         </div>
+      ) : plan.length ? (
+        <Card>
+          <EmptyState icon={<ListChecks />} title="Alt er klaret" description="Alle lektier og to-dos er markeret som færdige." action={<Button size="sm" onClick={() => setHideDone(false)}><Eye /> Vis færdige</Button>} />
+        </Card>
       ) : (
         <Card>
-          <EmptyState icon={<BookOpen />} title="Ingen lektier" description="Når en lærer lægger lektier på et kommende modul, dukker de op her." />
+          <EmptyState icon={<BookOpen />} title="Ingen lektier" description="Når en lærer lægger lektier på et kommende modul, dukker de op her. Du kan også selv tilføje en to-do." />
         </Card>
       )}
     </Page>
@@ -67,9 +112,9 @@ export default function HomeworkPage() {
 
 const capitalize = (s: string) => s.charAt(0).toLocaleUpperCase('da') + s.slice(1);
 
-function DaySection({ day, now }: { day: HomeworkDay; now: Date }) {
+function DaySection({ day, now, ticks, todos }: { day: PlanDay; now: Date; ticks: Ticks; todos: Todos }) {
   const diff = day.date ? dayDiff(day.date, now) : null;
-  const when = diff === null ? '' : diff === 0 ? 'I dag' : diff === 1 ? 'I morgen' : diff > 1 ? `Om ${diff} dage` : '';
+  const when = diff === null ? '' : diff === 0 ? 'I dag' : diff === 1 ? 'I morgen' : diff > 1 ? `Om ${diff} dage` : diff < 0 ? 'Overskredet' : '';
   return (
     <section className="animate-in">
       <h2 className="mb-2 flex items-baseline gap-2 px-1 text-[13px] font-semibold text-fg">
@@ -77,34 +122,57 @@ function DaySection({ day, now }: { day: HomeworkDay; now: Date }) {
         {when && <span className={cn('font-normal', diff! <= 1 ? 'text-warning-soft-fg' : 'text-fg-subtle')}>{when}</span>}
       </h2>
       <div className="space-y-3">
-        {day.rows.map((row, i) => (
-          <LessonCard key={(row.lesson.href || '') + i} row={row} />
-        ))}
+        {day.rows.map((row, i) => {
+          const key = homeworkKey(row.lesson.href, row.start);
+          return <LessonCard key={(row.lesson.href || '') + i} row={row} done={ticks.isDone(key)} onToggle={key ? () => ticks.toggle(key, row.start) : undefined} />;
+        })}
+        {day.todos.length > 0 && (
+          <Card>
+            <ul className="divide-y divide-border">
+              {day.todos.map((t) => (
+                <TodoRow key={t.id} todo={t} todos={todos} />
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </section>
   );
 }
 
-function LessonCard({ row }: { row: HomeworkRow }) {
+function TodoRow({ todo, todos }: { todo: Todo; todos: Todos }) {
+  return (
+    <li className="group flex items-center gap-3 py-2.5 pr-2 pl-4 sm:pl-5">
+      <CheckButton checked={todo.done} onChange={() => todos.toggle(todo.id)} label={todo.text} />
+      <span className={cn('min-w-0 flex-1 text-[14px] break-words', todo.done ? 'text-fg-subtle line-through' : 'text-fg')}>{todo.text}</span>
+      <Button variant="ghost" size="icon-sm" aria-label={`Slet ${todo.text}`} onClick={() => todos.remove(todo.id)} className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+        <X />
+      </Button>
+    </li>
+  );
+}
+
+function LessonCard({ row, done, onToggle }: { row: HomeworkRow; done: boolean; onToggle?: () => void }) {
   const { lesson, start, end } = row;
   const absid = absidFromHref(lesson.href);
   const color = subjectColor(lesson.holds[0] || lesson.title || '');
-  const title = lesson.title || lesson.holds.join(', ') || 'Modul';
+  const title = lesson.title || lesson.holds.map((h) => activeSubjectName(h) || h).join(', ') || 'Modul';
   // Fællesarrangementer list every class; the title says enough there.
   const holds = lesson.holds.length <= 2 ? lesson.holds : [];
   const time = start && end ? `${fmtTime(start)}–${fmtTime(end)}` : '';
   const cancelled = lesson.status === 'cancelled';
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className={cn('relative overflow-hidden transition-opacity', done && 'opacity-60')}>
       <div aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ background: color.bar }} />
-      <div className="flex items-start gap-3 pt-4 pr-3 pl-6 sm:pr-4 sm:pl-7">
+      <div className={cn('flex items-start gap-3 pt-4 pr-3 pl-6 sm:pr-4 sm:pl-7', done && 'pb-4')}>
+        {onToggle && <CheckButton checked={done} onChange={onToggle} label={`Lektier til ${title}`} className="mt-[1px]" />}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             {holds.map((h) => (
               <span key={h} className="inline-flex h-5 items-center rounded-full px-2 text-[11.5px] font-semibold text-fg" style={{ background: `color-mix(in oklch, ${color.bar} 20%, transparent)` }}>{h}</span>
             ))}
-            <h3 className={cn('min-w-0 text-[15px] font-semibold tracking-[-0.01em] text-fg', cancelled && 'line-through decoration-danger/60')}>
+            <h3 className={cn('min-w-0 text-[15px] font-semibold tracking-[-0.01em] text-fg', (cancelled || done) && 'line-through', cancelled && 'decoration-danger/60')}>
               <SmartLink href={lesson.href} className="hover:text-accent-soft-fg">{title}</SmartLink>
             </h3>
             {cancelled && <Badge tone="danger">Aflyst</Badge>}
@@ -134,7 +202,7 @@ function LessonCard({ row }: { row: HomeworkRow }) {
           </SmartLink>
         </Button>
       </div>
-      <HomeworkBody row={row} absid={absid} />
+      {!done && <HomeworkBody row={row} absid={absid} />}
     </Card>
   );
 }

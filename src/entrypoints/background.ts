@@ -6,14 +6,18 @@ import { readLectio } from '@/lib/sync/read';
 import { PastTermError } from '@/lib/lectio/term';
 import { markRead, noticeFor, runCheck, updateBadge, type Reader } from '@/lib/sync/check';
 import { connectGoogle, disconnectGoogle, syncToGoogle } from '@/lib/sync/calendar';
-import { intervalOf, loadPrefs, SYNC_KEY } from '@/lib/sync/store';
+import { intervalOf, loadPrefs, nextDigestAt, SYNC_KEY, typeEnabled } from '@/lib/sync/store';
 import { cancelSignIn, onTabRemoved, onTabUpdated, pasteCallback, refreshModels, signOut, signedOut, startSignIn, tokenForApp } from '@/lib/agent/session';
 import { BRIDGE_KEY, loadBridge, startBridge, type BridgeRunner } from '@/lib/agent/bridge';
 import { runToolHere } from '@/lib/agent/run-tool';
+import { getItem } from '@/lib/storage';
+import { POPUP_PATH, usesPopup } from './popup/model';
 
 const APP_PATH = '/app.html';
 const ALARM = 'lectio-check';
 const BRIDGE_ALARM = 'mcp-bridge';
+/** One-shot alarm at the chosen "Din dag" time, so the digest doesn't wait for a long interval. */
+const DIGEST_ALARM = 'lectio-digest';
 const loginTabs = new Set<number>();
 
 async function openApp(route = '', { check = false } = {}) {
@@ -81,8 +85,24 @@ async function scheduleAlarm() {
   const prefs = await loadPrefs();
   const period = intervalOf(prefs).minutes;
   const existing = await browser.alarms.get(ALARM);
-  if (existing?.periodInMinutes === period) return;
-  await browser.alarms.create(ALARM, { delayInMinutes: 1, periodInMinutes: period });
+  if (existing?.periodInMinutes !== period) await browser.alarms.create(ALARM, { delayInMinutes: 1, periodInMinutes: period });
+  if (!typeEnabled(prefs, 'digest')) {
+    await browser.alarms.clear(DIGEST_ALARM);
+    return;
+  }
+  const when = nextDigestAt(prefs);
+  if ((await browser.alarms.get(DIGEST_ALARM))?.scheduledTime !== when) await browser.alarms.create(DIGEST_ALARM, { when });
+}
+
+/** Attach the popup when it's turned on and a school is chosen; otherwise the button opens the app. */
+async function syncToolbarPopup() {
+  const action = (browser as any).action ?? (browser as any).browserAction;
+  const settings = await getItem<Parameters<typeof usesPopup>[0]>('settings', null);
+  try {
+    await action?.setPopup({ popup: usesPopup(settings) ? POPUP_PATH : '' });
+  } catch (e) {
+    console.warn('Lectiomizer: kunne ikke sætte popup', e);
+  }
 }
 
 export default defineBackground(() => {
@@ -90,6 +110,20 @@ export default defineBackground(() => {
     openApp('', { check: true });
   });
   (browser as any).browserAction?.onClicked.addListener(() => openApp('', { check: true }));
+  // Toolbar popup (Indstillinger → Udseende). While a popup is attached, onClicked doesn't
+  // fire; the popup's "Åbn Lectiomizer" and deep links come back here as 'open-app'.
+  syncToolbarPopup();
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.settings) syncToolbarPopup();
+  });
+  browser.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
+    if (message?.type !== 'open-app' || sender.id !== browser.runtime.id || sender.tab?.url?.startsWith('http')) return;
+    openApp(typeof message.route === 'string' ? message.route : '', { check: true }).then(
+      () => sendResponse({ ok: true }),
+      (e: Error) => sendResponse({ ok: false, message: e.message }),
+    );
+    return true;
+  });
 
   browser.runtime.onInstalled.addListener(({ reason }) => {
     if (reason === 'install') openApp();
@@ -104,6 +138,10 @@ export default defineBackground(() => {
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === ALARM) runCheck(read).catch((e) => console.warn('Lectiomizer: tjek fejlede', e));
     if (alarm.name === BRIDGE_ALARM) bridge();
+    if (alarm.name === DIGEST_ALARM) {
+      runCheck(read, { force: true }).catch((e) => console.warn('Lectiomizer: tjek fejlede', e));
+      scheduleAlarm();
+    }
   });
 
   browser.storage.onChanged.addListener((changes, area) => {
@@ -157,7 +195,7 @@ export default defineBackground(() => {
         return reply(Promise.resolve({ ok: true }));
       case 'calendar:sync-now':
         return reply(
-          read({ schoolId: message.schoolId, weekCount: 8 }).then((r) => ('error' in r ? { ok: false, message: r.error } : syncToGoogle(r.weeks))),
+          read({ schoolId: message.schoolId, weekCount: 8 }).then((r) => ('error' in r ? { ok: false, message: r.error } : syncToGoogle(r.weeks, Date.now(), r.feeds.assignments))),
         );
     }
   });

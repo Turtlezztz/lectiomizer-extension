@@ -1,4 +1,5 @@
 // Typed view of readHome() output plus the small derivations the Home page needs.
+import { activeSubjectName } from '@/lib/subjects';
 import { useEffect, useState } from 'react';
 import { parseAssignmentTitle } from '@/lib/lectio/readers/home.js';
 import { dayDiff } from '@/lib/format';
@@ -75,6 +76,8 @@ const SUBJECTS: Record<string, string> = {
 
 /** "3a Da" → "Dansk"; unknown subjects fall back to the hold name. */
 export function subjectName(hold = ''): string {
+  const own = activeSubjectName(hold);
+  if (own) return own;
   const parts = hold.trim().split(/\s+/);
   const key = (parts.length > 1 ? parts.slice(1).join(' ') : parts[0] || '').toLowerCase().replace(/[^a-zæøå]/g, '');
   return SUBJECTS[key] || hold;

@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { BarChart3, ChevronRight, ExternalLink, EyeOff, ListChecks, Pencil, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, BarChart3, ChevronDown, ChevronRight, ExternalLink, EyeOff, ListChecks, Pencil, Plus } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,9 @@ import { PATHS, pageUrl } from '@/lib/lectio/paths';
 import { readQuestionnaires } from '@/lib/lectio/readers/questionnaire.js';
 import { fmtDate, fmtTime, untilText, urgency } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import type { OpenQuestionnaire, QuestionnairesData } from './model';
+import { HIDDEN_QUESTIONNAIRES, PREFS_DEFAULT, hideKey, sortOpen, toggleHidden, type OpenQuestionnaire, type QuestionnairePrefs, type QuestionnairesData } from './model';
+import { useStudentStore } from '@/features/messages/store';
+import { Switch } from '@/components/ui/switch';
 
 const read = readQuestionnaires as (doc: Document) => QuestionnairesData;
 
@@ -22,12 +24,28 @@ export default function QuestionnairesPage() {
   const { data: loaded, isPending, error, refetch } = useLectioPage(PATHS.questionnaires, read);
   const lectioUrl = pageUrl(school, PATHS.questionnaires);
   const data = loaded?.data;
+  // Hidden questionnaires and "Kun fra lærere" are the student's own, kept locally.
+  const prefs = useStudentStore<QuestionnairePrefs>(HIDDEN_QUESTIONNAIRES, PREFS_DEFAULT);
+  const open = sortOpen(data?.open ?? [], prefs.value);
+  const present = (data?.open ?? []).map(hideKey);
+  const toggle = (q: OpenQuestionnaire) => prefs.update((p) => toggleHidden({ ...PREFS_DEFAULT, ...p }, hideKey(q), present));
+  const setTeachersOnly = (on: boolean) => prefs.update((p) => ({ ...PREFS_DEFAULT, ...p, teachersOnly: on }));
+  const teachersOnly = open.canFilter && !!prefs.value.teachersOnly;
+  const set = open.hidden.length + open.filtered;
 
   return (
     <Page>
       <PageHeader
         title="Spørgeskemaer"
-        description={data ? (data.open.length ? `${data.open.length} åbne for besvarelse` : 'Ingen åbne spørgeskemaer lige nu') : 'Spørgeskemaer fra Lectio'}
+        description={
+          data
+            ? open.shown.length
+              ? `${open.shown.length} åbne for besvarelse`
+              : data.open.length
+                ? 'Ingen åbne spørgeskemaer, der ikke er skjult'
+                : 'Ingen åbne spørgeskemaer lige nu'
+            : 'Spørgeskemaer fra Lectio'
+        }
         actions={
           <>
             {data?.createHref && (
@@ -53,19 +71,70 @@ export default function QuestionnairesPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          <Section title="Åbne for besvarelse" count={data!.open.length} dot="bg-accent">
-            {data!.open.length ? (
-              <ul className="divide-y divide-border">
-                {data!.open.map((q, i) => (
-                  <li key={(q.id || q.title) + i}>
-                    <OpenRow q={q} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState icon={<ListChecks />} title="Ingen spørgeskemaer at besvare" description="Når nogen sender et spørgeskema til dig, dukker det op her." />
+          <div className="space-y-2">
+            <Section
+              title="Åbne for besvarelse"
+              count={open.shown.length}
+              dot="bg-accent"
+              action={
+                open.canFilter && (
+                  <label className="ml-auto flex items-center gap-2 text-[12.5px] text-fg-muted" title="Skjul spørgeskemaer, som elever har lavet">
+                    <Switch checked={teachersOnly} onChange={setTeachersOnly} label="Kun fra lærere" />
+                    Kun fra lærere
+                  </label>
+                )
+              }
+            >
+              {open.shown.length ? (
+                <ul className="divide-y divide-border">
+                  {open.shown.map((q, i) => (
+                    <li key={(q.id || q.title) + i} className="group/row flex items-center transition-colors hover:bg-surface-2">
+                      <OpenRow q={q} />
+                      <HideButton q={q} onClick={() => toggle(q)} />
+                    </li>
+                  ))}
+                </ul>
+              ) : set > 0 ? (
+                <EmptyState icon={<ListChecks />} title="Intet tilbage at besvare" description="De åbne spørgeskemaer er skjult eller filtreret fra." />
+              ) : (
+                <EmptyState icon={<ListChecks />} title="Ingen spørgeskemaer at besvare" description="Når nogen sender et spørgeskema til dig, dukker det op her." />
+              )}
+            </Section>
+            {teachersOnly && open.filtered > 0 && (
+              <p className="px-1 text-[12.5px] text-fg-subtle">
+                {open.filtered} fra elever vises ikke.{' '}
+                <button type="button" className="font-medium text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={() => setTeachersOnly(false)}>
+                  Vis alle
+                </button>
+              </p>
             )}
-          </Section>
+            {open.hidden.length > 0 && (
+              <details className="group/hidden px-1">
+                <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12.5px] font-medium text-fg-muted select-none hover:text-fg [&::-webkit-details-marker]:hidden">
+                  <ChevronDown className="size-3.5 -rotate-90 transition-transform group-open/hidden:rotate-0" />
+                  Skjulte ({open.hidden.length})
+                </summary>
+                <Card className="mt-2 overflow-hidden">
+                  <ul className="divide-y divide-border">
+                    {open.hidden.map((q, i) => (
+                      <li key={(q.id || q.title) + i} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13.5px] text-fg-muted">{q.title || 'Uden titel'}</div>
+                          <div className="truncate text-[12px] text-fg-subtle">
+                            {q.owner}
+                            {q.deadline && ` · Frist ${when(q.deadline)}`}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => toggle(q)}>
+                          <ArchiveRestore /> Vis igen
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </details>
+            )}
+          </div>
 
           {data!.reports.length > 0 && (
             <Section title="Resultater" count={data!.reports.length} dot="bg-info" hint="Åbner i Lectio">
@@ -111,7 +180,7 @@ export default function QuestionnairesPage() {
   );
 }
 
-function Section({ title, count, dot, hint, children }: { title: string; count: number; dot: string; hint?: string; children: React.ReactNode }) {
+function Section({ title, count, dot, hint, action, children }: { title: string; count: number; dot: string; hint?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="animate-in">
       <h2 className="mb-2 flex items-center gap-2 px-1 text-[13px] font-semibold text-fg">
@@ -119,6 +188,7 @@ function Section({ title, count, dot, hint, children }: { title: string; count: 
         {title}
         <span className="font-normal tabular-nums text-fg-subtle">{count}</span>
         {hint && <span className="ml-auto text-[12px] font-normal text-fg-subtle">{hint}</span>}
+        {action}
       </h2>
       <Card className="overflow-hidden">{children}</Card>
     </section>
@@ -164,9 +234,24 @@ function OpenRow({ q }: { q: OpenQuestionnaire }) {
       <ChevronRight className="size-4 shrink-0 text-fg-subtle transition-transform group-hover:translate-x-0.5" />
     </>
   );
-  const cls = 'group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 sm:px-5';
+  const cls = 'group flex min-w-0 flex-1 items-center gap-3 py-3 pr-2 pl-4 transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 sm:pl-5';
   if (q.id) return <Link to={`/questionnaires/${encodeURIComponent(q.id)}`} className={cls}>{content}</Link>;
   return <a href={q.href ?? '#'} target="_blank" rel="noreferrer" className={cls}>{content}</a>;
+}
+
+function HideButton({ q, onClick }: { q: OpenQuestionnaire; onClick: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={onClick}
+      aria-label={`Skjul ${q.title || 'spørgeskemaet'}`}
+      title="Skjul"
+      className="mr-2 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 sm:mr-3 [@media(hover:none)]:opacity-100"
+    >
+      <Archive />
+    </Button>
+  );
 }
 
 function ExternalRow({ href, title, meta, icon }: { href: string | null; title: string; meta: Array<string | null | false | undefined>; icon: React.ReactNode }) {

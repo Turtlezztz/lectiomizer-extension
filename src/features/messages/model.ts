@@ -28,10 +28,11 @@ export const composePath = (to?: string | null) => `beskeder2.aspx?type=nybesked
 /** Lower case without accents, so "Bjørn" is found by "bjorn" and "José" by "jose". */
 export const fold = (value: string) => (value || '').toLocaleLowerCase('da').replace(/ø/g, 'o').replace(/æ/g, 'ae').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 
-export function rowMatches(row: MessageRow, query: string): boolean {
+/** `extra`: more text to search, e.g. the messages of the thread when it is already in the cache. */
+export function rowMatches(row: MessageRow, query: string, extra = ''): boolean {
   const words = fold(query).split(' ').filter(Boolean);
   if (!words.length) return true;
-  const hay = fold([row.subject, row.sender, row.starter, row.recipients, row.recipientsTitle].join(' '));
+  const hay = fold([row.subject, row.sender, row.starter, row.recipients, row.recipientsTitle, extra].join(' '));
   return words.every((w) => hay.includes(w));
 }
 

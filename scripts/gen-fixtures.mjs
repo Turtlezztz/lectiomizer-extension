@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { fixture } from '../legacy/demo/fixtures.mjs';
 import { schedulePage } from '../legacy/demo/schedule-fixture.mjs';
 import { feedbackPage } from './feedback-fixture.mjs';
+import { absenceOverviewPage } from './absence-fixture.mjs';
 import { homeworkPage } from './homework-fixture.mjs';
 import { booksPage, descriptionsPage, phasePage, planHolds, spsPage, studentCardPage, studyPlanPage, uvbSubjects } from './study-fixture.mjs';
 import { questionnaireAnswerPage, questionnaireListPage, questionnaires } from './questionnaire-fixture.mjs';
@@ -33,6 +34,7 @@ put(base + 'SkemaNy.aspx', `<!doctype html><html><head><title>Eleven Demo Elev, 
 put(base + 'aktivitet/aktivitetforside2.aspx?absid=5001&lectab=elevindhold', feedbackPage(base, { absid: 5001 }));
 put(base + 'aktivitet/aktivitetforside2.aspx?absid=5002&lectab=elevindhold', feedbackPage(base, { absid: 5002, open: false }));
 put(base + 'material_lektieoversigt.aspx', homeworkPage(base));
+put(base + 'subnav/fravaerelev.aspx', absenceOverviewPage(base));
 // Studieplan with a page per forløb, Undervisningsbeskrivelser per subject, Bøger, SPS and Studiekort.
 put(base + 'studieplan.aspx?displaytype=ugeteksttabel', studyPlanPage(base));
 for (const p of planHolds.flatMap((h) => h.phases)) put(base + `studieplan/forloeb_vis.aspx?phaseid=${p.id}`, phasePage(base, { id: p.id }));

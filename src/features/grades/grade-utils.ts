@@ -111,10 +111,7 @@ export interface Averages {
 /** Averages + distribution over the latest numeric grade of each subject form. */
 export function summarize(subjects: SubjectGrades[]): Averages {
   const distribution = Object.fromEntries(SCALE.map((s) => [s, 0])) as Averages['distribution'];
-  let sum = 0;
-  let wsum = 0;
-  let wtotal = 0;
-  let count = 0;
+  const entries: Weighted[] = [];
   for (const subject of subjects) {
     for (const form of subject.forms) {
       const g = latestGrade(form.grades);
@@ -122,14 +119,52 @@ export function summarize(subjects: SubjectGrades[]): Averages {
       const label = g && scaleLabel(g.value);
       if (n === null || !label) continue;
       distribution[label as keyof typeof distribution]++;
-      count++;
-      sum += n;
-      const w = parseWeight(g!.weight) ?? 1;
-      wsum += n * w;
-      wtotal += w;
+      entries.push({ value: n, weight: parseWeight(g!.weight) ?? 1 });
     }
   }
-  return { unweighted: count ? sum / count : null, weighted: wtotal ? wsum / wtotal : null, count, distribution };
+  const count = entries.length;
+  const unweighted = count ? entries.reduce((sum, e) => sum + e.value, 0) / count : null;
+  return { unweighted, weighted: weightedMean(entries), count, distribution };
+}
+
+export interface Weighted {
+  value: number;
+  weight: number;
+}
+
+/** Σ(value·weight) / Σweight — the one weighting rule for every average on the page. */
+export function weightedMean(entries: Weighted[]): number | null {
+  let sum = 0;
+  let total = 0;
+  for (const e of entries) {
+    sum += e.value * e.weight;
+    total += e.weight;
+  }
+  return total ? sum / total : null;
+}
+
+// Grades that describe the same ongoing assessment over the year (not separate tests).
+const PROGRESSION = /standpunkt|^årskar/i;
+
+export interface Trend {
+  points: Array<{ type: string; value: number }>;
+  /** last − first */
+  delta: number;
+  direction: 'up' | 'down' | 'same';
+}
+
+/**
+ * How a subject form's grade developed: 1. standpunkt → 2. standpunkt → afsluttende/årskarakter,
+ * in Lectio's column order. Prøver (intern prøve, eksamen) are left out. Null with fewer than two.
+ */
+export function gradeTrend(grades: Grade[]): Trend | null {
+  const points = grades
+    .filter((g) => PROGRESSION.test(g.type))
+    .map((g) => ({ type: g.type, value: scaleLabel(g.value) ? gradeNumber(g.value) : null }))
+    .filter((p): p is { type: string; value: number } => p.value !== null);
+  if (points.length < 2) return null;
+  const delta = points[points.length - 1].value - points[0].value;
+  return { points, delta, direction: delta > 0 ? 'up' : delta < 0 ? 'down' : 'same' };
 }
 
 /** Group protocol rows by "Termin" preserving Lectio's order (newest first). */

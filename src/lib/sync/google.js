@@ -1,7 +1,7 @@
 // Google Calendar access for the background script. Uses the narrow
 // calendar.app.created scope: the extension can only see and change the one
 // calendar it creates, never the user's other calendars.
-import { TIME_ZONE, SOURCE, lessonToEvent, planSync } from './events.js';
+import { DEADLINE, TIME_ZONE, SOURCE, lessonToEvent, planDeadlines, planSync, wantedDeadlines } from './events.js';
 
 const API = 'https://www.googleapis.com/calendar/v3';
 export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
@@ -150,6 +150,38 @@ const shift = (date, days) => {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 };
+
+// Our deadline events, whatever their date (passed ones are removed too).
+async function listDeadlineEvents(client, calendarId) {
+  const events = [];
+  let pageToken;
+  do {
+    const page = await client.request('GET', `/calendars/${enc(calendarId)}/events`, {
+      query: {
+        timeZone: TIME_ZONE, privateExtendedProperty: `lxKind=${DEADLINE}`, singleEvents: 'true', maxResults: '2500',
+        fields: 'items(id,start,extendedProperties),nextPageToken', pageToken,
+      },
+    });
+    events.push(...(page.items || []));
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+  return events;
+}
+
+// Assignment deadlines as events in the same calendar. `assignments` is the
+// assignment feed (feeds.js) – pass [] to remove every deadline event.
+export async function syncDeadlines(client, { calendarId, assignments, now = Date.now() }) {
+  const desired = wantedDeadlines(assignments, now);
+  const plan = planDeadlines(desired, await listDeadlineEvents(client, calendarId));
+  const events = `/calendars/${enc(calendarId)}/events`;
+  const gone = error => { if (error.status !== 404 && error.status !== 410) throw error; };
+  await pool([
+    ...plan.insert.map(event => () => client.request('POST', events, { body: event.body })),
+    ...plan.update.map(event => () => client.request('PUT', `${events}/${enc(event.eventId)}`, { body: event.body })),
+    ...plan.remove.map(id => () => client.request('DELETE', `${events}/${enc(id)}`).catch(gone)),
+  ], 4);
+  return { deadlines: desired.length, added: plan.insert.length, updated: plan.update.length, removed: plan.remove.length };
+}
 
 // weeks: [{ dates: ['YYYY-MM-DD', …], lessons }] read from Lectio.
 export async function syncCalendar(client, { calendarId, weeks, cancelled = true }) {

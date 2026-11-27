@@ -10,7 +10,7 @@ import { browser } from 'wxt/browser';
 browser.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
   if (message?.target !== 'offscreen') return;
   if (message.type === 'read') {
-    readLectio({ schoolId: message.schoolId, weekCount: message.weekCount })
+    readLectio({ schoolId: message.schoolId, weekCount: message.weekCount, grades: !!message.grades, absence: !!message.absence })
       .then(sendResponse)
       .catch((error: Error) => sendResponse({ error: error.message, login: error instanceof NotLoggedInError, paused: error instanceof PastTermError }));
     return true;

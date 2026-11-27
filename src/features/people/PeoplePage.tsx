@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ChevronRight, ExternalLink, Presentation, Search, SearchX, Users, X } from 'lucide-react';
+import { ChevronRight, ExternalLink, Presentation, Search, SearchX, Star, Users, X } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
@@ -12,6 +12,8 @@ import { EmptyState, ErrorState } from '@/components/ui/states';
 import { pageUrl } from '@/lib/lectio/paths';
 import { useSchoolId } from '@/lib/lectio/query';
 import { compareText, directoryPath, searchEntries, sortEntries, useDirectory, type DirectoryEntry, type PeopleSort } from './directory';
+import { favoritesFirst, useFavorites } from './favorites';
+import { cn } from '@/lib/cn';
 
 type Kind = 'elev' | 'laerer';
 
@@ -66,6 +68,7 @@ function PeopleList({ kind, entries }: { kind: Kind; entries: DirectoryEntry[] }
   const sort = (params.get('sorter') as PeopleSort) || (kind === 'elev' ? 'code' : 'first');
   const group = params.get('klasse') ?? '';
   const [limit, setLimit] = useState(PAGE);
+  const favorites = useFavorites();
   const setParam = (key: string, value: string | null) =>
     setParams(
       (p) => {
@@ -80,8 +83,14 @@ function PeopleList({ kind, entries }: { kind: Kind; entries: DirectoryEntry[] }
   const classes = useMemo(() => (kind === 'elev' ? Array.from(new Set(entries.map((e) => e.code).filter(Boolean))).sort(compareText) : []), [entries, kind]);
   const visible = useMemo(() => {
     const found = searchEntries(group ? entries.filter((e) => e.code === group) : entries, query);
-    return sortEntries(found, sort);
-  }, [entries, query, sort, group]);
+    const sorted = sortEntries(found, sort);
+    // Searching: favourites lead the results. Browsing: they get their own section above.
+    return query || group ? favoritesFirst(sorted, favorites.list) : sorted;
+  }, [entries, query, sort, group, favorites.list]);
+  const starred = useMemo(
+    () => (query || group ? [] : sortEntries(entries.filter((e) => favorites.has(e.kind, e.id)), sort === 'code' ? 'first' : sort)),
+    [entries, query, group, sort, favorites.has],
+  );
 
   // Group under class headings when sorted by class.
   const sections = useMemo(() => {
@@ -144,6 +153,21 @@ function PeopleList({ kind, entries }: { kind: Kind; entries: DirectoryEntry[] }
 
       {visible.length ? (
         <div className="space-y-5">
+          {starred.length > 0 && (
+            <section>
+              <h2 className="mb-2 flex items-baseline gap-2 px-1 text-[13px] font-semibold text-fg">
+                Favoritter
+                <span className="text-[12px] font-normal text-fg-subtle tabular-nums">{starred.length}</span>
+              </h2>
+              <Card className="overflow-hidden">
+                <ul className="-mb-px grid sm:grid-cols-2 xl:grid-cols-3">
+                  {starred.map((e) => (
+                    <PersonRow key={e.id} entry={e} route={`${meta.route}/${encodeURIComponent(e.id)}`} kind={kind} starred onStar={() => favorites.toggle({ kind, id: e.id, name: e.name, code: e.code })} />
+                  ))}
+                </ul>
+              </Card>
+            </section>
+          )}
           {sections.map((section) => (
             <section key={section.title || 'all'}>
               {section.title && (
@@ -155,7 +179,7 @@ function PeopleList({ kind, entries }: { kind: Kind; entries: DirectoryEntry[] }
               <Card className="overflow-hidden">
                 <ul className="-mb-px grid sm:grid-cols-2 xl:grid-cols-3">
                   {section.items.map((e) => (
-                    <PersonRow key={e.id} entry={e} route={`${meta.route}/${encodeURIComponent(e.id)}`} kind={kind} />
+                    <PersonRow key={e.id} entry={e} route={`${meta.route}/${encodeURIComponent(e.id)}`} kind={kind} starred={favorites.has(e.kind, e.id)} onStar={() => favorites.toggle({ kind, id: e.id, name: e.name, code: e.code })} />
                   ))}
                 </ul>
               </Card>
@@ -178,12 +202,25 @@ function PeopleList({ kind, entries }: { kind: Kind; entries: DirectoryEntry[] }
   );
 }
 
-function PersonRow({ entry, route, kind }: { entry: DirectoryEntry; route: string; kind: Kind }) {
+function PersonRow({ entry, route, kind, starred, onStar }: { entry: DirectoryEntry; route: string; kind: Kind; starred: boolean; onStar: () => void }) {
   return (
-    <li className="border-b border-border">
-      <Link to={route} className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-2/70">
+    <li className="group/row relative border-b border-border">
+      <button
+        type="button"
+        onClick={onStar}
+        aria-pressed={starred}
+        aria-label={starred ? `Fjern ${entry.name} fra favoritter` : `Føj ${entry.name} til favoritter`}
+        title={starred ? 'Fjern fra favoritter' : 'Føj til favoritter'}
+        className={cn(
+          'absolute top-1/2 right-9 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-md transition-opacity hover:bg-surface-3 focus-visible:opacity-100',
+          starred ? 'text-warning opacity-100' : 'text-fg-subtle opacity-0 group-hover/row:opacity-100',
+        )}
+      >
+        <Star className={cn('size-4', starred && 'fill-current')} />
+      </button>
+      <Link to={route} className="group flex items-center gap-3 py-2.5 pr-4 pl-4 transition-colors hover:bg-surface-2/70">
         <Avatar name={entry.name} size={32} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pr-7">
           <div className="truncate text-[13.5px] font-medium text-fg">{entry.name}</div>
           {entry.code && (
             <div className="truncate text-[12px] text-fg-subtle tabular-nums">

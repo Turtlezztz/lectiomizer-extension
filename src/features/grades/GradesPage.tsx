@@ -1,7 +1,7 @@
-import { useMemo, type ReactNode } from 'react';
-import { ChevronDown, ExternalLink, GraduationCap, Info, ScrollText } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { ChevronDown, ExternalLink, FlaskConical, GraduationCap, Info, ScrollText } from 'lucide-react';
 import { readGrades } from '@/lib/lectio/readers/grades.js';
-import { useLectioPage, useSchoolId } from '@/lib/lectio/query';
+import { useAccount, useLectioPage, useSchoolId } from '@/lib/lectio/query';
 import { pageUrl, PATHS } from '@/lib/lectio/paths';
 import { subjectColor } from '@/lib/subjects';
 import { cn } from '@/lib/cn';
@@ -13,15 +13,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { BAR_TONE, GradeChip } from './GradeChip';
 import {
-  SCALE, fmtNumber, gradeNumber, gradeTone, groupByTerm, isError, latestGrade, splitLevel, summarize, typeName, typeShort, xprsName,
+  SCALE, fmtNumber, gradeTone, gradeTrend, groupByTerm, isError, latestGrade, splitLevel, summarize, typeName, typeShort, xprsName,
   type Diploma, type Grade, type GradesData, type RecordTable, type SectionError, type SubjectGrades,
 } from './grade-utils';
+import { diplomaItemId, simSource, standpunktItemId, type SimSource } from './simulator';
+import { SimBar, SimGrade, TrendMark, type SimCtx } from './SimControls';
+import { useGradeSim } from './useGradeSim';
 
 export default function GradesPage() {
   const school = useSchoolId();
   const href = pageUrl(school, PATHS.grades);
   const { data, isPending, error, refetch } = useLectioPage(PATHS.grades, readGrades);
   const grades = data?.data as GradesData | undefined;
+  const source = useMemo(() => (grades ? simSource(grades) : null), [grades]);
+  const [simOn, setSimOn] = useState(false);
 
   return (
     <Page>
@@ -29,22 +34,44 @@ export default function GradesPage() {
         title="Karakterer"
         description={grades?.term ? `Skoleåret ${grades.term} · standpunkter, årskarakterer og eksamensbevis` : 'Standpunkter, årskarakterer og eksamensbevis'}
         actions={
-          <Button size="sm" variant="ghost" asChild>
-            <a href={href} target="_blank" rel="noreferrer"><ExternalLink /> Åbn i Lectio</a>
-          </Button>
+          <>
+            {source && (
+              <Button size="sm" variant={simOn ? 'soft' : 'ghost'} aria-pressed={simOn} onClick={() => setSimOn((on) => !on)} title="Prøv forventede karakterer og se dit snit – kun på denne enhed">
+                <FlaskConical /> Hvad nu hvis
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" asChild>
+              <a href={href} target="_blank" rel="noreferrer"><ExternalLink /> Åbn i Lectio</a>
+            </Button>
+          </>
         }
       />
       {isPending ? <GradesSkeleton /> : error ? (
         <Card><ErrorState error={error} onRetry={() => refetch()} href={href} /></Card>
-      ) : grades ? <GradesContent grades={grades} href={href} /> : null}
+      ) : grades ? <GradesContent grades={grades} href={href} sim={simOn && source ? { source, close: () => setSimOn(false) } : null} /> : null}
     </Page>
   );
 }
 
-function GradesContent({ grades, href }: { grades: GradesData; href: string }) {
+/** Simulated grades are stored per school + student, locally only. */
+function useSimKey() {
+  const school = useSchoolId();
+  const account = useAccount();
+  if (account.isPending) return null;
+  const elevId = account.data?.data.elevId;
+  return `grades:sim:${school}${elevId ? `:${elevId}` : ''}`;
+}
+
+function GradesContent({ grades, href, sim }: { grades: GradesData; href: string; sim: { source: SimSource; close: () => void } | null }) {
   const summary = useMemo(() => summarize(grades.current.subjects), [grades]);
   const diplomas = grades.diplomas.filter((d): d is Diploma => !isError(d));
   const official = diplomas.find((d) => d.averages.length);
+  const state = useGradeSim(useSimKey());
+  const ctx = useMemo<SimCtx | null>(
+    () => (sim ? { items: new Map(sim.source.items.map((i) => [i.id, i])), overrides: state.overrides, setGrade: state.setGrade } : null),
+    [sim, state.overrides, state.setGrade],
+  );
+  const simDiploma = sim?.source.kind === 'diploma' ? sim.source.diploma : null;
 
   return (
     <div className="space-y-6">
@@ -80,7 +107,7 @@ function GradesContent({ grades, href }: { grades: GradesData; href: string }) {
       <section aria-labelledby="grades-current">
         <SectionTitle id="grades-current" title={`Karakterer${grades.term ? ` i ${grades.term}` : ''}`} note="Standpunkter og prøver på dine hold" />
         {grades.current.subjects.length ? (
-          <CurrentGrades types={grades.current.types} subjects={grades.current.subjects} />
+          <CurrentGrades types={grades.current.types} subjects={grades.current.subjects} sim={sim?.source.kind === 'standpunkt' ? ctx : null} />
         ) : (
           <Card>
             <EmptyState icon={<GraduationCap />} title="Ingen karakterer endnu" description={grades.current.empty || `Der er ikke givet karakterer${grades.term ? ` i ${grades.term}` : ''} endnu. Tidligere skoleår kan vælges i Lectio.`} />
@@ -88,11 +115,15 @@ function GradesContent({ grades, href }: { grades: GradesData; href: string }) {
         )}
       </section>
 
-      {grades.diplomas.map((d, i) => (isError(d) ? <SectionFailed key={i} title="Eksamensbeviset" error={d} href={href} /> : <DiplomaCard key={d.title + i} diploma={d} />))}
+      {grades.diplomas.map((d, i) => (isError(d) ? <SectionFailed key={i} title="Eksamensbeviset" error={d} href={href} /> : <DiplomaCard key={d.title + i} diploma={d} sim={d === simDiploma ? ctx : null} />))}
 
       {grades.protocol && (isError(grades.protocol) ? <SectionFailed title="Protokollinjerne" error={grades.protocol} href={href} /> : grades.protocol.rows.length > 0 && <Protocol table={grades.protocol} />)}
 
       <Supplementary notes={grades.notes} remarks={grades.remarks} href={href} />
+
+      {sim && (
+        <SimBar source={sim.source} overrides={state.overrides} target={state.target} onTarget={state.setTarget} onReset={state.reset} onClose={sim.close} />
+      )}
     </div>
   );
 }
@@ -175,9 +206,18 @@ function DistributionTile({ distribution, count }: { distribution: Record<string
 const TH = 'px-3 py-2 text-[12px] font-medium whitespace-nowrap text-fg-subtle';
 
 /** One row per subject form, one column per grade type — the same matrix Lectio shows, minus the noise. */
-function CurrentGrades({ types, subjects }: { types: string[]; subjects: SubjectGrades[] }) {
+function CurrentGrades({ types, subjects, sim }: { types: string[]; subjects: SubjectGrades[]; sim: SimCtx | null }) {
   const used = types.filter((t) => subjects.some((s) => s.forms.some((f) => f.grades.some((g) => g.type === t))));
   const anyFinal = subjects.some((s) => s.forms.some((f) => f.grades.some((g) => g.final)));
+  const anyTrend = subjects.some((s) => s.forms.some((f) => gradeTrend(f.grades)));
+  /** The grade chip, or – while simulating – an editable one for the grade that counts (the latest). */
+  const chip = (s: SubjectGrades, form: string, g: Grade, latest: Grade | null) => {
+    const id = standpunktItemId(s.subject, s.hold, form);
+    if (sim && g === latest && sim.items.has(id)) {
+      return <SimGrade label={`${s.subject}${form ? `, ${form}` : ''}`} original={g.value} final={g.final} override={sim.overrides[id]} onChange={(v) => sim.setGrade(id, v)} />;
+    }
+    return <GradeChip value={g.value} final={g.final} size="sm" title={gradeTitle(g)} />;
+  };
   return (
     <Card className="overflow-hidden">
       {/* Desktop: matrix */}
@@ -189,6 +229,7 @@ function CurrentGrades({ types, subjects }: { types: string[]; subjects: Subject
               <th scope="col" className={TH}>Form</th>
               <th scope="col" className={cn(TH, 'text-right')}>Vægt</th>
               {used.map((t) => <th key={t} scope="col" className={cn(TH, 'text-center')} title={typeName(t)}>{typeShort(t)}</th>)}
+              {anyTrend && <th scope="col" className={TH} title="Standpunkter og årskarakter over året">Udvikling</th>}
               <th aria-hidden className="w-full" />
             </tr>
           </thead>
@@ -198,6 +239,7 @@ function CurrentGrades({ types, subjects }: { types: string[]; subjects: Subject
               <tbody key={s.subject + s.hold} className="border-b border-border last:border-b-0">
                 {s.forms.map((f, i) => {
                   const latest = latestGrade(f.grades);
+                  const trend = gradeTrend(f.grades);
                   return (
                     <tr key={f.form + i} className="hover:bg-surface-2/60">
                       {i === 0 && (
@@ -211,10 +253,11 @@ function CurrentGrades({ types, subjects }: { types: string[]; subjects: Subject
                         const g = f.grades.find((x) => x.type === t);
                         return (
                           <td key={t} className="px-3 py-2 text-center">
-                            {g ? <GradeChip value={g.value} final={g.final} size="sm" title={gradeTitle(g)} /> : <span className="text-fg-subtle/60">·</span>}
+                            {g ? chip(s, f.form, g, latest) : <span className="text-fg-subtle/60">·</span>}
                           </td>
                         );
                       })}
+                      {anyTrend && <td className="px-3 py-2">{trend && <TrendMark trend={trend} />}</td>}
                       <td aria-hidden />
                     </tr>
                   );
@@ -233,13 +276,17 @@ function CurrentGrades({ types, subjects }: { types: string[]; subjects: Subject
               {s.forms.map((f, i) => (
                 <div key={f.form + i} className="flex items-center gap-2">
                   <span className="w-20 shrink-0 text-[12.5px] text-fg-muted">{f.form || 'Samlet'}</span>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2 py-1">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-1">
                     {f.grades.map((g) => (
                       <span key={g.type} className="inline-flex items-center gap-2">
                         <span className="text-[11px] text-fg-subtle">{typeShort(g.type)}</span>
-                        <GradeChip value={g.value} final={g.final} size="sm" title={gradeTitle(g)} />
+                        {chip(s, f.form, g, latestGrade(f.grades))}
                       </span>
                     ))}
+                    {(() => {
+                      const trend = gradeTrend(f.grades);
+                      return trend && <TrendMark trend={trend} />;
+                    })()}
                   </div>
                 </div>
               ))}
@@ -281,7 +328,7 @@ function diplomaSubject(label: string) {
 }
 
 /** Lectio's "Linjer på bevis": one row per line, årskarakter and eksamen side by side. */
-function DiplomaCard({ diploma }: { diploma: Diploma }) {
+function DiplomaCard({ diploma, sim }: { diploma: Diploma; sim: SimCtx | null }) {
   const examGroup = diploma.groups.findIndex((g) => /eksamen/i.test(g));
   const taken = examGroup < 0 ? 0 : diploma.lines.filter((l) => !l.results[examGroup]?.empty).length;
   return (
@@ -317,12 +364,21 @@ function DiplomaCard({ diploma }: { diploma: Diploma }) {
                   <tr key={line.subject} className="hover:bg-surface-2/60">
                     <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-medium text-fg">{name}</th>
                     <td className="px-3 py-2.5 text-fg-muted">{form}</td>
-                    {line.results.map((r) => [
-                      <td key={r.label + 'k'} className="border-l border-border px-3 py-2 text-center">
-                        {r.empty ? <span className="text-fg-subtle/60" aria-label="Ingen karakter">·</span> : <GradeChip value={r.fields.Karakter} size="sm" title={r.fields.ECTS ? `ECTS ${r.fields.ECTS}` : undefined} />}
-                      </td>,
-                      <td key={r.label + 'v'} className="px-3 py-2.5 text-center text-fg-subtle tabular-nums">{r.empty ? '' : r.fields['Vægt'] ?? ''}</td>,
-                    ])}
+                    {line.results.map((r) => {
+                      const id = diplomaItemId(line.subject, r.label);
+                      const item = sim?.items.get(id);
+                      const guessed = item?.assumedWeight && sim?.overrides[id];
+                      return [
+                        <td key={r.label + 'k'} className="border-l border-border px-3 py-2 text-center">
+                          {item && sim ? (
+                            <SimGrade label={`${line.subject}, ${r.label}`} original={r.empty ? null : r.fields.Karakter} override={sim.overrides[id]} onChange={(v) => sim.setGrade(id, v)} />
+                          ) : r.empty ? <span className="text-fg-subtle/60" aria-label="Ingen karakter">·</span> : <GradeChip value={r.fields.Karakter} size="sm" title={r.fields.ECTS ? `ECTS ${r.fields.ECTS}` : undefined} />}
+                        </td>,
+                        <td key={r.label + 'v'} className="px-3 py-2.5 text-center text-fg-subtle tabular-nums">
+                          {guessed ? <span className="italic" title="Antaget vægt – Lectio viser først vægten, når karakteren er givet">{fmtNumber(item.weight, 2)}</span> : r.empty ? '' : r.fields['Vægt'] ?? ''}
+                        </td>,
+                      ];
+                    })}
                   </tr>
                 );
               })}
@@ -339,12 +395,17 @@ function DiplomaCard({ diploma }: { diploma: Diploma }) {
                   <p className="truncate text-[13.5px] font-medium text-fg">{name}</p>
                   {form && <p className="text-[12px] text-fg-subtle">{form}</p>}
                 </div>
-                {line.results.map((r) => (
-                  <div key={r.label} className="flex w-14 flex-col items-center gap-1">
-                    <span className="text-[10.5px] text-fg-subtle">{/eksamen/i.test(r.label) ? 'Eksamen' : /år/i.test(r.label) ? 'Års' : r.label}</span>
-                    {r.empty ? <span className="text-fg-subtle/60">·</span> : <GradeChip value={r.fields.Karakter} size="sm" />}
-                  </div>
-                ))}
+                {line.results.map((r) => {
+                  const id = diplomaItemId(line.subject, r.label);
+                  return (
+                    <div key={r.label} className="flex w-14 flex-col items-center gap-1">
+                      <span className="text-[10.5px] text-fg-subtle">{/eksamen/i.test(r.label) ? 'Eksamen' : /år/i.test(r.label) ? 'Års' : r.label}</span>
+                      {sim?.items.has(id) ? (
+                        <SimGrade label={`${line.subject}, ${r.label}`} original={r.empty ? null : r.fields.Karakter} override={sim.overrides[id]} onChange={(v) => sim.setGrade(id, v)} />
+                      ) : r.empty ? <span className="text-fg-subtle/60">·</span> : <GradeChip value={r.fields.Karakter} size="sm" />}
+                    </div>
+                  );
+                })}
               </li>
             );
           })}
