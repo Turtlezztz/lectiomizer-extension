@@ -138,6 +138,9 @@ Du kommer automatisk tilbage til appen bagefter.
 | 📅 | **Skema** | En ugekalender med farver pr. fag, ændrede og aflyste moduler og en levende "nu"-linje. På mobil vises en dagsoversigt. |
 | 📝 | **Opgaver** | Kommende, manglende og afleverede opgaver, med aflevering, upload og grupper på opgavesiden. |
 | 📚 | **Lektier** | Alle kommende moduler med lektier samlet på én side, dag for dag, med hele lektieteksten og modulets note. |
+| 🗺️ | **Studieplan** | Hvad hvert hold arbejder med lige nu, en tidslinje over årets forløb og en side pr. forløb med beskrivelse, skriftligt arbejde og alle moduler med lektier og materialer. |
+| 📄 | **Undervisningsbeskrivelser** | Fag for fag: stamoplysninger og hvert gennemført forløb med indhold og omfang. |
+| 🪪 | **Studiekort**, **Bøger** og **SPS** | Det digitale studiekort med billede, QR-kode og et levende ur; dine boglån med afleveringsfrist; dine SPS-indstillinger og registreringer. |
 | ✉️ | **Beskeder** | En indbakke som i et mailprogram, med samtaletråde, svar og nye beskeder. |
 | 📋 | **Spørgeskemaer** | Besvar spørgeskemaer (ét valg, flere valg og fritekst), gem en kladde eller aflever. |
 | 🎓 | **Karakterer** | Standpunkter, årskarakterer, eksamenssnit med og uden bonus og en fordeling af dine karakterer. |

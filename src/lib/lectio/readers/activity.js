@@ -9,7 +9,7 @@ const navLink = (root, icon) => {
   return link ? { source: link, label: link.title || '' } : null;
 };
 
-function readSections(container) {
+export function readSections(container) {
   const sections = [];
   let current = null;
   for (const child of Array.from(container.children)) {

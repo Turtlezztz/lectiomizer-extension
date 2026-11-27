@@ -6,6 +6,7 @@ import { fixture } from '../legacy/demo/fixtures.mjs';
 import { schedulePage } from '../legacy/demo/schedule-fixture.mjs';
 import { feedbackPage } from './feedback-fixture.mjs';
 import { homeworkPage } from './homework-fixture.mjs';
+import { booksPage, descriptionsPage, phasePage, planHolds, spsPage, studentCardPage, studyPlanPage, uvbSubjects } from './study-fixture.mjs';
 import { questionnaireAnswerPage, questionnaireListPage, questionnaires } from './questionnaire-fixture.mjs';
 
 const norm = (raw) => {
@@ -22,7 +23,7 @@ const put = (path, html) => {
   index[norm(path)] = file;
 };
 const base = '/lectio/123/';
-for (const p of ['forside.aspx', 'OpgaverElev.aspx', 'ElevAflevering.aspx?exerciseid=1001', 'beskeder2.aspx', 'beskeder2.aspx?demo=traad', 'subnav/fravaerelev_fravaersaarsager.aspx', 'grades/grade_report.aspx', 'aktivitet/aktivitetforside2.aspx?absid=5001', 'DokumentOversigt.aspx', 'BD/UserReservations.aspx']) {
+for (const p of ['forside.aspx', 'OpgaverElev.aspx', 'ElevAflevering.aspx?exerciseid=1001', 'beskeder2.aspx', 'beskeder2.aspx?demo=traad', 'subnav/fravaerelev_fravaersaarsager.aspx', 'grades/grade_report.aspx', 'aktivitet/aktivitetforside2.aspx?absid=5001', 'DokumentOversigt.aspx']) {
   put(base + p, fixture(base + p, false));
 }
 // The schedule fixture is a full page body; wrap in the same master page.
@@ -32,6 +33,14 @@ put(base + 'SkemaNy.aspx', `<!doctype html><html><head><title>Eleven Demo Elev, 
 put(base + 'aktivitet/aktivitetforside2.aspx?absid=5001&lectab=elevindhold', feedbackPage(base, { absid: 5001 }));
 put(base + 'aktivitet/aktivitetforside2.aspx?absid=5002&lectab=elevindhold', feedbackPage(base, { absid: 5002, open: false }));
 put(base + 'material_lektieoversigt.aspx', homeworkPage(base));
+// Studieplan with a page per forløb, Undervisningsbeskrivelser per subject, Bøger, SPS and Studiekort.
+put(base + 'studieplan.aspx?displaytype=ugeteksttabel', studyPlanPage(base));
+for (const p of planHolds.flatMap((h) => h.phases)) put(base + `studieplan/forloeb_vis.aspx?phaseid=${p.id}`, phasePage(base, { id: p.id }));
+put(base + 'studieplan/undervisningsbeskrivelse.aspx', descriptionsPage(base));
+for (const [id] of uvbSubjects) put(base + `studieplan/undervisningsbeskrivelse.aspx?sel_fag_id=${id}`, descriptionsPage(base, { subject: id, empty: id !== '507' }));
+put(base + 'BD/UserReservations.aspx', booksPage(base));
+put(base + 'Elev_SPS.aspx', spsPage(base));
+put(base + 'digitaltStudiekort.aspx', studentCardPage(base));
 // Spørgeskemaer: the overview and one answer page per open questionnaire (4002 has a saved draft).
 put(base + 'spoergeskema/spoergeskema_rapport.aspx', questionnaireListPage(base));
 for (const q of questionnaires) put(base + `spoergeskema/spoergeskema_besvar.aspx?id=${q.id}&prevurl=spoergeskema%2fspoergeskema_rapport.aspx`, questionnaireAnswerPage(base, { id: q.id, answers: q.id === 4002 ? { ctl02: 3, ctl03: [0, 3], ctl04: 'Flere vegetarretter' } : {} }));

@@ -11,8 +11,17 @@ export const PATHS = {
   grades: 'grades/grade_report.aspx',
   documents: 'DokumentOversigt.aspx',
   books: 'BD/UserReservations.aspx',
+  studyPlan: 'studieplan.aspx?displaytype=ugeteksttabel',
+  descriptions: 'studieplan/undervisningsbeskrivelse.aspx',
+  sps: 'Elev_SPS.aspx',
+  studentCard: 'digitaltStudiekort.aspx',
   questionnaires: 'spoergeskema/spoergeskema_rapport.aspx',
 } as const;
+
+/** One forløb in the studieplan. */
+export const phasePath = (id: string) => `studieplan/forloeb_vis.aspx?phaseid=${encodeURIComponent(id)}`;
+/** Undervisningsbeskrivelse for one subject (Lectio's own default without an id). */
+export const descriptionsPath = (subjectId?: string | null) => (subjectId ? `${PATHS.descriptions}?sel_fag_id=${encodeURIComponent(subjectId)}` : PATHS.descriptions);
 
 /** Answer page of a Spørgeskema. */
 export const questionnairePath = (id: string) => `spoergeskema/spoergeskema_besvar.aspx?id=${encodeURIComponent(id)}&prevurl=spoergeskema%2fspoergeskema_rapport.aspx`;
@@ -54,6 +63,13 @@ export function appRoute(href: string | null | undefined): string | null {
   if (/opgaverelev\.aspx$/.test(path)) return '/assignments';
   if (/material_lektieoversigt\.aspx$/.test(path)) return '/homework';
   if (/grade_report\.aspx$/.test(path)) return '/grades';
+  if (/^\/lectio\/\d+\/studieplan\.aspx$/.test(path)) return q.get('holdelementid') ? `/studyplan?hold=${q.get('holdelementid')}` : '/studyplan';
+  // Only the forside of a forløb; its other tabs (quiz, undervisningsbeskrivelse) stay on Lectio.
+  if (/studieplan\/forloeb_vis\.aspx$/.test(path) && q.get('phaseid') && !q.get('lectab')) return `/studyplan/${q.get('phaseid')}`;
+  if (/studieplan\/undervisningsbeskrivelse\.aspx$/.test(path)) return q.get('sel_fag_id') ? `/descriptions?fag=${q.get('sel_fag_id')}` : '/descriptions';
+  if (/bd\/userreservations\.aspx$/.test(path)) return '/books';
+  if (/elev_sps\.aspx$/.test(path)) return '/sps';
+  if (/digitaltstudiekort\.aspx$/.test(path)) return '/studentcard';
   if (/fravaerelev(_fravaersaarsager)?\.aspx$/.test(path)) return '/absence';
   // Templates open in display mode (mode=display) and can't be answered: those stay on Lectio.
   if (/spoergeskema\/spoergeskema_besvar\.aspx$/.test(path) && q.get('id') && !q.get('mode')) return `/questionnaires/${q.get('id')}`;

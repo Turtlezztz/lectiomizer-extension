@@ -29,6 +29,12 @@ const QuestionnairePage = lazy(() => import('@/features/questionnaires/Questionn
 const RoomsPage = lazy(() => import('@/features/rooms/RoomsPage'));
 const TeamsPage = lazy(() => import('@/features/teams/TeamsPage'));
 const TeamPage = lazy(() => import('@/features/teams/TeamPage'));
+const StudyPlanPage = lazy(() => import('@/features/studyplan/StudyPlanPage'));
+const PhasePage = lazy(() => import('@/features/studyplan/PhasePage'));
+const DescriptionsPage = lazy(() => import('@/features/descriptions/DescriptionsPage'));
+const BooksPage = lazy(() => import('@/features/books/BooksPage'));
+const SpsPage = lazy(() => import('@/features/sps/SpsPage'));
+const StudentCardPage = lazy(() => import('@/features/studentcard/StudentCardPage'));
 
 function Loading() {
   return (
@@ -58,6 +64,12 @@ const router = createHashRouter([
       { path: 'assignments', element: lazyRoute(AssignmentsPage) },
       { path: 'assignments/:id', element: lazyRoute(AssignmentPage) },
       { path: 'homework', element: lazyRoute(HomeworkPage) },
+      { path: 'studyplan', element: lazyRoute(StudyPlanPage) },
+      { path: 'studyplan/:id', element: lazyRoute(PhasePage) },
+      { path: 'descriptions', element: lazyRoute(DescriptionsPage) },
+      { path: 'books', element: lazyRoute(BooksPage) },
+      { path: 'sps', element: lazyRoute(SpsPage) },
+      { path: 'studentcard', element: lazyRoute(StudentCardPage) },
       { path: 'messages', element: lazyRoute(MessagesPage) },
       { path: 'messages/:id', element: lazyRoute(MessagesPage) },
       { path: 'grades', element: lazyRoute(GradesPage) },

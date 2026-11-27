@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useIsFetching } from '@tanstack/react-query';
 import {
-  BookOpen, CalendarDays, ClipboardList, ListChecks, DoorOpen, ExternalLink, GraduationCap, House, Layers, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sparkles, Sun, SunMoon, UserX, X,
+  BookCopy, BookOpen, CalendarDays, FileText, HandHelping, IdCard, ListTree, ClipboardList, ListChecks, DoorOpen, ExternalLink, GraduationCap, House, Layers, Mail, Presentation, Users, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, Sparkles, Sun, SunMoon, UserX, X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSettings } from '@/lib/settings';
@@ -25,6 +25,15 @@ export const NAV = [
   { to: '/absence', label: 'Fravær', icon: UserX },
   { to: '/questionnaires', label: 'Spørgeskemaer', icon: ListChecks },
   { to: '/chat', label: 'Assistent', icon: Sparkles },
+] as const;
+
+/** Study material and the student's own records. */
+export const NAV_STUDY = [
+  { to: '/studyplan', label: 'Studieplan', icon: ListTree },
+  { to: '/descriptions', label: 'Undervisningsbeskrivelser', icon: FileText },
+  { to: '/books', label: 'Bøger', icon: BookCopy },
+  { to: '/sps', label: 'SPS', icon: HandHelping },
+  { to: '/studentcard', label: 'Studiekort', icon: IdCard },
 ] as const;
 
 /** The school's directories: people, teams and rooms, each with their own schedule. */
@@ -58,6 +67,10 @@ function NavItem({ to, label, icon: Icon, end, collapsed, onNavigate }: { to: st
       )}
     </NavLink>
   );
+}
+
+function NavHeading({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
+  return collapsed ? <div aria-hidden className="mx-auto my-2 h-px w-6 bg-border" /> : <div className="px-2.5 pt-4 pb-1 text-[11.5px] font-medium tracking-wide text-fg-subtle uppercase">{children}</div>;
 }
 
 function Logo({ compact }: { compact?: boolean }) {
@@ -95,7 +108,11 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
         {NAV.map(({ to, label, icon, ...rest }) => (
           <NavItem key={to} to={to} label={label} icon={icon} end={'end' in rest} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
-        {collapsed ? <div aria-hidden className="mx-auto my-2 h-px w-6 bg-border" /> : <div className="px-2.5 pt-4 pb-1 text-[11.5px] font-medium tracking-wide text-fg-subtle uppercase">Skolen</div>}
+        <NavHeading collapsed={collapsed}>Studie</NavHeading>
+        {NAV_STUDY.map(({ to, label, icon }) => (
+          <NavItem key={to} to={to} label={label} icon={icon} collapsed={collapsed} onNavigate={onNavigate} />
+        ))}
+        <NavHeading collapsed={collapsed}>Skolen</NavHeading>
         {NAV_SCHOOL.map(({ to, label, icon }) => (
           <NavItem key={to} to={to} label={label} icon={icon} collapsed={collapsed} onNavigate={onNavigate} />
         ))}

@@ -31,6 +31,10 @@ src/
     notice.ts       notice title/body/diff text shared by app + system notifications
   features/people/  Elever + Lærere (FindSkema.aspx lists) and the shared detail page (profile, "nu", week schedule)
   features/homework/ Lektier: coming lessons with homework (material_lektieoversigt.aspx), full text from each lesson's page
+  features/studyplan/ Studieplan (studieplan.aspx?displaytype=ugeteksttabel: phases/exercises from the calendar tooltips)
+                    and one forløb (studieplan/forloeb_vis.aspx: overview fields + activities with their content)
+  features/descriptions/ Undervisningsbeskrivelser per subject (studieplan/undervisningsbeskrivelse.aspx?sel_fag_id=…)
+  features/books/, sps/, studentcard/  Bøger (BD/UserReservations.aspx), SPS (Elev_SPS.aspx), Studiekort (digitaltStudiekort.aspx)
   features/questionnaires/  Spørgeskemaer: overview + answer page (model.ts: answers ↔ Lectio form fields)
   features/teams/   Hold: every team (FindSkema.aspx?type=hold, one page per subject), its week schedule
                     (SkemaNy.aspx?type=holdelement) and teachers + students (subnav/members.aspx)

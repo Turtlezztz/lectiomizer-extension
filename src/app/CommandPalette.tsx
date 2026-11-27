@@ -5,7 +5,7 @@ import { CornerDownLeft, Search } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/cn';
 import { appRoute } from '@/lib/lectio/paths';
-import { NAV, NAV_SCHOOL } from './Shell';
+import { NAV, NAV_SCHOOL, NAV_STUDY } from './Shell';
 
 interface Item {
   id: string;
@@ -64,7 +64,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   };
   const items = useMemo(() => {
     if (!open) return [];
-    const nav: Item[] = [...NAV, ...NAV_SCHOOL].map((n) => ({ id: n.to, label: n.label, group: 'Gå til', run: () => go(n.to) }));
+    const nav: Item[] = [...NAV, ...NAV_STUDY, ...NAV_SCHOOL].map((n) => ({ id: n.to, label: n.label, group: 'Gå til', run: () => go(n.to) }));
     const all = [...nav, ...cachedItems(client, go)];
     const needle = q.trim().toLocaleLowerCase('da');
     return (needle ? all.filter((i) => `${i.label} ${i.hint ?? ''}`.toLocaleLowerCase('da').includes(needle)) : all).slice(0, 40);
