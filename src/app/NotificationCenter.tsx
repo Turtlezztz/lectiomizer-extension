@@ -133,7 +133,7 @@ export function NotificationBell({ collapsed }: { collapsed?: boolean }) {
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-[16px] font-semibold tracking-[-0.01em]">Notifikationer</Dialog.Title>
               <p className={cn('mt-0.5 truncate text-[12.5px]', status.state === 'error' ? 'text-danger-soft-fg' : 'text-fg-subtle')}>
-                {checking ? 'Tjekker Lectio…' : status.state === 'error' ? status.message : `Tjekket ${ago(status.checkedAt)}`}
+                {checking ? 'Tjekker Lectio…' : status.state === 'error' ? status.message : status.state === 'paused' ? 'Sat på pause' : `Tjekket ${ago(status.checkedAt)}`}
               </p>
             </div>
             <Button variant="ghost" size="icon-sm" aria-label="Tjek Lectio nu" title="Tjek Lectio nu" onClick={checkNow} disabled={checking}>
@@ -154,7 +154,7 @@ export function NotificationBell({ collapsed }: { collapsed?: boolean }) {
               <span>{error || 'Din Lectio-session er udløbet. Log ind igen, så tjekker Lectiomizer for nyt i baggrunden.'}</span>
             </div>
           )}
-          {status.state === 'ok' && status.message && <p className="mx-5 mt-3 text-[12.5px] text-fg-subtle">{status.message}</p>}
+          {(status.state === 'ok' || status.state === 'paused') && status.message && <p className="mx-5 mt-3 text-[12.5px] text-fg-subtle">{status.message}</p>}
           <div className="flex-1 overflow-y-auto px-2 py-2">
             {!notices.length ? (
               <EmptyState

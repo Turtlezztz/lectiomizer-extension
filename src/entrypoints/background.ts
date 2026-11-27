@@ -3,6 +3,7 @@
 import { appRoute } from '@/lib/lectio/paths';
 import { NotLoggedInError } from '@/lib/lectio/client';
 import { readLectio } from '@/lib/sync/read';
+import { PastTermError } from '@/lib/lectio/term';
 import { markRead, noticeFor, runCheck, updateBadge, type Reader } from '@/lib/sync/check';
 import { connectGoogle, disconnectGoogle, syncToGoogle } from '@/lib/sync/calendar';
 import { intervalOf, loadPrefs, SYNC_KEY } from '@/lib/sync/store';
@@ -35,7 +36,7 @@ const direct: Reader = async (args) => {
   try {
     return await readLectio(args);
   } catch (error) {
-    return { error: (error as Error).message, login: error instanceof NotLoggedInError };
+    return { error: (error as Error).message, login: error instanceof NotLoggedInError, paused: error instanceof PastTermError };
   }
 };
 

@@ -6,6 +6,7 @@ import { ORIGIN, getPage } from '../lectio/client';
 import { readMe } from '../lectio/readers/thread.js';
 import { readSchedule, weekUrl, weeksFrom } from '../lectio/readers/schedule.js';
 import { assertAccount, readFeeds } from './feeds.js';
+import { PastTermError, isPastTerm, readTerm, schoolYearOf } from '../lectio/term';
 import type { FeedItem, Lesson } from './store';
 
 export interface Context {
@@ -51,11 +52,27 @@ async function readWeek(week: { dates: string[]; week: number; year: number }, c
   }
 }
 
-/** Throws NotLoggedInError when the Lectio session has expired. */
+/**
+ * Lectio keeps the chosen school year in the session, so after the student
+ * picks last year (in the app or on lectio.dk) every page shows that year:
+ * the coming weeks come back empty and Opgaver lists last year's. Comparing
+ * that with the snapshot would report every lesson as removed, so don't check.
+ * Forside only shows the chosen year; the schedule's menu also lists the years
+ * Lectio offers, which tells whether a newer one exists.
+ */
+async function assertCurrentTerm(home: Document, context: Context, now: Date) {
+  const term = readTerm(home);
+  if (!term || term.year >= schoolYearOf(now)) return;
+  const schedule = readTerm(await getPage(context.scheduleHref));
+  if (schedule && isPastTerm(schedule, now)) throw new PastTermError(schedule.year);
+}
+
+/** Throws NotLoggedInError when the Lectio session has expired, PastTermError when it shows an earlier school year. */
 export async function readLectio({ schoolId, weekCount, now = Date.now() }: { schoolId: string; weekCount: number; now?: number }): Promise<LectioRead> {
   const home = await getPage(`${ORIGIN}/lectio/${schoolId}/forside.aspx`);
   const context = accountContext(home, schoolId);
   if (!context) throw new Error('Kunne ikke se, hvem der er logget ind på Lectio');
+  await assertCurrentTerm(home, context, new Date(now));
   const [weeks, feeds] = await Promise.all([
     Promise.all(weeksFrom(new Date(now), weekCount).map((week: any) => readWeek(week, context))),
     // Reuse the Forside we already fetched.

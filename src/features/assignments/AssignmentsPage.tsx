@@ -14,6 +14,9 @@ import { readAssignments } from '@/lib/lectio/readers/assignments.js';
 import { fmtDate, fmtTime } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { GROUPS, checkboxTarget, deadlineHint, groupAssignments, groupOf, holdsOf, hoursLabel, matches, type AssignmentItem, type AssignmentsData, type Group } from './model';
+import { getTerm, isPastTerm, termLabel } from '@/lib/lectio/term';
+import { markCurrentFilterOff } from '@/lib/lectio/assignment-filter';
+import { useTerm } from '@/lib/lectio/useTerm';
 import { InlineError, StatusBadge, SubjectDot, UrgencyBadge } from './parts';
 
 type View = 'all' | Group;
@@ -81,6 +84,11 @@ function AssignmentList({ loaded }: { loaded: Loaded<AssignmentsData> }) {
   const visible = useMemo(() => data.assignments.filter((a) => matches(a, search, hold)), [data.assignments, search, hold]);
   const grouped = useMemo(() => groupAssignments(visible, now), [visible, now]);
   const filtered = search.trim() !== '' || hold !== '';
+  const filters = useFilterToggle(loaded);
+  const term = useTerm();
+  const past = isPastTerm(term);
+  // "Vis kun aktuelle" (…CurrentExerciseFilterCB): in an earlier school year nothing is current.
+  const onlyCurrent = data.filters.find((f) => /CurrentExercise/i.test(f.source.id) || /aktuelle/i.test(f.label));
 
   const options = [
     { value: 'all' as View, label: 'Alle', count: visible.length },
@@ -124,9 +132,23 @@ function AssignmentList({ loaded }: { loaded: Loaded<AssignmentsData> }) {
         </div>
       </div>
 
-      <LectioFilters loaded={loaded} />
+      <LectioFilters loaded={loaded} filters={filters} />
 
-      {!data.assignments.length ? (
+      {!data.assignments.length && past && onlyCurrent?.checked ? (
+        <Card>
+          <EmptyState
+            icon={<ClipboardList />}
+            title={`Ingen aktuelle opgaver i ${termLabel(term!.year)}`}
+            description="Lectio-filteret “Vis kun aktuelle” skjuler opgaverne fra et tidligere skoleår."
+            action={
+              <Button size="sm" disabled={filters.pending} onClick={() => filters.toggle(onlyCurrent)}>
+                {filters.pending && <LoaderCircle className="animate-spin" />}
+                Vis alle opgaver fra {termLabel(term!.year)}
+              </Button>
+            }
+          />
+        </Card>
+      ) : !data.assignments.length ? (
         <Card>
           <EmptyState icon={<ClipboardList />} title={data.empty || 'Der er ingen opgaver'} description="Når dine lærere stiller opgaver i Lectio, dukker de op her." />
         </Card>
@@ -162,12 +184,10 @@ function GroupEmpty({ group }: { group: Group }) {
   return <EmptyState icon={<ClipboardList />} title="Intet afleveret endnu" description="Afleverede opgaver samles her." />;
 }
 
-/** Lectio's own list filters ("Vis kun aktuelle", …) – each toggle is a postback. */
-function LectioFilters({ loaded }: { loaded: Loaded<AssignmentsData> }) {
+/** Toggle one of Lectio's list filters: a postback, answered with the filtered list. */
+function useFilterToggle(loaded: Loaded<AssignmentsData>) {
   const action = useLectioAction(loaded, read);
   const [pendingLabel, setPendingLabel] = useState<string | null>(null);
-  if (!loaded.data.filters.length) return null;
-
   const toggle = (filter: AssignmentsData['filters'][number]) => {
     const input = filter.source;
     const next = !filter.checked;
@@ -179,12 +199,21 @@ function LectioFilters({ loaded }: { loaded: Loaded<AssignmentsData> }) {
       else input.removeAttribute('checked');
     };
     set(next);
+    // Lectio keeps the filter when going back to this year; remember to turn it on again then.
+    if (!next && /CurrentExercise/i.test(input.id) && isPastTerm(getTerm())) markCurrentFilterOff();
     setPendingLabel(filter.label);
     action.mutate(
       { target: checkboxTarget(input), argument: '' },
       { onError: () => set(!next), onSettled: () => setPendingLabel(null) },
     );
   };
+  return { toggle, pendingLabel, pending: action.isPending, error: action.error };
+}
+
+/** Lectio's own list filters ("Vis kun aktuelle", …) – each toggle is a postback. */
+function LectioFilters({ loaded, filters }: { loaded: Loaded<AssignmentsData>; filters: ReturnType<typeof useFilterToggle> }) {
+  const { toggle, pendingLabel, pending, error } = filters;
+  if (!loaded.data.filters.length) return null;
 
   return (
     <div className="space-y-2">
@@ -196,7 +225,7 @@ function LectioFilters({ loaded }: { loaded: Loaded<AssignmentsData> }) {
             type="button"
             role="switch"
             aria-checked={f.checked}
-            disabled={action.isPending}
+            disabled={pending}
             onClick={() => toggle(f)}
             className={cn(
               'inline-flex h-7 items-center gap-2 rounded-full border px-2.5 text-[12.5px] font-medium transition-colors disabled:opacity-60',
@@ -214,7 +243,7 @@ function LectioFilters({ loaded }: { loaded: Loaded<AssignmentsData> }) {
           </button>
         ))}
       </div>
-      <InlineError error={action.error} />
+      <InlineError error={error} />
     </div>
   );
 }

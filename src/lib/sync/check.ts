@@ -10,7 +10,7 @@ import { syncToGoogle } from './calendar';
 import { noticeBody } from './notice';
 import type { LectioRead } from './read';
 
-export type Reader = (args: { schoolId: string; weekCount: number }) => Promise<LectioRead | { error: string; login?: boolean }>;
+export type Reader = (args: { schoolId: string; weekCount: number }) => Promise<LectioRead | { error: string; login?: boolean; paused?: boolean }>;
 
 let inFlight: Promise<unknown> | null = null;
 let lastStart = 0;
@@ -42,6 +42,11 @@ export async function runCheck(read: Reader, { force = false, onOpen = false } =
     const result = await read({ schoolId, weekCount: Math.max(4, prefs.weeks) }).catch((e: Error) => ({ error: e.message }));
     if ('error' in result) {
       const login = 'login' in result && result.login;
+      // Another school year is shown: keep the snapshot as it is and say why nothing is checked.
+      if ('paused' in result && result.paused) {
+        await setStatus(undefined, { state: 'paused', checkedAt: now, login: false, message: result.error });
+        return { ok: false, message: result.error };
+      }
       await setStatus(undefined, { state: 'error', checkedAt: now, login: !!login, message: login ? 'Log ind på Lectio for at tjekke for nyt.' : result.error });
       return { ok: false, message: result.error };
     }

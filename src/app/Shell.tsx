@@ -12,6 +12,8 @@ import { CommandPalette } from './CommandPalette';
 import { UserBadge } from './UserBadge';
 import { NotificationBell } from './NotificationCenter';
 import { send } from '@/lib/sync/hooks';
+import { useReloadOnTermChange } from '@/lib/lectio/useTerm';
+import { PastTermBanner, YearSelect } from './YearSwitcher';
 
 export const NAV = [
   { to: '/', label: 'Overblik', icon: House, end: true },
@@ -97,6 +99,7 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavig
         ))}
       </nav>
       <div className="space-y-0.5 px-3 pb-3">
+        <YearSelect collapsed={collapsed} />
         <NavLink
           to="/settings"
           onClick={onNavigate}
@@ -150,6 +153,7 @@ export function Shell({ children }: { children?: ReactNode }) {
   const collapsed = settings.sidebarCollapsed;
 
   useEffect(() => setMobileOpen(false), [location.pathname]);
+  useReloadOnTermChange();
   // Opening or reloading the app checks Lectio immediately when checkOnOpen is enabled (otherwise only if due).
   useEffect(() => {
     send({ type: 'check-on-open' }).catch(() => {});
@@ -244,7 +248,10 @@ export function Shell({ children }: { children?: ReactNode }) {
           </Button>
           <NotificationBell collapsed />
         </header>
-        <main className="flex-1">{children ?? <Outlet />}</main>
+        <main className="flex-1">
+          <PastTermBanner />
+          {children ?? <Outlet />}
+        </main>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>

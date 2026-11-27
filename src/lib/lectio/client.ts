@@ -112,11 +112,25 @@ export function isLoginPage(url: string, doc: Document): boolean {
   return !hasLogout && hasLoginForm;
 }
 
+/** Called with every Lectio page we load (e.g. to notice the school year changing). */
+const pageListeners = new Set<(doc: Document) => void>();
+export function onPageLoaded(listener: (doc: Document) => void): () => void {
+  pageListeners.add(listener);
+  return () => pageListeners.delete(listener);
+}
+
 async function load(url: string, init?: { method?: 'GET' | 'POST'; body?: Body }): Promise<Document> {
   const res = await transport.request(url, init);
   if (res.status >= 400) throw new LectioHttpError(res.status);
   const doc = parseDocument(res.html, res.url);
   if (isLoginPage(res.url, doc)) throw new NotLoggedInError();
+  for (const listener of pageListeners) {
+    try {
+      listener(doc);
+    } catch {
+      /* a listener must never break loading a page */
+    }
+  }
   return doc;
 }
 

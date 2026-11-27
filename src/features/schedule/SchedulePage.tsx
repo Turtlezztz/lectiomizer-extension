@@ -17,7 +17,9 @@ import { toLessons, dominant, type Lesson, type RawLesson } from './lessons';
 import { WeekGrid, WeekGridSkeleton, type Day } from './WeekGrid';
 import { AgendaSkeleton, DayAgenda, DayPicker } from './DayAgenda';
 import { useDarkClass, useNow } from './hooks';
-import { dayKey, fmtRange, parseWeekParam, relativeWeek, sameWeek, shiftWeek, weekDates, weekOf, weekParam, weekPath, type WeekRef } from './week';
+import { inSchoolYear, isPastTerm, sameDayIn, schoolYearOf, termLabel } from '@/lib/lectio/term';
+import { useSwitchTerm, useTerm } from '@/lib/lectio/useTerm';
+import { addDays, dayKey, fmtRange, mondayOf, parseWeekParam, relativeWeek, sameWeek, shiftWeek, weekDates, weekOf, weekParam, weekPath, type WeekRef } from './week';
 
 const read = readSchedule as (doc: Document) => RawLesson[];
 /** Warm the cache for neighbouring weeks (same key shape as useLectioPage). */
@@ -60,7 +62,13 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
   const now = useNow();
   const school = useSchoolId();
   const [params, setParams] = useSearchParams();
-  const requested = parseWeekParam(params.get('week'));
+  const term = useTerm();
+  const past = isPastTerm(term, now);
+  // Lectio only shows weeks of the chosen school year. In an earlier year, open
+  // the same week of that year instead of today's (which Lectio would replace
+  // with an empty week 31).
+  const home: WeekRef = past ? weekOf(sameDayIn(term!.year, now)) : weekOf(now);
+  const requested = parseWeekParam(params.get('week')) ?? (past ? home : null);
   const path = weekPath(base, requested);
   const { data, isPending, error, refetch } = useLectioPage(path, read);
 
@@ -88,10 +96,14 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
     },
     [shown.week, shown.year, setParams],
   );
-  const isCurrent = sameWeek(shown, current);
+  const isCurrent = sameWeek(shown, home);
   const goToday = useCallback(() => {
-    if (!isCurrent) setParams((p) => { const next = new URLSearchParams(p); next.set('week', weekParam(current)); return next; }, { replace: true });
-  }, [isCurrent, current.week, current.year, setParams]);
+    if (!isCurrent) setParams((p) => { const next = new URLSearchParams(p); next.set('week', weekParam(home)); return next; }, { replace: true });
+  }, [isCurrent, home.week, home.year, setParams]);
+  // The week's Thursday decides its school year (as for ISO weeks).
+  const weekYear = schoolYearOf(addDays(mondayOf(shown), 3));
+  const outsideTerm = !!term && !inSchoolYear(term.year, addDays(mondayOf(shown), 3));
+  const switcher = useSwitchTerm();
 
   useEffect(() => {
     if (!keys) return;
@@ -130,7 +142,11 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
         title={
           <span className="flex items-center gap-3">
             <span className="tabular-nums">Uge {shown.week}</span>
-            {rel && <Badge tone={rel === 'Denne uge' ? 'accent' : 'neutral'} className="translate-y-px">{rel}</Badge>}
+            {past ? (
+              <Badge tone="warning" className="translate-y-px">{termLabel(term!.year)}</Badge>
+            ) : (
+              rel && <Badge tone={rel === 'Denne uge' ? 'accent' : 'neutral'} className="translate-y-px">{rel}</Badge>
+            )}
           </span>
         }
         description={<span className="tabular-nums">{visibleRange}</span>}
@@ -145,7 +161,7 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
               <Button variant="ghost" size="icon-sm" aria-label="Forrige uge" title="Forrige uge (←)" onClick={() => go(-1)}>
                 <ChevronLeft />
               </Button>
-              <Button variant="ghost" size="sm" onClick={goToday} disabled={isCurrent} title="Gå til i dag (T)" className="px-3">
+              <Button variant="ghost" size="sm" onClick={goToday} disabled={isCurrent} title={past ? `Samme uge i ${termLabel(term!.year)} (T)` : 'Gå til i dag (T)'} className="px-3">
                 I dag
               </Button>
               <Button variant="ghost" size="icon-sm" aria-label="Næste uge" title="Næste uge (→)" onClick={() => go(1)}>
@@ -173,6 +189,26 @@ export function WeekSchedule({ base, eyebrow, emptyText, keys = true }: { base: 
             <AgendaSkeleton />
           </div>
         </>
+      ) : inWeek.length === 0 && outsideTerm ? (
+        <Card>
+          <EmptyState
+            icon={<CalendarX2 />}
+            title={`Uge ${shown.week} hører til skoleåret ${termLabel(weekYear)}`}
+            description={`Lectio viser kun uger fra det valgte skoleår, ${termLabel(term!.year)}.`}
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {term!.options.some((o) => o.year === weekYear) && (
+                  <Button size="sm" disabled={switcher.isPending} onClick={() => switcher.mutate(weekYear)}>
+                    Skift til {termLabel(weekYear)}
+                  </Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={goToday}>
+                  Gå til uge {home.week}
+                </Button>
+              </div>
+            }
+          />
+        </Card>
       ) : inWeek.length === 0 ? (
         <Card>
           <EmptyState

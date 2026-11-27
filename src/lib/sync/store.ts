@@ -39,7 +39,7 @@ const DEFAULT_CLIENT_ID = '937670631254-humqamqlj6vg91boaab1bluhanuq2q29.apps.go
 export const BUILT_IN_CLIENT_ID: string = (import.meta.env.WXT_GOOGLE_CLIENT_ID || '').trim() || DEFAULT_CLIENT_ID;
 
 export interface CheckStatus {
-  state?: 'idle' | 'syncing' | 'ok' | 'error';
+  state?: 'idle' | 'syncing' | 'ok' | 'error' | 'paused';
   message?: string;
   startedAt?: number;
   checkedAt?: number;

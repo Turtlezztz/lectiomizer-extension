@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Bell, CalendarDays, Check, CheckCircle2, Copy, ExternalLink, KeyRound, Loader2, LogOut, Monitor, Moon, Palette, Plug, RefreshCw, School, Sparkles, Sun, TriangleAlert } from 'lucide-react';
+import { Bell, CalendarDays, Check, CheckCircle2, CirclePause, Copy, ExternalLink, KeyRound, Loader2, LogOut, Monitor, Moon, Palette, Plug, RefreshCw, School, Sparkles, Sun, TriangleAlert } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,7 +98,7 @@ function Row({ label, hint, children }: { label: ReactNode; hint?: ReactNode; ch
 }
 
 function StatusLine({ state, message, children }: { state?: string; message?: string; children: ReactNode }) {
-  const Icon = state === 'error' ? TriangleAlert : state === 'syncing' ? Loader2 : CheckCircle2;
+  const Icon = state === 'error' ? TriangleAlert : state === 'syncing' ? Loader2 : state === 'paused' ? CirclePause : CheckCircle2;
   return (
     <div className={cn('flex items-start gap-2 px-5 py-3 text-[12.5px]', state === 'error' ? 'bg-danger-soft text-danger-soft-fg' : 'bg-surface-2/60 text-fg-muted')}>
       <Icon className={cn('mt-px size-3.5 shrink-0', state === 'syncing' && 'animate-spin', state === 'ok' && 'text-success')} />
