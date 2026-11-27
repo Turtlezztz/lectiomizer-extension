@@ -30,6 +30,7 @@ src/
     hooks.ts        app-side hooks (usePrefs, useNotices, …) + send() to the background
     notice.ts       notice title/body/diff text shared by app + system notifications
   features/people/  Elever + Lærere (FindSkema.aspx lists) and the shared detail page (profile, "nu", week schedule)
+  features/homework/ Lektier: coming lessons with homework (material_lektieoversigt.aspx), full text from each lesson's page
   features/questionnaires/  Spørgeskemaer: overview + answer page (model.ts: answers ↔ Lectio form fields)
   features/teams/   Hold: every team (FindSkema.aspx?type=hold, one page per subject), its week schedule
                     (SkemaNy.aspx?type=holdelement) and teachers + students (subnav/members.aspx)

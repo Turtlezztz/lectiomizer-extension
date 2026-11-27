@@ -52,6 +52,7 @@ export function appRoute(href: string | null | undefined): string | null {
   if (/forside\.aspx$/.test(path)) return '/';
   if (/skemany\.aspx$/.test(path) && !q.get('type')) return '/schedule';
   if (/opgaverelev\.aspx$/.test(path)) return '/assignments';
+  if (/material_lektieoversigt\.aspx$/.test(path)) return '/homework';
   if (/grade_report\.aspx$/.test(path)) return '/grades';
   if (/fravaerelev(_fravaersaarsager)?\.aspx$/.test(path)) return '/absence';
   // Templates open in display mode (mode=display) and can't be answered: those stay on Lectio.

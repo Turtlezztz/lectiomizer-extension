@@ -13,6 +13,7 @@ const HomePage = lazy(() => import('@/features/home/HomePage'));
 const SchedulePage = lazy(() => import('@/features/schedule/SchedulePage'));
 const AssignmentsPage = lazy(() => import('@/features/assignments/AssignmentsPage'));
 const AssignmentPage = lazy(() => import('@/features/assignments/AssignmentPage'));
+const HomeworkPage = lazy(() => import('@/features/homework/HomeworkPage'));
 const MessagesPage = lazy(() => import('@/features/messages/MessagesPage'));
 const GradesPage = lazy(() => import('@/features/grades/GradesPage'));
 const AbsencePage = lazy(() => import('@/features/absence/AbsencePage'));
@@ -56,6 +57,7 @@ const router = createHashRouter([
       { path: 'schedule', element: lazyRoute(SchedulePage) },
       { path: 'assignments', element: lazyRoute(AssignmentsPage) },
       { path: 'assignments/:id', element: lazyRoute(AssignmentPage) },
+      { path: 'homework', element: lazyRoute(HomeworkPage) },
       { path: 'messages', element: lazyRoute(MessagesPage) },
       { path: 'messages/:id', element: lazyRoute(MessagesPage) },
       { path: 'grades', element: lazyRoute(GradesPage) },

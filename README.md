@@ -8,6 +8,7 @@ det login, du allerede har.
 - **Overblik**: det nuværende eller næste modul med nedtælling, dagens moduler, kommende afleveringer, de nyeste beskeder og aktuelt.
 - **Skema**: en ugekalender med farver pr. fag, ændrede og aflyste moduler og en levende "nu"-linje. På mobil vises en dagsoversigt.
 - **Opgaver**: opgaver delt op i kommende, manglende og afleverede, med aflevering, upload og grupper på opgavesiden.
+- **Lektier**: alle kommende moduler med lektier samlet på én side, dag for dag, med hele lektieteksten og modulets note.
 - **Beskeder**: en indbakke som i et mailprogram, samtaletråde, svar og nye beskeder.
 - **Spørgeskemaer**: besvar de spørgeskemaer, du får tilsendt (ét valg, flere valg og fritekst), gem en kladde eller aflever. Resultater og oprettelse af dine egne spørgeskemaer åbner i Lectio.
 - **Karakterer**, **Fravær** og **Lektion** (lektionsnoter, lektier og materialer).
@@ -56,6 +57,9 @@ npm run zip / zip:firefox
 
 Udgivelser bygges lokalt og offentliggøres på [GitHub Releases](https://github.com/Turtlezztz/lectiomizer-extension/releases).
 Elever henter Firefox- og Chrome-versionen derfra; Chrome-versionen ligger også i Chrome Web Store.
+
+> **Bemærk:** Versionen i Chrome Web Store er altid bagud i forhold til GitHub Releases, fordi Googles
+> gennemgang af hver opdatering tager lang tid. Vil du have den nyeste version med det samme, så hent den fra GitHub Releases.
 
 1. Læg dine API-nøgler til addons.mozilla.org ([hent dem her](https://addons.mozilla.org/developers/addon/api/key/)) i `.env`:
    `AMO_JWT_ISSUER=user:…` og `AMO_JWT_SECRET=…`. Tilføj eventuelt `CHROME_WEB_STORE_URL=…` for at linke til butikssiden i udgivelsesnoterne.

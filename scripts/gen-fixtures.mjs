@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { fixture } from '../legacy/demo/fixtures.mjs';
 import { schedulePage } from '../legacy/demo/schedule-fixture.mjs';
 import { feedbackPage } from './feedback-fixture.mjs';
+import { homeworkPage } from './homework-fixture.mjs';
 import { questionnaireAnswerPage, questionnaireListPage, questionnaires } from './questionnaire-fixture.mjs';
 
 const norm = (raw) => {
@@ -21,7 +22,7 @@ const put = (path, html) => {
   index[norm(path)] = file;
 };
 const base = '/lectio/123/';
-for (const p of ['forside.aspx', 'OpgaverElev.aspx', 'ElevAflevering.aspx?exerciseid=1001', 'beskeder2.aspx', 'beskeder2.aspx?demo=traad', 'subnav/fravaerelev_fravaersaarsager.aspx', 'grades/grade_report.aspx', 'aktivitet/aktivitetforside2.aspx?absid=5001', 'DokumentOversigt.aspx', 'BD/UserReservations.aspx', 'material_lektieoversigt.aspx']) {
+for (const p of ['forside.aspx', 'OpgaverElev.aspx', 'ElevAflevering.aspx?exerciseid=1001', 'beskeder2.aspx', 'beskeder2.aspx?demo=traad', 'subnav/fravaerelev_fravaersaarsager.aspx', 'grades/grade_report.aspx', 'aktivitet/aktivitetforside2.aspx?absid=5001', 'DokumentOversigt.aspx', 'BD/UserReservations.aspx']) {
   put(base + p, fixture(base + p, false));
 }
 // The schedule fixture is a full page body; wrap in the same master page.
@@ -30,6 +31,7 @@ put(base + 'SkemaNy.aspx', `<!doctype html><html><head><title>Eleven Demo Elev, 
 // Elevfeedback: open on the demo lesson, closed on absid=5002.
 put(base + 'aktivitet/aktivitetforside2.aspx?absid=5001&lectab=elevindhold', feedbackPage(base, { absid: 5001 }));
 put(base + 'aktivitet/aktivitetforside2.aspx?absid=5002&lectab=elevindhold', feedbackPage(base, { absid: 5002, open: false }));
+put(base + 'material_lektieoversigt.aspx', homeworkPage(base));
 // Spørgeskemaer: the overview and one answer page per open questionnaire (4002 has a saved draft).
 put(base + 'spoergeskema/spoergeskema_rapport.aspx', questionnaireListPage(base));
 for (const q of questionnaires) put(base + `spoergeskema/spoergeskema_besvar.aspx?id=${q.id}&prevurl=spoergeskema%2fspoergeskema_rapport.aspx`, questionnaireAnswerPage(base, { id: q.id, answers: q.id === 4002 ? { ctl02: 3, ctl03: [0, 3], ctl04: 'Flere vegetarretter' } : {} }));
