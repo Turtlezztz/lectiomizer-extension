@@ -64,6 +64,7 @@ function fixtures(): Plugin {
 
 export default defineConfig({
   root: resolve(__dirname, 'src/entrypoints/app'),
+  publicDir: resolve(__dirname, 'public'),
   resolve: { alias: { '@': resolve(__dirname, 'src') } },
   plugins: [react(), tailwindcss(), fixtures()],
   server: { port: 5199, strictPort: true, cors: true },
