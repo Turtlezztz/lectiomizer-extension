@@ -5,6 +5,7 @@ import { setTransport } from '@/lib/lectio/client';
 import { readLectio } from '@/lib/sync/read';
 import { compareFeeds, compareSchedule, scheduleScope } from '@/lib/sync/changes.js';
 import { lessonToEvent, planSync } from '@/lib/sync/events.js';
+import { authorize } from '@/lib/sync/google.js';
 import { noticeChanges } from '@/lib/sync/notice';
 import { SYNC_DEFAULTS, isCheckDue } from '@/lib/sync/store';
 
@@ -88,5 +89,44 @@ describe('check scheduling', () => {
     // Still checks if the interval has elapsed or when forced.
     expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: false }, checkedAt, { now: hourLater, onOpen: true })).toBe(true);
     expect(isCheckDue({ ...SYNC_DEFAULTS, interval: 60, checkOnOpen: false }, checkedAt, { now: fiveMinsLater, force: true })).toBe(true);
+  });
+});
+
+describe('google sign-in in a tab (Firefox)', () => {
+  const REDIRECT = 'https://abc.extensions.allizom.org/';
+  const fakeTabs = () => {
+    const listeners = { updated: [] as Function[], removed: [] as Function[] };
+    const ev = (list: Function[]) => ({ addListener: (f: Function) => list.push(f), removeListener: (f: Function) => list.splice(list.indexOf(f), 1) });
+    const tabs = {
+      opened: [] as string[], closed: [] as number[], listeners,
+      onUpdated: ev(listeners.updated), onRemoved: ev(listeners.removed),
+      create: async ({ url }: { url: string }) => { tabs.opened.push(url); return { id: 7 }; },
+      remove: async (id: number) => { tabs.closed.push(id); },
+    };
+    return tabs;
+  };
+  const identity = { getRedirectURL: () => REDIRECT, launchWebAuthFlow: () => Promise.reject(new Error('not used')) };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  it('reads the token from the redirect and closes the tab', async () => {
+    const tabs = fakeTabs();
+    const pending = authorize(identity, 'id', { interactive: true, tabs });
+    await tick();
+    expect(tabs.opened[0]).toContain('accounts.google.com');
+    tabs.listeners.updated.forEach((f) => f(3, { url: REDIRECT + '#access_token=other' }));
+    tabs.listeners.updated.forEach((f) => f(7, { url: 'https://accounts.google.com/consent' }));
+    tabs.listeners.updated.forEach((f) => f(7, { url: REDIRECT + '#access_token=tok&expires_in=60&scope=https://www.googleapis.com/auth/calendar.app.created' }));
+    const auth = await pending;
+    expect(auth.token).toBe('tok');
+    expect(tabs.closed).toEqual([7]);
+    expect(tabs.listeners.updated).toHaveLength(0);
+  });
+
+  it('fails when the user closes the tab', async () => {
+    const tabs = fakeTabs();
+    const pending = authorize(identity, 'id', { interactive: true, tabs });
+    await tick();
+    tabs.listeners.removed.forEach((f) => f(7));
+    await expect(pending).rejects.toThrow(/afbrudt/);
   });
 });

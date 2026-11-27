@@ -21,9 +21,37 @@ const authMessages = {
   interaction_required: 'Log ind på Google igen for at fortsætte synkroniseringen.',
 };
 
+// Interactive sign-in in an ordinary tab, for Firefox, whose launchWebAuthFlow
+// window can fail to open and reject at once with "User cancelled or denied
+// access". Google's final redirect goes to the extension's redirect URL (a host
+// that never loads); the tab's URL change carries the token, then the tab closes.
+export function tabAuthFlow(tabs, url, redirectUri) {
+  return new Promise((resolve, reject) => {
+    let tabId = null;
+    const finish = (fn, value) => {
+      tabs.onUpdated.removeListener(onUpdated);
+      tabs.onRemoved.removeListener(onRemoved);
+      fn(value);
+    };
+    const onUpdated = (id, change, tab) => {
+      const current = change.url || tab?.url || '';
+      if (id !== tabId || !current.startsWith(redirectUri)) return;
+      finish(resolve, current);
+      tabs.remove(id).catch(() => {});
+    };
+    const onRemoved = id => {
+      if (id === tabId) finish(reject, new Error('Fanen med Google-login blev lukket'));
+    };
+    tabs.onUpdated.addListener(onUpdated);
+    tabs.onRemoved.addListener(onRemoved);
+    tabs.create({ url, active: true }).then(tab => { tabId = tab.id; }, error => finish(reject, error));
+  });
+}
+
 // Implicit grant: Firefox has no Google-specific identity API, and a token is
 // all the extension needs. Silent renewal uses prompt=none with the saved email.
-export async function authorize(identity, clientId, { interactive, hint = '' }) {
+// `tabs` (Firefox) signs in interactively in a tab instead of the identity window.
+export async function authorize(identity, clientId, { interactive, hint = '', tabs = /** @type {any} */ (null) }) {
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.search = new URLSearchParams({
     client_id: clientId,
@@ -35,7 +63,9 @@ export async function authorize(identity, clientId, { interactive, hint = '' }) 
   });
   let redirect;
   try {
-    redirect = new URL(await identity.launchWebAuthFlow({ url: url.href, interactive }));
+    redirect = new URL(interactive && tabs
+      ? await tabAuthFlow(tabs, url.href, identity.getRedirectURL())
+      : await identity.launchWebAuthFlow({ url: url.href, interactive }));
   } catch (error) {
     // Keep the browser's reason: "afbrudt" alone hides redirect_uri problems.
     const detail = error?.message || String(error || '');

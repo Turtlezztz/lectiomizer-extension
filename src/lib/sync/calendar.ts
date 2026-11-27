@@ -38,7 +38,8 @@ export async function connectGoogle(): Promise<{ ok: boolean; message?: string }
   const id = await clientId();
   if (!id) return { ok: false, message: 'Indtast et Google-klient-ID først.' };
   try {
-    const auth = await authorize(browser.identity, id, { interactive: true });
+    // Firefox's launchWebAuthFlow window can fail to open at all; a tab always does.
+    const auth = await authorize(browser.identity, id, { interactive: true, tabs: import.meta.env.FIREFOX ? browser.tabs : null });
     await session.set({ googleToken: { ...auth, obtained: Date.now() } });
     const profile = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${auth.token}` } })
       .then((r): Promise<{ email?: string }> => (r.ok ? r.json() : Promise.resolve({})))
