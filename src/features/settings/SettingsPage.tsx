@@ -17,6 +17,7 @@ import { BUILT_IN_CLIENT_ID, INTERVALS, WEEK_CHOICES } from '@/lib/sync/store';
 import { cn } from '@/lib/cn';
 import { BRIDGE_DEFAULTS, BRIDGE_KEY, BRIDGE_ORIGINS, BRIDGE_STATUS_KEY, DEFAULT_PORT, newToken, saveBridge, type BridgePrefs, type BridgeStatus } from '@/lib/agent/bridge';
 import { connectChatGPT, useChatAccount, useStored } from '@/features/chat/hooks';
+import { SubjectColorSettings } from './SubjectColors';
 
 const redirectUrl: string = (() => {
   try {
@@ -360,6 +361,7 @@ export default function SettingsPage() {
               ]}
             />
           </Row>
+          <SubjectColorSettings />
         </Section>
         <Section icon={<School />} title="Skole">
           <Row label={settings.school?.name ?? 'Ingen skole'} hint="Lectiomizer bruger dit eget Lectio-login på denne skole.">

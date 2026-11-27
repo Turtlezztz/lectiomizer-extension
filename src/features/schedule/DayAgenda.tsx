@@ -83,11 +83,10 @@ function AgendaItem({ lesson, now }: { lesson: Lesson; now: Date }) {
       <span aria-hidden className="w-1 shrink-0 rounded-full" style={{ background: c.bar }} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className={cn('truncate text-[14.5px] font-semibold text-fg', cancelled && 'line-through decoration-fg-subtle')}>{lesson.subject}</p>
+          <p className={cn('truncate text-[14.5px] font-semibold text-fg', cancelled && 'line-through decoration-fg-subtle')}>{lesson.name}</p>
           {ongoing && <Badge tone="accent">Nu</Badge>}
           <StatusBadge status={lesson.status} />
         </div>
-        {lesson.title && <p className="truncate text-[13px] text-fg-muted">{lesson.title}</p>}
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-fg-muted">
           {lesson.rooms.length > 0 && (
             <span className="inline-flex items-center gap-1">

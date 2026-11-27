@@ -78,13 +78,12 @@ function LessonBlock({ lesson, col, cols, from }: { lesson: Lesson; col: number;
       >
         <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: c.bar }} />
         <span className="flex min-w-0 items-start gap-1">
-          <span className={cn('min-w-0 flex-1 truncate text-[12.5px] leading-[1.35] font-semibold', cancelled && 'line-through decoration-1')}>
-            {lesson.subject}
+          <span className={cn('min-w-0 flex-1 text-[12.5px] leading-[1.35] font-semibold', size === 'lg' ? 'line-clamp-2 break-words' : 'truncate', cancelled && 'line-through decoration-1')}>
+            {lesson.name}
             {size === 'sm' && room && <span className="font-normal opacity-75"> · {room}</span>}
           </span>
           {icons}
         </span>
-        {size === 'lg' && lesson.title && <span className={cn('truncate text-[12px] leading-[1.35] opacity-90', cancelled && 'line-through')}>{lesson.title}</span>}
         {size !== 'sm' && (
           <span className="mt-auto flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[11.5px] leading-[1.35] opacity-75">
             <span className="tabular-nums">

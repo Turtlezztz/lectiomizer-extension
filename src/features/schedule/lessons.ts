@@ -28,6 +28,8 @@ export interface Lesson extends RawLesson {
   endMin: number;
   hold: string;
   subject: string;
+  /** The module's full name: its hold(s), followed by its own title when it has one ("3a Ma – Prøve"). */
+  name: string;
   homeworkText: string;
   noteText: string;
   hasHomework: boolean;
@@ -100,6 +102,7 @@ export function toLesson(raw: RawLesson): Lesson | null {
     endMin,
     hold,
     subject: hold ? subjectName(hold) : raw.title || 'Modul',
+    name: [(raw.holds || []).join(', '), raw.title].filter(Boolean).join(' – ') || 'Modul',
     homeworkText: sections.homework,
     noteText: sections.note,
     hasHomework: raw.homework ?? !!sections.homework,

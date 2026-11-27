@@ -19,7 +19,7 @@ interface LinkProps {
 /** In-app lesson route when we have one, else the Lectio page in a new tab. */
 export const LessonLink = forwardRef<HTMLAnchorElement, LinkProps>(function LessonLink({ lesson, className, style, children, ...rest }, ref) {
   const route = appRoute(lesson.href);
-  const label = `${lesson.subject}${lesson.title ? `, ${lesson.title}` : ''}, ${fmtTime(lesson.startDate)}–${fmtTime(lesson.endDate)}${lesson.rooms.length ? `, ${lesson.rooms.join(', ')}` : ''}${lesson.status === 'cancelled' ? ', aflyst' : lesson.status === 'changed' ? ', ændret' : ''}`;
+  const label = `${lesson.name}, ${fmtTime(lesson.startDate)}–${fmtTime(lesson.endDate)}${lesson.rooms.length ? `, ${lesson.rooms.join(', ')}` : ''}${lesson.status === 'cancelled' ? ', aflyst' : lesson.status === 'changed' ? ', ændret' : ''}`;
   if (route) {
     return (
       <Link ref={ref} to={route} className={className} style={style} aria-label={label} {...rest}>
@@ -64,10 +64,9 @@ function LessonDetails({ lesson }: { lesson: Lesson }) {
         <span aria-hidden className="mt-1 h-8 w-1 shrink-0 rounded-full" style={{ background: c.bar }} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className={'truncate text-[14px] font-semibold text-fg' + (lesson.status === 'cancelled' ? ' line-through decoration-fg-subtle' : '')}>{lesson.subject}</p>
+            <p className={'truncate text-[14px] font-semibold text-fg' + (lesson.status === 'cancelled' ? ' line-through decoration-fg-subtle' : '')}>{lesson.name}</p>
             <StatusBadge status={lesson.status} />
           </div>
-          <p className="truncate text-[13px] text-fg-muted">{lesson.title || lesson.holds.join(', ')}</p>
         </div>
       </div>
       <div className="space-y-1.5">

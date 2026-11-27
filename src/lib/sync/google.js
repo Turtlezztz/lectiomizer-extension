@@ -37,7 +37,10 @@ export async function authorize(identity, clientId, { interactive, hint = '' }) 
   try {
     redirect = new URL(await identity.launchWebAuthFlow({ url: url.href, interactive }));
   } catch (error) {
-    throw new GoogleError(interactive ? 'Google-login blev afbrudt.' : authMessages.interaction_required, { reconnect: !interactive });
+    // Keep the browser's reason: "afbrudt" alone hides redirect_uri problems.
+    const detail = error?.message || String(error || '');
+    console.warn('launchWebAuthFlow failed', { redirectUri: identity.getRedirectURL(), detail });
+    throw new GoogleError(interactive ? `Google-login blev afbrudt${detail ? ` (${detail})` : ''}.` : authMessages.interaction_required, { reason: detail, reconnect: !interactive });
   }
   const params = new URLSearchParams(redirect.hash.slice(1) || redirect.search);
   const error = params.get('error');
