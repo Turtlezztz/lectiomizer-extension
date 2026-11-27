@@ -50,14 +50,71 @@ skema, dine opgaver, beskeder, karakterer og dit fravær fra Lectio med det logi
 konto, ingen server imellem, og handlinger (afsendelse, upload, aflevering) sker ved at indsende Lectios egne
 formularer.
 
-<table>
-  <tr>
-    <td align="center" width="25%">⚡<br><b>Hurtig</b><br><sub>Data caches og genbruges mellem sider</sub></td>
-    <td align="center" width="25%">🔔<br><b>Notifikationer</b><br><sub>Ændrede moduler, nye beskeder og opgaver</sub></td>
-    <td align="center" width="25%">🔒<br><b>Privat</b><br><sub>Intet sendes til en server, vi ejer</sub></td>
-    <td align="center" width="25%">🌗<br><b>Lyst og mørkt</b><br><sub>Følger systemet eller dit valg</sub></td>
-  </tr>
-</table>
+### Sammenlignet med Lectio og BetterLectio
+
+✅ findes · ➖ delvist, eller Lectios egen side i ny ramme · ❌ findes ikke
+
+| Funktion | Lectio | [BetterLectio](https://betterlectio.dk) | Lectiomizer |
+| --- | :---: | :---: | :---: |
+| Skema med ændrede og aflyste moduler | ✅ | ✅ | ✅ farver pr. fag og en "nu"-linje |
+| Opgaver med aflevering og upload | ✅ | ✅ | ✅ |
+| Lektier | ✅ | ✅ | ✅ hele teksten, dag for dag |
+| Beskeder | ✅ | ✅ | ✅ samtaletråde som i et mailprogram |
+| Besvar spørgeskemaer | ✅ | ➖ | ✅ med kladde |
+| Karakterer med snit | ➖ uden snit | ✅ vægtet snit | ✅ eksamenssnit med og uden bonus og en fordeling |
+| Fravær og fraværsårsager | ✅ | ✅ | ✅ |
+| Lektionsnoter og materialer | ✅ | ✅ | ✅ |
+| Elevfeedback med editor | ✅ | ✅ | ✅ |
+| Find elever, lærere, hold og lokaler | ✅ | ✅ | ✅ |
+| Tidligere skoleår | ✅ | ➖ | ✅ skema, opgaver, karakterer, fravær og hold |
+| Overblik over dagen | ➖ forsiden | ✅ | ✅ næste modul med nedtælling |
+| Søgning | ➖ | ✅ `⌘K` | ✅ `⌘K` og genvejene `1`–`6` |
+| Mørkt tema | ❌ | ✅ | ✅ |
+| På mobil | ➖ | ✅ egne apps til iOS og Android | ➖ mobilvenlig app i browseren |
+| Notifikationer om ændringer | ❌ | ✅ i mobilappen | ✅ i browseren, også når fanen er lukket |
+| Skemaet i Google Kalender | ❌ | ❌ | ✅ med ét klik |
+| Spørg en assistent om dit skema og dine opgaver | ❌ | ❌ | ✅ med dit eget ChatGPT-abonnement |
+| MCP-server til Claude, Cursor m.fl. | ❌ | ❌ | ✅ |
+| Ingen server ud over Lectio | – | ❌ konto, indstillinger og profiler ligger hos dem | ✅ |
+| Dit Lectio-login bliver i din browser | ✅ | ➖ push i iOS-appen kræver, at dine Lectio-cookies gemmes krypteret på deres server | ✅ |
+| Dokumenter | ✅ | ✅ | ❌ kun via Assistenten |
+| Profil og indstillinger | ✅ | ✅ | ❌ |
+| Eksamener og terminsprøver | ✅ | ✅ | ❌ |
+| Studieplan | ✅ | ➖ | ❌ |
+| Digitalt studiekort | ✅ | ➖ | ❌ |
+| Bøger | ✅ | ➖ | ❌ |
+| SPS | ✅ | ➖ | ❌ |
+| Dags- og ugeændringer, månedskalender | ✅ | ➖ | ❌ |
+| Undervisningsbeskrivelser | ✅ | ➖ | ❌ |
+
+<sub>BetterLectio-kolonnen bygger på deres kildekode ([udvidelsen](https://github.com/jonbng/betterlectio) og
+[Android-appen](https://github.com/jonbng/betterlectio-android), november 2026). Ret os gerne med et issue.</sub>
+
+Det, Lectiomizer ikke har endnu, åbner du stadig i Lectio som før.
+
+### Egen app i stedet for et lag oven på Lectio
+
+BetterLectio lægger sig oven på Lectios egne sider: hver side indlæses fra Lectio, skjules, og bliver så tegnet om.
+Lectiomizer henter i stedet siderne i baggrunden, læser dataene ud af dem og viser dem i sin egen app. Det giver
+nogle fordele:
+
+- **Hurtigere.** Du venter ikke på en hel Lectio-side ved hvert klik. Data caches og genbruges mellem sider, så
+  appen kan vise det, den allerede ved, med det samme og opdatere bagefter.
+- **Data fra flere sider på én gang.** Overblikket, lektiesiden og `⌘K`-søgningen samler skema, opgaver, beskeder og
+  lektier, som Lectio har spredt ud over mange sider.
+- **Virker uden en åben fane.** De samme parsere bruges af notifikationerne, Google Kalender, Assistenten og
+  MCP-serveren. Et lag oven på en side kan kun noget, mens den side er åben.
+- **Lectio forbliver urørt.** lectio.dk ser ud og opfører sig præcis som før, og du kan altid bruge den ved siden af.
+- **Testbart.** Parserne er rene funktioner, der testes mod gemte sider. Ændrer Lectio en side, fejler én parser et
+  kendt sted i stedet for at layoutet går i stykker.
+- **Alt er lokalt.** Der er ingen Lectiomizer-server. Dine data og dit Lectio-login forlader aldrig din browser,
+  heller ikke for at få notifikationer: tjekkene kører i browseren selv. BetterLectio har en server med din konto,
+  dine indstillinger og din profil, og for at sende push-beskeder til iOS-appen gemmer den dine Lectio-cookies
+  krypteret der, når du har sagt ja til det.
+
+Ulempen er, at hver Lectio-side skal bygges om, før den findes i appen. Et lag oven på Lectio viser alle sider
+fra første dag, også dem, der ikke er lavet om endnu.
+
 
 ## Installation
 
@@ -91,7 +148,7 @@ Du kommer automatisk tilbage til appen bagefter.
 | 🔔 | **Notifikationer** | Tjekker Lectio i baggrunden (som standard hver time, ned til hvert 3. minut) og giver besked om ændrede, aflyste og genoprettede moduler, nye beskeder og nye opgaver. |
 | ✨ | **Assistent** <sub>valgfri</sub> | Spørg om dit skema, dine opgaver, beskeder, karakterer og fravær. Svarer med dit eget ChatGPT-abonnement og kan kun læse. |
 | 🔌 | **MCP-server** <sub>valgfri</sub> | De samme skrivebeskyttede Lectio-værktøjer i Claude, Cursor eller en anden MCP-klient. |
-| 📆 | **Google Kalender** <sub>valgfri</sub> | Kopierer dit skema til en separat "Lectio"-kalender og holder den opdateret. |
+| 📆 | **Google Kalender** <sub>valgfri</sub> | Forbind med ét klik, så kopieres dit skema til en separat "Lectio"-kalender, der holdes opdateret. |
 | ⌨️ | **Tastatur** | `⌘K` / `Ctrl+K`-søgning og genvejene `1`–`6`. |
 
 ## Skærmbilleder
@@ -174,19 +231,19 @@ og tjekkene fortsætter, når du har logget ind igen.
 <details>
 <summary><b>📆 Google Kalender</b></summary>
 
-Login med Google kræver et OAuth-klient-id, der tilhører dig selv. **Indstillinger →
-Google Kalender** guider dig igennem det og viser den omdirigeringsadresse, du skal kopiere:
+Gå til **Indstillinger → Google Kalender**, tryk på **Forbind Google Kalender**, og log ind med din
+Google-konto. Det er det hele: Lectiomizer har sit eget OAuth-klient-id indbygget, så du skal ikke oprette
+noget i Google Cloud. I Firefox åbner login i en almindelig fane.
 
-1. Opret et projekt i [Google Cloud Console](https://console.cloud.google.com/), og aktivér **Google Calendar API**.
-2. Under **Google Auth Platform** sætter du samtykkeskærmen op som **External**, lader den blive i **Testing**, tilføjer dig selv som testbruger og tilføjer scopet `https://www.googleapis.com/auth/calendar.app.created`.
-3. Opret en OAuth-klient af typen **Web application**, og tilføj omdirigeringsadressen fra Indstillinger som autoriseret redirect-URI. Den er forskellig i Chrome (`https://<extension-id>.chromiumapp.org/`) og Firefox (`https://<hash>.extensions.allizom.org/`).
-4. Indsæt klient-id'et i Indstillinger, og tryk på **Forbind Google Kalender**. I Firefox skal du tillade at sende webstedsindhold, når du bliver spurgt.
-
-Du kan også bage et klient-id ind i buildet med `WXT_GOOGLE_CLIENT_ID=…` i `.env`.
+Dit skema kopieres til en separat "Lectio"-kalender, hvor ændrede moduler bliver grønne, aflyste røde, og
+lektier og noter kommer med i beskrivelsen. Kalenderen opdateres ved hvert tjek af Lectio, og du vælger selv,
+hvor mange uger frem den skal dække.
 
 Lectiomizer kan kun se og ændre den kalender, den selv opretter. Google-tokenet
 gemmes kun i sessionslageret. **Afbryd** tilbagekalder det; "Lectio"-kalenderen
 bliver liggende i Google og genbruges, hvis du forbinder igen.
+
+<sub>Udviklere kan bruge deres eget klient-id med `WXT_GOOGLE_CLIENT_ID=…` i `.env`.</sub>
 
 </details>
 

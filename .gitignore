@@ -9,3 +9,4 @@ artifacts/
 .idea/
 # Captured Lectio pages (may hold personal data) – never commit
 fixtures/
+.DS_Store
