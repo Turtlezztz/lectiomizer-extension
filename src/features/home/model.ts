@@ -109,6 +109,33 @@ export function focusDayIndex(days: Day[], now: Date): number {
 export type NeedKind = 'absence' | 'assignment' | 'homework';
 export interface Need { kind: NeedKind; title: string; context: string; href: string | null; due: Date | null; urgent: boolean }
 
+const LESSON_TIME = /\d{1,2}\/\d{1,2}-\d{4}\s+\d{1,2}:\d{2}\s+til\s+(?:\d{1,2}\/\d{1,2}-\d{4}\s+)?\d{1,2}:\d{2}/;
+const TOOLTIP_FIELD = String.raw`(?:Hold|Lærere?|Lokaler?|Lektier|Note|Øvrigt indhold)\s*:`;
+const field = (text: string, name: string) =>
+  text.match(new RegExp(`${name}\\s*:\\s*(.*?)(?=\\s+${TOOLTIP_FIELD}|$)`, 'i'))?.[1]?.trim() || '';
+
+/**
+ * A homework row's text. Usually "3a Da: læs side 12–20", but for changed or
+ * special lessons Lectio gives the whole lesson tooltip instead:
+ * "Ændret! Juleklip 27/11-2026 08:15 til 10:20 Hold: … Lærere: … Lektier: - Tag saks med".
+ */
+export function homeworkText(full: string): { title: string; context: string } {
+  const time = full.match(LESSON_TIME);
+  if (time) {
+    const rest = full.slice(time.index! + time[0].length);
+    const lesson = full.slice(0, time.index).replace(/^\s*(Ændret|Aflyst)!\s*/i, '').trim();
+    const hold = field(rest, 'Hold').split(',')[0]?.trim() || '';
+    const homework = field(rest, 'Lektier').replace(/^-\s*/, '');
+    const note = field(rest, 'Note');
+    return { title: homework || note || lesson || hold || 'Lektier', context: lesson && (homework || note) ? lesson : hold };
+  }
+  const i = full.indexOf(':');
+  return {
+    title: (i > 0 ? full.slice(i + 1) : full).replace(/^\s*-\s*/, '').trim(),
+    context: i > 0 ? full.slice(0, i) : '',
+  };
+}
+
 /** Deadlines, homework and missing absence causes, most urgent first. */
 export function needs(data: HomeData): Need[] {
   const items: Need[] = [];
@@ -119,13 +146,8 @@ export function needs(data: HomeData): Need[] {
   }
   for (const row of data.homework?.rows || []) {
     const full = (row.detail || row.text).replace(/\s+/g, ' ').trim();
-    const i = full.indexOf(':');
-    items.push({
-      kind: 'homework',
-      title: (i > 0 ? full.slice(i + 1) : full).replace(/^\s*-\s*/, '').trim(),
-      context: i > 0 ? full.slice(0, i) : '',
-      href: row.href, due: row.due, urgent: row.urgent,
-    });
+    const { title, context } = homeworkText(full);
+    items.push({ kind: 'homework', title, context, href: row.href, due: row.due, urgent: row.urgent });
   }
   const rank = (n: Need) => (n.due ? n.due.getTime() : n.kind === 'absence' ? -Infinity : Infinity);
   return items.sort((a, b) => rank(a) - rank(b));

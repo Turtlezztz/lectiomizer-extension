@@ -42,6 +42,38 @@ export function optional(read) {
   catch (error) { return { error: error.message || 'Ukendt fejl' }; }
 }
 
+const TIME = /^(\d{1,2})\/(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{2})\s+til\s+(?:(\d{1,2})\/(\d{1,2})-(\d{4})\s+)?(\d{1,2}):(\d{2})/;
+const FIELD = /^(Hold|Lærere?|Lokaler?|Elever?|Grupper?|Ressourcer?)\s*:\s*(.*)$/i;
+const FIELD_NAMES = { hold: 'holds', 'lærer': 'teachers', 'lærere': 'teachers', lokale: 'rooms', lokaler: 'rooms' };
+const pad = n => String(n).padStart(2, '0');
+const stamp = (y, m, d, h, min) => `${y}-${pad(m)}-${pad(d)}T${pad(h)}:${pad(min)}`;
+
+// "Ændret!\nNovelleanalyse\n5/10-2026 08:15 til 09:45\nHold: 3a Da\nLærer: …\nLokale: A12\n\nLektier:\n- …"
+export function parseTooltip(tooltip = '') {
+  const lines = tooltip.split(/\r?\n/).map(line => line.trim());
+  const at = lines.findIndex(line => TIME.test(line));
+  if (at < 0) return null;
+  const [, d, m, y, h1, m1, d2, mo2, y2, h2, m2] = lines[at].match(TIME);
+  const start = stamp(y, m, d, h1, m1);
+  const end = d2 ? stamp(y2, mo2, d2, h2, m2) : stamp(y, m, d, h2, m2);
+  let status = 'normal';
+  const titles = [];
+  for (const line of lines.slice(0, at).filter(Boolean)) {
+    if (/^aflyst!?$/i.test(line)) status = 'cancelled';
+    else if (/^ændret!?$/i.test(line)) status = 'changed';
+    else titles.push(line);
+  }
+  const fields = {};
+  let rest = at + 1;
+  for (; rest < lines.length; rest++) {
+    const field = lines[rest].match(FIELD);
+    if (!field) break;
+    const key = field[1].toLocaleLowerCase('da');
+    fields[FIELD_NAMES[key] || key] = field[2];
+  }
+  return { start, end, status, title: titles.join(' '), fields, details: lines.slice(rest).join('\n').trim() };
+}
+
 // A lesson link as Lectio renders it everywhere (schedule, activity header,
 // absence lists): "ma 28/9 2. modul - [hold] • [teacher] • 1.07 - [title]".
 export function readLesson(link) {
@@ -54,13 +86,34 @@ export function readLesson(link) {
   const [, date = /modul/i.test(when) ? '' : when, module = /modul/i.test(when) ? when : ''] = when.match(/^(\S+\s+\d+\/\d+)\s*(.*)$/) || [];
   const room = loose.slice(1).map(s => s.replace(/^•\s*/, '').replace(/\s*-\s*$/, '').trim()).filter(s => s && s !== '•').pop() || '';
   const status = link.classList.contains('s2cancelled') ? 'cancelled' : link.classList.contains('s2changed') ? 'changed' : 'normal';
-  return {
+  return fillFromTooltip({
     href: link.getAttribute('href') ? link.href : null,
     date, module, room, status,
     holds: people('H'), teachers: people('T'),
     title: text(content.querySelector('.s2skemabrik-std-title')),
     homework: !!link.querySelector('.ls-lektier'), note: !!link.querySelector('.ls-note'),
-  };
+  }, parseTooltip(link.getAttribute('data-tooltip') || ''));
+}
+
+const shortened = (value = '') => /\.{3}|…/.test(value);
+const names = (value = '') => value.split(',').map(s => s.trim()).filter(Boolean);
+// "08:15 - 10:20 - ... • ..." → "08:15 - 10:20"; "6. modul - ... • X" → "6. modul"
+const beforeEllipsis = (value = '') => value.split(/\s*[-•]?\s*(?:\.{3}|…)/)[0].replace(/\s*[-•]\s*$/, '').trim();
+
+// Lessons with many holds/teachers (fællesarrangementer, ændrede moduler) are
+// shortened on the brick to "6. modul - ... • ... • X" and lose their context
+// cards and title. The tooltip, when there is one, still has everything.
+function fillFromTooltip(lesson, tip) {
+  const cut = shortened(lesson.module) || shortened(lesson.room);
+  if (shortened(lesson.module)) lesson.module = beforeEllipsis(lesson.module);
+  if (shortened(lesson.room)) lesson.room = '';
+  if (!tip) return lesson;
+  if (!lesson.title) lesson.title = tip.title;
+  if (!lesson.holds.length && tip.fields.holds) lesson.holds = names(tip.fields.holds);
+  if (!lesson.teachers.length && tip.fields.teachers) lesson.teachers = names(tip.fields.teachers);
+  if (tip.fields.rooms && (cut || !lesson.room)) lesson.room = tip.fields.rooms;
+  if (lesson.status === 'normal' && tip.status !== 'normal') lesson.status = tip.status;
+  return lesson;
 }
 
 // A table whose first row holds the headings → [{label: cell}] using desktop cells.

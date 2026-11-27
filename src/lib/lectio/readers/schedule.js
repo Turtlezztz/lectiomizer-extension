@@ -1,7 +1,9 @@
 // Reads a SkemaNy.aspx week into plain lessons for the calendar sync. Each
 // brick's tooltip carries the full date and time; the brick itself carries the
 // lesson link and status classes.
-import { ReaderError, readLesson } from './util.js';
+import { ReaderError, parseTooltip, readLesson } from './util.js';
+
+export { parseTooltip };
 
 const pad = n => String(n).padStart(2, '0');
 const isoDate = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
@@ -27,37 +29,6 @@ export function weekUrl(scheduleHref, { week, year }) {
   const url = new URL(scheduleHref);
   url.searchParams.set('week', pad(week) + year);
   return url.href;
-}
-
-const TIME = /^(\d{1,2})\/(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{2})\s+til\s+(?:(\d{1,2})\/(\d{1,2})-(\d{4})\s+)?(\d{1,2}):(\d{2})/;
-const FIELD = /^(Hold|Lærere?|Lokaler?|Elever?|Grupper?|Ressourcer?)\s*:\s*(.*)$/i;
-const FIELD_NAMES = { hold: 'holds', 'lærer': 'teachers', 'lærere': 'teachers', lokale: 'rooms', lokaler: 'rooms' };
-const stamp = (y, m, d, h, min) => `${y}-${pad(m)}-${pad(d)}T${pad(h)}:${pad(min)}`;
-
-// "Ændret!\nNovelleanalyse\n5/10-2026 08:15 til 09:45\nHold: 3a Da\nLærer: …\nLokale: A12\n\nLektier:\n- …"
-export function parseTooltip(tooltip = '') {
-  const lines = tooltip.split(/\r?\n/).map(line => line.trim());
-  const at = lines.findIndex(line => TIME.test(line));
-  if (at < 0) return null;
-  const [, d, m, y, h1, m1, d2, mo2, y2, h2, m2] = lines[at].match(TIME);
-  const start = stamp(y, m, d, h1, m1);
-  const end = d2 ? stamp(y2, mo2, d2, h2, m2) : stamp(y, m, d, h2, m2);
-  let status = 'normal';
-  const titles = [];
-  for (const line of lines.slice(0, at).filter(Boolean)) {
-    if (/^aflyst!?$/i.test(line)) status = 'cancelled';
-    else if (/^ændret!?$/i.test(line)) status = 'changed';
-    else titles.push(line);
-  }
-  const fields = {};
-  let rest = at + 1;
-  for (; rest < lines.length; rest++) {
-    const field = lines[rest].match(FIELD);
-    if (!field) break;
-    const key = field[1].toLocaleLowerCase('da');
-    fields[FIELD_NAMES[key] || key] = field[2];
-  }
-  return { start, end, status, title: titles.join(' '), fields, details: lines.slice(rest).join('\n').trim() };
 }
 
 const list = value => (value || '').split(',').map(s => s.trim()).filter(Boolean);

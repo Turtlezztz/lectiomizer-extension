@@ -14,6 +14,11 @@ export function parseLessonTime(tooltip = '') {
   return { start: new Date(y, mo - 1, d, h1, m1), end: new Date(y, mo - 1, d, h2, m2) };
 }
 
+// readLesson fills shortened bricks from their tooltip; add the parsed time.
+export function readHomeLesson(link) {
+  return { ...readLesson(link), time: parseLessonTime(link.getAttribute('data-tooltip') || '') };
+}
+
 function readSchedule(island) {
   const days = [];
   for (const child of Array.from(island?.children || [])) {
@@ -21,7 +26,7 @@ function readSchedule(island) {
     const link = child.matches('a.s2skemabrik') ? child : child.querySelector('a.s2skemabrik');
     if (!link) continue;
     if (!days.length) days.push({ label: '', lessons: [] });
-    days.at(-1).lessons.push({ ...readLesson(link), time: parseLessonTime(link.getAttribute('data-tooltip') || '') });
+    days.at(-1).lessons.push(readHomeLesson(link));
   }
   return days;
 }
