@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Bell, CalendarDays, Check, CheckCircle2, CirclePause, Copy, ExternalLink, KeyRound, Loader2, LogOut, Monitor, Moon, Palette, Plug, RefreshCw, School, Sparkles, Sun, TriangleAlert } from 'lucide-react';
+import { Bell, CalendarDays, Check, CheckCircle2, CirclePause, Copy, ExternalLink, KeyRound, Loader2, MessageSquare, LogOut, Monitor, Moon, Palette, Plug, RefreshCw, School, Sparkles, Sun, TriangleAlert } from 'lucide-react';
 import { Page, PageHeader } from '@/components/ui/page';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -353,6 +353,11 @@ export default function SettingsPage() {
             />
           </Row>
           <SubjectColorSettings />
+        </Section>
+        <Section icon={<MessageSquare />} title="Beskeder">
+          <Row label="Sendt med Lectiomizer" hint="Tilføj et link til Lectiomizer nederst i de beskeder, du sender herfra.">
+            <Switch label="Sendt med Lectiomizer" checked={settings.messageSignature} onChange={(messageSignature) => update({ messageSignature })} />
+          </Row>
         </Section>
         <Section icon={<School />} title="Skole">
           <Row label={settings.school?.name ?? 'Ingen skole'} hint="Lectiomizer bruger dit eget Lectio-login på denne skole.">

@@ -13,10 +13,12 @@ export interface Settings {
   sidebarCollapsed: boolean;
   /** Colours the user picked per subject (subjectKey → colour id). */
   subjectColors: SubjectColors;
+  /** Add a "Sendt med Lectiomizer" link under messages sent from the app. */
+  messageSignature: boolean;
 }
 
 // Outside the extension (dev harness) the fixtures belong to a demo school.
-const DEFAULTS: Settings = { school: isExtension ? null : { id: '123', name: 'Demo Gymnasium' }, theme: 'system', sidebarCollapsed: false, subjectColors: {} };
+const DEFAULTS: Settings = { school: isExtension ? null : { id: '123', name: 'Demo Gymnasium' }, theme: 'system', sidebarCollapsed: false, subjectColors: {}, messageSignature: true };
 const KEY = 'settings';
 
 const Ctx = createContext<{ settings: Settings; update: (patch: Partial<Settings>) => void; ready: boolean } | null>(null);

@@ -5,6 +5,11 @@ import type { MessageRow, Recipient, ThreadMessage } from './types';
 
 export const NEW_ID = 'new';
 
+export const SIGNATURE_URL = 'https://github.com/Turtlezztz/lectiomizer-extension';
+/** Lectio message bodies are BBCode, so the link is a [url] tag. */
+export const SIGNATURE = `[url=${SIGNATURE_URL}]Sendt med Lectiomizer[/url]`;
+export const withSignature = (body: string, on: boolean) => (on ? `${body.replace(/\s+$/, '')}\n\n${SIGNATURE}` : body);
+
 /**
  * A list row's thread id. Lectio opens a thread with
  * `__doPostBack('__Page', '$LB2$_MC_$_<threadid>')`; the same id is the `id=`

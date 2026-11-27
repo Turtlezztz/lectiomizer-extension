@@ -24,7 +24,8 @@ import { RichText } from '@/components/RichText';
 import { cn } from '@/lib/cn';
 import { fmtLongDate, fmtTime } from '@/lib/format';
 import { fieldName, read, useLectioChain, useThread } from './data';
-import { groupThread, hasPhoto, listNames, ownTitle, timeOf } from './model';
+import { groupThread, hasPhoto, listNames, ownTitle, timeOf, withSignature } from './model';
+import { useSettings } from '@/lib/settings';
 import { InlineError, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, PersonAvatar, errorText, touchScreen, useAutoGrow } from './parts';
 import type { Person, RecipientGroup, Thread, ThreadMessage } from './types';
 import { AttachmentView } from './AttachmentView';
@@ -195,6 +196,7 @@ function ThreadView({
 }) {
   const action = useLectioAction(loaded, read);
   const chain = useLectioChain(loaded);
+  const { settings } = useSettings();
   const log = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const pinned = useRef(true);
@@ -255,7 +257,7 @@ function ThreadView({
     steps.push((page) => {
       const reply = page.data.thread?.reply;
       if (!reply) throw new Error('Lectio åbnede ikke svarfeltet.');
-      const fields: Record<string, string> = { [fieldName(reply.body)]: draft };
+      const fields: Record<string, string> = { [fieldName(reply.body)]: withSignature(draft, settings.messageSignature) };
       if (reply.title && !reply.title.value.trim() && fieldName(reply.title)) fields[fieldName(reply.title)] = `Re: ${thread.subject}`;
       return { element: reply.send, fields };
     });

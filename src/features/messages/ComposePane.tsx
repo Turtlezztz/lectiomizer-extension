@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/states';
 import { cn } from '@/lib/cn';
 import { fieldName, keyOf, read, recipientSources, useCompose, useDirectory } from './data';
-import { fold, searchDirectory } from './model';
+import { fold, searchDirectory, withSignature } from './model';
+import { useSettings } from '@/lib/settings';
 import { InlineError, PersonAvatar, errorText } from './parts';
 import type { Compose, MessagesData, Recipient } from './types';
 import type { Loaded } from '@/lib/lectio/query';
@@ -66,6 +67,7 @@ export function ComposePane({
 function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>; compose: Compose; onSent: () => void }) {
   const client = useQueryClient();
   const action = useLectioAction(loaded, read);
+  const { settings } = useSettings();
   const toRef = useRef<HTMLInputElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -163,7 +165,7 @@ function ComposeForm({ loaded, compose, onSent }: { loaded: Loaded<MessagesData>
     }
     setError('');
     setPending({ type: 'send' });
-    const fields: Record<string, string> = keep();
+    const fields: Record<string, string> = { ...keep(), [fieldName(compose.body)]: withSignature(body, settings.messageSignature) };
     if (noReply && compose.noReply) fields[fieldName(compose.noReply.input)] = 'on';
     action.mutate(
       { element: compose.send, fields },
