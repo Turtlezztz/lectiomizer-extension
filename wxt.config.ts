@@ -1,7 +1,7 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
 
-const OPTIONAL_HOSTS = ['https://auth.openai.com/*', 'https://api.openai.com/*', 'http://127.0.0.1/*'];
+const OPTIONAL_HOSTS = ['https://auth.openai.com/*', 'https://api.openai.com/*', 'https://openrouter.ai/*', 'http://127.0.0.1/*'];
 
 export default defineConfig({
   srcDir: 'src',
@@ -21,7 +21,7 @@ export default defineConfig({
       'https://oauth2.googleapis.com/*',
     ],
     // Asked for when the student turns them on: the Assistent (Sign in with
-    // ChatGPT + Responses API) and the MCP bridge to a local MCP server.
+    // ChatGPT / OpenRouter) and the MCP bridge to a local MCP server.
     ...(manifestVersion === 2 ? { optional_permissions: OPTIONAL_HOSTS as any } : { optional_host_permissions: OPTIONAL_HOSTS }),
     action: { default_title: 'Åbn Lectiomizer' },
     ...(browser === 'firefox'

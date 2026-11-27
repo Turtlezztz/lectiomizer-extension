@@ -6,7 +6,25 @@ import { readLectio } from '@/lib/sync/read';
 import { markRead, noticeFor, runCheck, updateBadge, type Reader } from '@/lib/sync/check';
 import { connectGoogle, disconnectGoogle, syncToGoogle } from '@/lib/sync/calendar';
 import { intervalOf, loadPrefs, SYNC_KEY } from '@/lib/sync/store';
-import { cancelSignIn, onTabRemoved, onTabUpdated, pasteCallback, refreshModels, signOut, signedOut, startSignIn, tokenForApp } from '@/lib/agent/session';
+import {
+  cancelOpenRouterSignIn,
+  cancelSignIn,
+  disconnectOpenRouter,
+  onTabRemoved,
+  onTabUpdated,
+  openRouterSignedOut,
+  openRouterTokenForApp,
+  pasteCallback,
+  pasteOpenRouterCallback,
+  refreshModels,
+  refreshOpenRouterModels,
+  setOpenRouterKey,
+  signOut,
+  signedOut,
+  startOpenRouterSignIn,
+  startSignIn,
+  tokenForApp,
+} from '@/lib/agent/session';
 import { BRIDGE_KEY, loadBridge, startBridge, type BridgeRunner } from '@/lib/agent/bridge';
 import { runToolHere } from '@/lib/agent/run-tool';
 
@@ -149,6 +167,23 @@ export default defineBackground(() => {
         return reply(tokenForApp(!!message.force));
       case 'chat:signed-out':
         return reply(signedOut(String(message.message || 'Log ind med ChatGPT igen.')));
+      // Assistent (OpenRouter).
+      case 'openrouter:connect':
+        return reply(startOpenRouterSignIn({ openerTabId: sender.tab?.id ?? null }));
+      case 'openrouter:cancel':
+        return reply(cancelOpenRouterSignIn());
+      case 'openrouter:callback':
+        return reply(pasteOpenRouterCallback(message.url));
+      case 'openrouter:set-key':
+        return reply(setOpenRouterKey(message.key));
+      case 'openrouter:disconnect':
+        return reply(disconnectOpenRouter());
+      case 'openrouter:models':
+        return reply(refreshOpenRouterModels());
+      case 'openrouter:token':
+        return reply(openRouterTokenForApp());
+      case 'openrouter:signed-out':
+        return reply(openRouterSignedOut(String(message.message || 'Forbind OpenRouter igen.')));
       case 'mcp:start':
         bridge();
         return reply(Promise.resolve({ ok: true }));

@@ -38,8 +38,9 @@ src/
     tools.ts        createLectioTools(): runs them with getPage + the readers, returns compact Markdown with ids
     html-markdown.js  Lectio HTML → Markdown (teacher content, message bodies, fallback pages)
     openai.js       Sign in with ChatGPT + Responses API helpers (pure, ported from v1)
-    session.ts      background: sign-in, callback capture via tabs.onUpdated, token refresh (only here)
-    agent.ts        app: Responses streaming with retries, runTurn() tool loop, history helpers
+    openrouter.js   OpenRouter OAuth PKCE, API key/models and Chat Completions helpers (pure)
+    session.ts      background: sign-in, callback capture via tabs.onUpdated, token/key storage
+    agent.ts        app: ChatGPT Responses + OpenRouter streaming with retries, runTurn() tool loop, history helpers
     account.ts      chat account state, permissions, saved conversations (storage)
     bridge.ts       background: long-polls the local MCP server for tool calls (when turned on)
     run-tool.ts     runs one tool for the bridge (Firefox background page / Chrome offscreen document)
@@ -95,6 +96,7 @@ const { data, isPending, error, refetch } = useLectioPage(PATHS.assignments, rea
 
 ```
 app page (ChatPage) ── runTurn ──▶ api.openai.com/v1/responses   (token from background: chat:token)
+                               └── openrouter.ai/api/v1/chat/completions (key from background: openrouter:token)
         └── tools.run(name, args) ──▶ lectio.dk (getPage + readers, no Lectio tab needed)
 
 MCP client ──stdio──▶ mcp/server.mjs (127.0.0.1:47123) ◀── long-poll ── background bridge.ts

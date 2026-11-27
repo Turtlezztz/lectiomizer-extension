@@ -13,12 +13,12 @@ existing Lectio login.
 - **Karakterer**, **Fravær** and **Lektion** (lesson notes, homework and materials).
 - **Elevfeedback**: on a lesson's Elevfeedback tab you read what the teacher and classmates wrote, and write your own answer in an editor with headings, bold/italic/strikethrough, sub/superscript, text and highlight colours, alignment, lists, indent, quotes, links, tables, images and attached files (also by paste or drag-and-drop). It shows when elevfeedback isn't open or is read-only on a module.
 - **Notifications**: Lectiomizer checks Lectio in the background (hourly by default, down to every 3 minutes) and tells you about changed, cancelled, removed or restored lessons, new messages and replies, and new assignments. You get a browser notification and a badge on the toolbar icon, and the history is under the bell in the app.
-- **Assistent** (optional): ask about your schedule, assignments (and their description documents), lessons, messages, grades and absence. It answers with your own ChatGPT plan (Sign in with ChatGPT) and can only read.
+- **Assistent** (optional): ask about your schedule, assignments (and their description documents), lessons, messages, grades and absence. It answers with your own ChatGPT plan (Sign in with ChatGPT) or OpenRouter (OAuth or API key) and can only read.
 - **MCP server** (optional): use the same read-only Lectio tools from Claude, Cursor or any other MCP client.
 - **Google Kalender** (optional): copies your Skema into a separate "Lectio" calendar in Google Calendar and keeps it updated on every check.
 - `⌘K` / `Ctrl+K` search, keyboard shortcuts `1`–`6`, light, dark and system themes.
 
-Nothing is sent anywhere except lectio.dk, Google Calendar once you connect it, OpenAI when you ask the Assistent something, and a local MCP client when you turn that on. Lectio actions (sending, uploading,
+Nothing is sent anywhere except lectio.dk, Google Calendar once you connect it, OpenAI or OpenRouter when you ask the Assistent something, and a local MCP client when you turn that on. Lectio actions (sending, uploading,
 handing in) are performed by submitting Lectio's own forms.
 
 ## Develop
@@ -95,10 +95,12 @@ calendar stays in Google and is reused if you connect again.
 
 ## Assistent
 
-Open **Assistent** in the sidebar (or press `0`) and choose **Fortsæt med ChatGPT**. Lectiomizer asks
-for permission to contact OpenAI, then opens ChatGPT's sign-in. Answers use your own ChatGPT plan; no API
-key is involved. If the sign-in tab ends on an unreachable `127.0.0.1` page, paste its address into the
-box under the button.
+Open **Assistent** in the sidebar (or press `0`) and choose **ChatGPT** or **OpenRouter**:
+
+- **ChatGPT**: choose **Fortsæt med ChatGPT**. Lectiomizer asks for permission to contact OpenAI, then opens ChatGPT's sign-in. Answers use your own ChatGPT plan; no API key is involved.
+- **OpenRouter**: choose **Fortsæt med OpenRouter** (OAuth PKCE) or paste an OpenRouter API key. Lectiomizer asks for permission to contact OpenRouter and lets you pick any tool-capable model (or type any model ID in Indstillinger).
+
+If a sign-in tab ends on an unreachable `127.0.0.1` page, paste its address into the box under the button. You can connect both providers and switch between them at any time.
 
 The assistant reads Lectio with purpose-built, read-only tools (see `src/lib/agent/tool-specs.js`):
 `get_overview`, `get_schedule`, `list_assignments`, `get_assignment`, `get_lesson`, `list_messages`,
