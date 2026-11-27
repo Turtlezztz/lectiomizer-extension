@@ -1,39 +1,45 @@
 # Lectiomizer
 
-A Firefox and Chrome extension that gives you a fast, modern Lectio. It doesn't
-restyle Lectio's own pages. It opens its **own app** in a tab and reads your
-schedule, assignments, messages, grades and absence from Lectio using your
-existing Lectio login.
+En udvidelse til Firefox og Chrome, der giver dig et hurtigt og moderne Lectio. Den
+ændrer ikke udseendet på Lectios egne sider. Den åbner sin **egen app** i en fane og
+henter dit skema, dine opgaver, beskeder, karakterer og dit fravær fra Lectio med
+det login, du allerede har.
 
-- **Overblik**: the current or next lesson with a countdown, today's lessons, upcoming deadlines, the latest messages and notices.
-- **Skema**: a week calendar with subject colours, changed and cancelled lessons, and a live "now" line. It shows a day agenda on mobile.
-- **Opgaver**: assignments grouped as upcoming, missing and handed in, with hand-in, upload and groups on the detail page.
-- **Beskeder**: a mail-style inbox, conversation threads, reply and new messages.
-- **Spørgeskemaer**: answer the questionnaires sent to you (single choice, multiple choice and free text), save a draft or hand it in. Results and creating your own questionnaires open in Lectio.
-- **Karakterer**, **Fravær** and **Lektion** (lesson notes, homework and materials).
-- **Elevfeedback**: on a lesson's Elevfeedback tab you read what the teacher and classmates wrote, and write your own answer in an editor with headings, bold/italic/strikethrough, sub/superscript, text and highlight colours, alignment, lists, indent, quotes, links, tables, images and attached files (also by paste or drag-and-drop). It shows when elevfeedback isn't open or is read-only on a module.
-- **Notifications**: Lectiomizer checks Lectio in the background (hourly by default, down to every 3 minutes) and tells you about changed, cancelled, removed or restored lessons, new messages and replies, and new assignments. You get a browser notification and a badge on the toolbar icon, and the history is under the bell in the app.
-- **Assistent** (optional): ask about your schedule, assignments (and their description documents), lessons, messages, grades and absence. It answers with your own ChatGPT plan (Sign in with ChatGPT) and can only read.
-- **MCP server** (optional): use the same read-only Lectio tools from Claude, Cursor or any other MCP client.
-- **Google Kalender** (optional): copies your Skema into a separate "Lectio" calendar in Google Calendar and keeps it updated on every check.
-- `⌘K` / `Ctrl+K` search, keyboard shortcuts `1`–`6`, light, dark and system themes.
+- **Overblik**: det nuværende eller næste modul med nedtælling, dagens moduler, kommende afleveringer, de nyeste beskeder og aktuelt.
+- **Skema**: en ugekalender med farver pr. fag, ændrede og aflyste moduler og en levende "nu"-linje. På mobil vises en dagsoversigt.
+- **Opgaver**: opgaver delt op i kommende, manglende og afleverede, med aflevering, upload og grupper på opgavesiden.
+- **Beskeder**: en indbakke som i et mailprogram, samtaletråde, svar og nye beskeder.
+- **Spørgeskemaer**: besvar de spørgeskemaer, du får tilsendt (ét valg, flere valg og fritekst), gem en kladde eller aflever. Resultater og oprettelse af dine egne spørgeskemaer åbner i Lectio.
+- **Karakterer**, **Fravær** og **Lektion** (lektionsnoter, lektier og materialer).
+- **Elevfeedback**: på et moduls Elevfeedback-fane kan du læse, hvad læreren og dine klassekammerater har skrevet, og skrive dit eget svar i en editor med overskrifter, fed/kursiv/gennemstreget, sænket/hævet skrift, tekst- og markeringsfarver, justering, lister, indrykning, citater, links, tabeller, billeder og vedhæftede filer (også ved at indsætte eller trække dem ind). Den viser det, når elevfeedback ikke er åben eller kun kan læses på et modul.
+- **Notifikationer**: Lectiomizer tjekker Lectio i baggrunden (som standard hver time, ned til hvert 3. minut) og giver besked om ændrede, aflyste, fjernede eller genoprettede moduler, nye beskeder og svar samt nye opgaver. Du får en notifikation i browseren og et tal på ikonet i værktøjslinjen, og historikken ligger under klokken i appen.
+- **Assistent** (valgfri): spørg om dit skema, dine opgaver (og deres opgavebeskrivelser), moduler, beskeder, karakterer og fravær. Den svarer med dit eget ChatGPT-abonnement (Log ind med ChatGPT) og kan kun læse.
+- **MCP-server** (valgfri): brug de samme skrivebeskyttede Lectio-værktøjer fra Claude, Cursor eller en anden MCP-klient.
+- **Google Kalender** (valgfri): kopierer dit skema over i en separat "Lectio"-kalender i Google Kalender og holder den opdateret ved hvert tjek.
+- `⌘K` / `Ctrl+K`-søgning, tastaturgenveje `1`–`6` samt lyst, mørkt og systemtema.
 
-Nothing is sent anywhere except lectio.dk, Google Calendar once you connect it, OpenAI when you ask the Assistent something, and a local MCP client when you turn that on. Lectio actions (sending, uploading,
-handing in) are performed by submitting Lectio's own forms.
+Intet sendes andre steder hen end til lectio.dk, Google Kalender når du har forbundet den, OpenAI når du spørger
+Assistenten om noget, og en lokal MCP-klient når du slår den til. Handlinger i Lectio (afsendelse, upload,
+aflevering) udføres ved at indsende Lectios egne formularer.
 
-## Develop
+## Kom i gang
+
+Klik på knappen i værktøjslinjen for at åbne Lectiomizer, vælg din skole, og log ind
+på Lectio i den fane, der åbner. Du kommer automatisk tilbage til appen bagefter.
+
+## Udvikling
 
 ```bash
 npm install
-npm run dev:app        # the app at http://localhost:5199, backed by fixtures/ (no login needed)
-node scripts/gen-fixtures.mjs   # (re)generate synthetic fixture pages
-npm run dev            # WXT dev mode in Chrome (hot reload)
-npm run dev:firefox    # WXT dev mode in Firefox
+npm run dev:app        # appen på http://localhost:5199 med data fra fixtures/ (intet login nødvendigt)
+node scripts/gen-fixtures.mjs   # (gen)opret syntetiske fixture-sider
+npm run dev            # WXT-udviklingstilstand i Chrome (hot reload)
+npm run dev:firefox    # WXT-udviklingstilstand i Firefox
 npm test               # vitest
 npm run typecheck
 ```
 
-## Build and install
+## Byg og installér
 
 ```bash
 npm run build           # Chrome  → .output/chrome-mv3
@@ -41,90 +47,87 @@ npm run build:firefox   # Firefox → .output/firefox-mv2
 npm run zip / zip:firefox
 ```
 
-- **Chrome**: `chrome://extensions` → enable Developer mode → *Load unpacked* → `.output/chrome-mv3`.
-- **Firefox**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `.output/firefox-mv2/manifest.json`.
+- **Chrome**: `chrome://extensions` → slå Udviklertilstand til → *Indlæs upakket* → `.output/chrome-mv3`.
+- **Firefox**: `about:debugging#/runtime/this-firefox` → *Indlæs midlertidig tilføjelse* → `.output/firefox-mv2/manifest.json`.
 
-## Release
+## Udgivelse
 
-Releases are built locally and published to [GitHub Releases](https://github.com/Turtlezztz/lectiomizer-extension/releases).
-Students download Firefox and Chrome from there; Chrome is also on the Chrome Web Store.
+Udgivelser bygges lokalt og offentliggøres på [GitHub Releases](https://github.com/Turtlezztz/lectiomizer-extension/releases).
+Elever henter Firefox- og Chrome-versionen derfra; Chrome-versionen ligger også i Chrome Web Store.
 
-1. Put your addons.mozilla.org API credentials ([get them here](https://addons.mozilla.org/developers/addon/api/key/)) in `.env`:
-   `AMO_JWT_ISSUER=user:…` and `AMO_JWT_SECRET=…`. Optionally add `CHROME_WEB_STORE_URL=…` to link the store page in the notes.
-2. Bump `version` in `package.json`, commit it (`Release x.y.z`), then run:
+1. Læg dine API-nøgler til addons.mozilla.org ([hent dem her](https://addons.mozilla.org/developers/addon/api/key/)) i `.env`:
+   `AMO_JWT_ISSUER=user:…` og `AMO_JWT_SECRET=…`. Tilføj eventuelt `CHROME_WEB_STORE_URL=…` for at linke til butikssiden i udgivelsesnoterne.
+2. Hæv `version` i `package.json`, commit det (`Release x.y.z`), og kør så:
 
 ```bash
-npm run release              # typecheck, test, build, sign Firefox, tag vX.Y.Z, publish
-npm run release -- --draft   # leave the release as a draft to edit the notes first
-npm run release -- --xpi signed.xpi   # use an XPI you already signed instead of signing again
+npm run release              # typecheck, test, byg, signér Firefox, tag vX.Y.Z, udgiv
+npm run release -- --draft   # gem udgivelsen som kladde, så du kan rette noterne først
+npm run release -- --xpi signed.xpi   # brug en XPI, du allerede har signeret, i stedet for at signere igen
 ```
 
-The Firefox build is signed on AMO as an *unlisted* (self-distributed) version, because Firefox only installs
-signed add-ons. The release gets the signed `.xpi`, the Chrome `.zip`, the sources zip, and `updates.json`,
-which the Firefox manifest's `update_url` reads so installed copies update themselves.
+Firefox-versionen signeres på AMO som en *unlisted* (selvdistribueret) version, fordi Firefox kun installerer
+signerede tilføjelser. Udgivelsen får den signerede `.xpi`, Chrome-`.zip`'en, kildekode-zip'en og `updates.json`,
+som Firefox-manifestets `update_url` læser, så installerede kopier opdaterer sig selv.
 
-Click the toolbar button to open Lectiomizer, choose your school, then log in to
-Lectio in the tab that opens. You come back to the app automatically.
+## Notifikationer
 
-## Notifications
-
-Checks run in the background while the browser is open, even when the
-Lectiomizer tab is closed. On Chrome the pages are parsed in an offscreen
-document; on Firefox, in the background page. The first check sets a silent
-baseline; after that, only differences are reported. Past lessons and
-assignments that are already handed in or past their deadline don't trigger
-alerts. History (the latest 100 notifications from the last 90 days) and
-snapshots are stored locally, per student. If your Lectio session expires,
-the bell shows a "log in" message, and checks resume after you sign in again.
+Tjekkene kører i baggrunden, mens browseren er åben, også når Lectiomizer-fanen er
+lukket. I Chrome bliver siderne fortolket i et offscreen-dokument; i Firefox i
+baggrundssiden. Det første tjek gemmer et stille udgangspunkt; derefter meldes
+kun ændringer. Moduler, der er overstået, og opgaver, der allerede er afleveret
+eller har passeret fristen, giver ingen besked. Historikken (de seneste 100
+notifikationer fra de sidste 90 dage) og øjebliksbillederne gemmes lokalt for
+hver elev. Hvis din Lectio-session udløber, viser klokken en "log ind"-besked,
+og tjekkene fortsætter, når du har logget ind igen.
 
 ## Google Kalender
 
-Google sign-in needs an OAuth client ID that belongs to you. **Indstillinger →
-Google Kalender** walks you through it and shows the redirect address to copy:
+Login med Google kræver et OAuth-klient-id, der tilhører dig selv. **Indstillinger →
+Google Kalender** guider dig igennem det og viser den omdirigeringsadresse, du skal kopiere:
 
-1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and enable the **Google Calendar API**.
-2. Under **Google Auth Platform**, configure the consent screen as **External**, keep it in **Testing**, add yourself as a test user, and add the scope `https://www.googleapis.com/auth/calendar.app.created`.
-3. Create an OAuth client of type **Web application**, and add the redirect address shown in Indstillinger as an authorised redirect URI. It differs between Chrome (`https://<extension-id>.chromiumapp.org/`) and Firefox (`https://<hash>.extensions.allizom.org/`).
-4. Paste the client ID into Indstillinger and press **Forbind Google Kalender**. On Firefox, allow sending website content when asked.
+1. Opret et projekt i [Google Cloud Console](https://console.cloud.google.com/), og aktivér **Google Calendar API**.
+2. Under **Google Auth Platform** sætter du samtykkeskærmen op som **External**, lader den blive i **Testing**, tilføjer dig selv som testbruger og tilføjer scopet `https://www.googleapis.com/auth/calendar.app.created`.
+3. Opret en OAuth-klient af typen **Web application**, og tilføj omdirigeringsadressen fra Indstillinger som autoriseret redirect-URI. Den er forskellig i Chrome (`https://<extension-id>.chromiumapp.org/`) og Firefox (`https://<hash>.extensions.allizom.org/`).
+4. Indsæt klient-id'et i Indstillinger, og tryk på **Forbind Google Kalender**. I Firefox skal du tillade at sende webstedsindhold, når du bliver spurgt.
 
-Alternatively, bake a client ID into the build with `WXT_GOOGLE_CLIENT_ID=… ` in `.env`.
+Du kan også bage et klient-id ind i buildet med `WXT_GOOGLE_CLIENT_ID=…` i `.env`.
 
-Lectiomizer can only see and change the calendar it creates. The Google
-token is kept in session storage only. **Afbryd** revokes it; the "Lectio"
-calendar stays in Google and is reused if you connect again.
+Lectiomizer kan kun se og ændre den kalender, den selv opretter. Google-tokenet
+gemmes kun i sessionslageret. **Afbryd** tilbagekalder det; "Lectio"-kalenderen
+bliver liggende i Google og genbruges, hvis du forbinder igen.
 
 ## Assistent
 
-Open **Assistent** in the sidebar (or press `0`) and choose **Fortsæt med ChatGPT**. Lectiomizer asks
-for permission to contact OpenAI, then opens ChatGPT's sign-in. Answers use your own ChatGPT plan; no API
-key is involved. If the sign-in tab ends on an unreachable `127.0.0.1` page, paste its address into the
-box under the button.
+Åbn **Assistent** i sidebjælken (eller tryk `0`), og vælg **Fortsæt med ChatGPT**. Lectiomizer beder om
+tilladelse til at kontakte OpenAI og åbner derefter ChatGPT's login. Svarene bruger dit eget ChatGPT-abonnement;
+der skal ingen API-nøgle til. Hvis login-fanen ender på en `127.0.0.1`-side, der ikke kan nås, så indsæt
+adressen i feltet under knappen.
 
-The assistant reads Lectio with purpose-built, read-only tools (see `src/lib/agent/tool-specs.js`):
+Assistenten læser Lectio med særlige, skrivebeskyttede værktøjer (se `src/lib/agent/tool-specs.js`):
 `get_overview`, `get_schedule`, `list_assignments`, `get_assignment`, `get_lesson`, `list_messages`,
-`read_message`, `get_grades`, `get_absence`, `read_document` and, as a fallback, `read_page`.
-Conversations are kept in the browser without the contents of what was read.
+`read_message`, `get_grades`, `get_absence`, `read_document` og, som nødløsning, `read_page`.
+Samtaler gemmes i browseren uden indholdet af det, der blev læst.
 
-## MCP server
+## MCP-server
 
-`mcp/server.mjs` exposes the same tools to MCP clients (Claude Desktop, Claude Code, Cursor, …). The
-browser keeps the Lectio session: the server listens on `127.0.0.1:47123` and the extension polls it for
-tool calls, so the server never sees a password or cookie. Node 18+, no dependencies.
+`mcp/server.mjs` gør de samme værktøjer tilgængelige for MCP-klienter (Claude Desktop, Claude Code, Cursor, …).
+Browseren holder Lectio-sessionen: serveren lytter på `127.0.0.1:47123`, og udvidelsen spørger den om
+værktøjskald, så serveren aldrig ser en adgangskode eller cookie. Kræver Node 18+ og har ingen afhængigheder.
 
-1. In Lectiomizer: **Indstillinger → MCP-server → Tillad MCP-klienter**. Copy the key it shows.
-2. Add the server to your client, with the key in `LECTIOMIZER_TOKEN`:
+1. I Lectiomizer: **Indstillinger → MCP-server → Tillad MCP-klienter**. Kopiér den nøgle, der vises.
+2. Tilføj serveren til din klient med nøglen i `LECTIOMIZER_TOKEN`:
 
    ```bash
-   claude mcp add lectio -e LECTIOMIZER_TOKEN=lx_… -- node /path/to/lectiomizer/mcp/server.mjs
+   claude mcp add lectio -e LECTIOMIZER_TOKEN=lx_… -- node /sti/til/lectiomizer/mcp/server.mjs
    ```
 
    ```json
-   { "mcpServers": { "lectio": { "command": "node", "args": ["/path/to/lectiomizer/mcp/server.mjs"], "env": { "LECTIOMIZER_TOKEN": "lx_…" } } } }
+   { "mcpServers": { "lectio": { "command": "node", "args": ["/sti/til/lectiomizer/mcp/server.mjs"], "env": { "LECTIOMIZER_TOKEN": "lx_…" } } } }
    ```
 
-The browser must be open with Lectiomizer installed and logged in to Lectio. The extension looks for the
-server once a minute, and immediately while connected. Several clients can run their own copy at once:
-the first owns the port and the others forward to it. Set `LECTIOMIZER_PORT` (and the same port in
-Indstillinger) if 47123 is taken.
+Browseren skal være åben med Lectiomizer installeret og logget ind på Lectio. Udvidelsen leder efter
+serveren én gang i minuttet og med det samme, mens der er forbindelse. Flere klienter kan køre hver deres
+kopi på samme tid: den første får porten, og de andre sender videre til den. Sæt `LECTIOMIZER_PORT` (og den
+samme port i Indstillinger), hvis 47123 er optaget.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works.
+Se [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for, hvordan det hele hænger sammen.

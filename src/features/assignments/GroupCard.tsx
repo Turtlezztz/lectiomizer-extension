@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/cn';
 import { displayName, type AssignmentData } from './model';
 import { InlineError } from './parts';
+import { Person } from '@/features/people/PersonPopover';
 
 type Group = NonNullable<AssignmentData['group']>;
 type Mutate = (input: { element?: Element | null; fields?: Record<string, string> }) => Promise<unknown>;
@@ -48,9 +49,13 @@ export function GroupCard({ group, mutate, pending, error, busy }: { group: Grou
             const removing = working?.kind === 'remove' && working.key === key;
             return (
               <li key={key} className={cn('flex items-center gap-3 rounded-lg px-1.5 py-1.5 transition-opacity', removing && 'opacity-50')}>
-                <Avatar name={m.name} size={32} />
+                <Person person={{ name: m.name, full: m.full, id: m.id }} className="shrink-0 rounded-full">
+                  <Avatar name={m.name} size={32} />
+                </Person>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13.5px] font-medium text-fg" title={m.full}>{m.name}</div>
+                  <div className="truncate text-[13.5px] font-medium text-fg" title={m.full}>
+                    <Person person={{ name: m.name, full: m.full, id: m.id }}>{m.name}</Person>
+                  </div>
                   <div className="truncate text-[12px] text-fg-subtle">{[m.me && 'Dig', m.className].filter(Boolean).join(' · ')}</div>
                 </div>
                 {m.remove &&

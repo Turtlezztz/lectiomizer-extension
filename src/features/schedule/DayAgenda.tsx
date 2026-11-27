@@ -6,10 +6,12 @@ import { subjectColor } from '@/lib/subjects';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/states';
 import { Skeleton } from '@/components/ui/skeleton';
-import { splitPerson, type Lesson } from './lessons';
+import type { Lesson } from './lessons';
 import { LessonLink, StatusBadge } from './LessonLink';
 import type { Day } from './WeekGrid';
 import { dayKey, WEEKDAYS_LONG, WEEKDAYS_SHORT } from './week';
+import { People } from '@/features/people/PersonPopover';
+import { Rooms } from '@/features/rooms/RoomPopover';
 
 export function DayPicker({ days, selected, onSelect, now }: { days: Day[]; selected: number; onSelect: (index: number) => void; now: Date }) {
   const todayKey = dayKey(now);
@@ -65,7 +67,6 @@ function AgendaItem({ lesson, now }: { lesson: Lesson; now: Date }) {
   const cancelled = lesson.status === 'cancelled';
   const ongoing = !cancelled && lesson.startDate <= now && now < lesson.endDate;
   const past = lesson.endDate <= now;
-  const teachers = lesson.teachers.map((t) => splitPerson(t).name).join(', ');
   return (
     <LessonLink
       lesson={lesson}
@@ -91,13 +92,13 @@ function AgendaItem({ lesson, now }: { lesson: Lesson; now: Date }) {
           {lesson.rooms.length > 0 && (
             <span className="inline-flex items-center gap-1">
               <MapPin className="size-3.5 text-fg-subtle" />
-              {lesson.rooms.join(', ')}
+              <span><Rooms rooms={lesson.rooms} day={lesson.startDate} /></span>
             </span>
           )}
-          {teachers && (
+          {lesson.teachers.length > 0 && (
             <span className="inline-flex min-w-0 items-center gap-1">
               <User className="size-3.5 shrink-0 text-fg-subtle" />
-              <span className="truncate">{teachers}</span>
+              <span className="truncate"><People names={lesson.teachers} kind="laerer" /></span>
             </span>
           )}
         </div>

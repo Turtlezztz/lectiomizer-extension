@@ -51,7 +51,7 @@ export interface AssignmentData {
     add: { select: HTMLSelectElement; button: Element; options: Array<{ value: string; label: string }> } | null;
   } | null;
   students: Array<{ name: string; awaiting: string; status: string; finished: boolean | null; grade: string; gradeNote: string; studentNote: string }>;
-  entries: Array<{ time: Date | null; timeText: string; user: string; userTitle: string; comment: Element | null; documents: LinkInfo[] }>;
+  entries: Array<{ time: Date | null; timeText: string; user: string; userTitle: string; userId?: string; comment: Element | null; documents: LinkInfo[] }>;
   base: string | null;
   handIn: { comment: HTMLTextAreaElement | null; send: Element | null; upload: Element | null; chooser: DocumentChooser | null; chosen: string } | null;
 }

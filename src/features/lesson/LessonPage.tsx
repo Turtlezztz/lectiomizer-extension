@@ -20,6 +20,9 @@ import { EmptyState, ErrorState } from '@/components/ui/states';
 import { RichText } from '@/components/RichText';
 import { absidOf, activityPath, asAttachment, hasFeedbackTab, isActionable, type ActivityData, type ActivityItem, type Attachment, type NavLinkData } from './lesson-utils';
 import { LessonTabs } from './LessonTabs';
+import { People } from '@/features/people/PersonPopover';
+import { Rooms } from '@/features/rooms/RoomPopover';
+import { dateFromShort } from '@/features/rooms/room';
 
 export default function LessonPage() {
   const { id = '' } = useParams();
@@ -127,8 +130,8 @@ function LessonContent({ loaded, href }: { loaded: Loaded<ActivityData>; href: s
               {(lesson?.date || lesson?.module) && (
                 <Meta icon={<Clock />} label="Tid">{[lesson.date, lesson.module].filter(Boolean).join(' · ')}</Meta>
               )}
-              {lesson?.room && <Meta icon={<MapPin />} label="Lokale">{lesson.room}</Meta>}
-              {!!lesson?.teachers.length && <Meta icon={<UserRound />} label="Lærere">{lesson.teachers.join(', ')}</Meta>}
+              {lesson?.room && <Meta icon={<MapPin />} label="Lokale"><Rooms rooms={lesson.room} day={dateFromShort(lesson.date, new Date())} /></Meta>}
+              {!!lesson?.teachers.length && <Meta icon={<UserRound />} label="Lærere"><People names={lesson.teachers} kind="laerer" /></Meta>}
               {!!lesson?.holds.length && <Meta icon={<Users />} label="Hold">{lesson.holds.join(', ')}</Meta>}
             </dl>
           </div>

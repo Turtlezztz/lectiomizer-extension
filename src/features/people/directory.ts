@@ -96,7 +96,7 @@ export function limiter(max: number) {
 
 export const directoryPath = (kind: DirectoryKind) => `FindSkema.aspx?type=${kind}`;
 
-async function loadDirectory(school: string, kind: DirectoryKind): Promise<DirectoryEntry[]> {
+export async function loadDirectory(school: string, kind: DirectoryKind): Promise<DirectoryEntry[]> {
   const first = await getPage(pageUrl(school, directoryPath(kind)));
   const { items, letters } = readDirectory(first) as { items: RawItem[]; letters: Array<{ href: string }> };
   const all = new Map<string, RawItem>();

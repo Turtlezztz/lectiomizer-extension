@@ -48,7 +48,7 @@ function readEntries(table) {
     const user = cells.Bruger?.querySelector('[data-lectiocontextcard]') || cells.Bruger;
     return {
       time: parseLectioDate(time), timeText: text(cells.Tidspunkt),
-      user: text(user), userTitle: user?.getAttribute?.('title') || '',
+      user: text(user), userTitle: user?.getAttribute?.('title') || '', userId: cardId(user),
       comment: cells['Indlæg'] || null, documents: links(cells.Dokument),
     };
   });

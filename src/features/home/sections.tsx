@@ -11,6 +11,7 @@ import { subjectColor } from '@/lib/subjects';
 import { cn } from '@/lib/cn';
 import { SmartLink } from './SmartLink';
 import { cleanName, subjectName, type Block, type Need } from './model';
+import { Person } from '@/features/people/PersonPopover';
 
 function HeaderLink({ to, href, children }: { to?: string; href?: string | null; children: ReactNode }) {
   const cls = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12.5px] font-medium text-fg-muted hover:bg-surface-2 hover:text-fg';
@@ -139,13 +140,17 @@ export function MessagesCard({ block, now }: { block: Block | null; now: Date })
               return (
                 <li key={i}>
                   <SmartLink href={row.href} className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-2">
-                    <Avatar name={name} size={36} />
+                    <Person person={{ name, full: row.senderTitle || row.sender }} className="shrink-0 rounded-full">
+                      <Avatar name={name} size={36} />
+                    </Person>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
                         <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-fg">{row.text}</span>
                         <span className="shrink-0 text-[11.5px] text-fg-subtle tabular-nums">{messageTime(row.due, row.dueText, now)}</span>
                       </div>
-                      <div className="truncate text-[12.5px] text-fg-muted">{name}</div>
+                      <div className="truncate text-[12.5px] text-fg-muted">
+                        <Person person={{ name, full: row.senderTitle || row.sender }}>{name}</Person>
+                      </div>
                     </div>
                   </SmartLink>
                 </li>

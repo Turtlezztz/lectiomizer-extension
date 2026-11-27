@@ -26,6 +26,7 @@ import { fieldName, read, useLectioChain, useThread } from './data';
 import { groupThread, hasPhoto, listNames, ownTitle, timeOf } from './model';
 import { InlineError, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, PersonAvatar, errorText, touchScreen, useAutoGrow } from './parts';
 import type { Attachment, Person, Thread, ThreadMessage } from './types';
+import { Person as PersonLink } from '@/features/people/PersonPopover';
 
 const MENU_ICONS: Record<string, typeof Pencil> = {
   edit: Pencil,
@@ -341,7 +342,7 @@ function ThreadView({
             {people.map((p) => (
               <li key={personKey(p)} className="flex items-center gap-1.5 rounded-full bg-surface-2 py-0.5 pr-2.5 pl-0.5 text-[12.5px] text-fg" title={p.full}>
                 <PersonAvatar id={p.id} name={p.name} photo={photoOf(p)} size={22} />
-                {p.name}
+                {p.own ? p.name : <PersonLink person={p}>{p.name}</PersonLink>}
                 {p.own && <span className="text-fg-subtle">(dig)</span>}
               </li>
             ))}
@@ -375,13 +376,17 @@ function ThreadView({
               </div>
             ) : (
               <div key={item.key} className={cn('group/run flex items-end gap-2', item.own && 'justify-end')}>
-                {!item.own && <PersonAvatar id={item.messages[0].sender.id} name={item.messages[0].sender.name} size={28} className="mb-0.5" />}
+                {!item.own && (
+                  <PersonLink person={item.messages[0].sender} className="mb-0.5 shrink-0 rounded-full">
+                    <PersonAvatar id={item.messages[0].sender.id} name={item.messages[0].sender.name} size={28} />
+                  </PersonLink>
+                )}
                 <div className={cn('flex min-w-0 max-w-[min(85%,560px)] flex-col gap-1', item.own ? 'items-end' : 'items-start')}>
                   <div className={cn('flex items-baseline gap-2 px-1 text-[12px]', item.own && 'flex-row-reverse')}>
                     {!item.own && (
-                      <span className="font-medium text-fg-muted" title={item.messages[0].sender.full}>
+                      <PersonLink person={item.messages[0].sender} title={item.messages[0].sender.full} className="font-medium text-fg-muted">
                         {item.messages[0].sender.name}
-                      </span>
+                      </PersonLink>
                     )}
                     <span className="text-fg-subtle tabular-nums">{timeOf(item.messages[0])}</span>
                     {!item.own && hasPhoto(item.messages[0].sender.id) && (group || !canReply) && (

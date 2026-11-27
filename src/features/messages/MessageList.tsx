@@ -27,6 +27,7 @@ import { fieldName, read } from './data';
 import { rowMatches, threadIdOf } from './model';
 import { InlineError, Menu, MenuContent, MenuItem, MenuTrigger, MenuSeparator, PersonAvatar, errorText } from './parts';
 import type { Folder, MessageRow, MessagesData } from './types';
+import { Person } from '@/features/people/PersonPopover';
 
 const FOLDER_ICONS: Record<string, typeof Inbox> = {
   '-40': MailOpen,
@@ -141,7 +142,7 @@ function Row({ row, active, read: wasRead, onOpen }: { row: MessageRow; active: 
               className={cn('min-w-0 flex-1 truncate text-[13.5px]', unread ? 'font-semibold text-fg' : 'font-medium text-fg')}
               title={row.senderTitle || row.sender}
             >
-              {name}
+              <Person person={{ name, full: row.senderTitle || row.sender }}>{name}</Person>
             </span>
             <span className={cn('shrink-0 text-[12px] tabular-nums', unread ? 'font-medium text-accent-soft-fg' : 'text-fg-subtle')}>{row.changed}</span>
           </span>

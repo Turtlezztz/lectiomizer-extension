@@ -16,6 +16,9 @@ import { RichText } from '@/components/RichText';
 import { LessonTabs } from './LessonTabs';
 import { isBlank, toEditorHtml } from './feedback-html';
 import { feedbackPath, feedbackWriteRoute, type FeedbackData, type FeedbackPaper } from './lesson-utils';
+import { People, Person } from '@/features/people/PersonPopover';
+import { Rooms } from '@/features/rooms/RoomPopover';
+import { dateFromShort } from '@/features/rooms/room';
 
 export default function FeedbackPage() {
   const { id = '' } = useParams();
@@ -58,8 +61,8 @@ function FeedbackContent({ id, loaded, href, onReload, reloading }: { id: string
             <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-fg">{lesson?.title || 'Elevfeedback'}</h1>
             <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-fg-muted">
               {(lesson?.date || lesson?.module) && <Meta icon={<Clock />} label="Tid">{[lesson.date, lesson.module].filter(Boolean).join(' · ')}</Meta>}
-              {lesson?.room && <Meta icon={<MapPin />} label="Lokale">{lesson.room}</Meta>}
-              {!!lesson?.teachers.length && <Meta icon={<UserRound />} label="Lærere">{lesson.teachers.join(', ')}</Meta>}
+              {lesson?.room && <Meta icon={<MapPin />} label="Lokale"><Rooms rooms={lesson.room} day={dateFromShort(lesson.date, new Date())} /></Meta>}
+              {!!lesson?.teachers.length && <Meta icon={<UserRound />} label="Lærere"><People names={lesson.teachers} kind="laerer" /></Meta>}
             </dl>
           </div>
           <div className="flex gap-2 self-start sm:self-center">
@@ -167,8 +170,12 @@ function PaperCard({ paper, highlight }: { paper: FeedbackPaper; highlight?: boo
   return (
     <Card id={`paper-${paper.id}`} className={cn('scroll-mt-6', highlight && 'border-accent/30')}>
       <div className="flex items-center gap-2.5 px-5 pt-4 pb-1">
-        <Avatar name={paper.name} size={26} />
-        <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{paper.name}</h3>
+        <Person person={{ name: paper.name, id: paper.contextId }} className="shrink-0 rounded-full">
+          <Avatar name={paper.name} size={26} />
+        </Person>
+        <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">
+          <Person person={{ name: paper.name, id: paper.contextId }}>{paper.name}</Person>
+        </h3>
         {highlight && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent-soft-fg">Lærer</span>}
       </div>
       <div className="divide-y divide-border">

@@ -8,6 +8,8 @@ import { subjectColor } from '@/lib/subjects';
 import { cn } from '@/lib/cn';
 import { SmartLink } from './SmartLink';
 import { durationText, lessonName, type FlatLesson } from './model';
+import { People } from '@/features/people/PersonPopover';
+import { Rooms } from '@/features/rooms/RoomPopover';
 
 export function NowCard({ current, now }: { current: { lesson: FlatLesson; running: boolean } | null; now: Date }) {
   if (!current) return <NoLessons />;
@@ -63,8 +65,8 @@ export function NowCard({ current, now }: { current: { lesson: FlatLesson; runni
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13.5px] text-fg-muted">
           <span className="inline-flex items-center gap-1.5 tabular-nums"><Clock className="size-4 text-fg-subtle" />{fmtTime(t.start)}–{fmtTime(t.end)}</span>
-          {lesson.room && <span className="inline-flex items-center gap-1.5"><MapPin className="size-4 text-fg-subtle" />{lesson.room}</span>}
-          {lesson.teachers.length > 0 && <span className="inline-flex items-center gap-1.5"><User className="size-4 text-fg-subtle" />{lesson.teachers.join(', ')}</span>}
+          {lesson.room && <span className="inline-flex items-center gap-1.5"><MapPin className="size-4 text-fg-subtle" /><span><Rooms rooms={lesson.room} day={t.start} /></span></span>}
+          {lesson.teachers.length > 0 && <span className="inline-flex items-center gap-1.5"><User className="size-4 text-fg-subtle" /><span><People names={lesson.teachers} kind="laerer" /></span></span>}
         </div>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -89,7 +91,7 @@ export function NowCard({ current, now }: { current: { lesson: FlatLesson; runni
             ) : (
               <p className="text-[13px] text-fg-muted">
                 Starter {sameDay ? 'kl.' : `${relativeDay(t.start, now)} kl.`} <span className="font-medium text-fg tabular-nums">{fmtTime(t.start)}</span>
-                {lesson.room && <> i <span className="font-medium text-fg">{lesson.room}</span></>}
+                {lesson.room && <> i <span className="font-medium text-fg"><Rooms rooms={lesson.room} day={t.start} /></span></>}
               </p>
             )}
           </div>

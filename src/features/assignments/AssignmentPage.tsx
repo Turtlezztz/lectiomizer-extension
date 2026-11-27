@@ -20,6 +20,7 @@ import { hoursLabel, kindOfStatus, splitStudentStatus, type AssignmentData } fro
 import { FileLink, StatusBadge, SubjectDot } from './parts';
 import { HandInCard, HandInClosed } from './HandInCard';
 import { GroupCard } from './GroupCard';
+import { Person } from '@/features/people/PersonPopover';
 
 const read = readAssignment as (doc: Document) => AssignmentData;
 
@@ -191,10 +192,18 @@ function Timeline({ entries }: { entries: AssignmentData['entries'] }) {
               return (
                 <li key={i} className="relative flex gap-3 pb-5 last:pb-0">
                   {!last && <span aria-hidden className="absolute top-9 bottom-1 left-[15px] w-px bg-border" />}
-                  <Avatar name={entry.user || '?'} size={32} />
+                  {entry.user ? (
+                    <Person person={{ full: entry.user, id: entry.userId }} className="shrink-0 rounded-full">
+                      <Avatar name={entry.user} size={32} />
+                    </Person>
+                  ) : (
+                    <Avatar name="?" size={32} />
+                  )}
                   <div className="min-w-0 flex-1 pt-0.5">
                     <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="text-[13.5px] font-semibold text-fg" title={entry.userTitle || undefined}>{entry.user || 'Ukendt'}</span>
+                      <span className="text-[13.5px] font-semibold text-fg" title={entry.userTitle || undefined}>
+                        {entry.user ? <Person person={{ full: entry.user, id: entry.userId }} /> : 'Ukendt'}
+                      </span>
                       <time className="text-[12px] tabular-nums text-fg-subtle">
                         {entry.time ? `${fmtDate(entry.time)} · ${fmtTime(entry.time)}` : entry.timeText}
                       </time>

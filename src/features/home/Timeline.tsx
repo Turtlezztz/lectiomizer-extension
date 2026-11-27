@@ -9,6 +9,8 @@ import { subjectColor } from '@/lib/subjects';
 import { cn } from '@/lib/cn';
 import { SmartLink } from './SmartLink';
 import { lessonName, type Day, type Lesson } from './model';
+import { People } from '@/features/people/PersonPopover';
+import { Rooms } from '@/features/rooms/RoomPopover';
 
 const capital = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
 
@@ -35,7 +37,7 @@ function LessonRow({ lesson, now }: { lesson: Lesson; now: Date }) {
   const past = !!t && t.end <= now;
   const live = !!t && t.start <= now && now < t.end;
   const cancelled = lesson.status === 'cancelled';
-  const meta = [lesson.holds.join(', '), lesson.room, lesson.teachers.join(', ')].filter(Boolean).join(' · ');
+  const holds = lesson.holds.join(', ');
   return (
     <li>
       <SmartLink
@@ -57,7 +59,22 @@ function LessonRow({ lesson, now }: { lesson: Lesson; now: Date }) {
             {lesson.homework && <BookOpen aria-label="Lektier" className="size-3.5 shrink-0 text-info" />}
             {lesson.note && <StickyNote aria-label="Note" className="size-3.5 shrink-0 text-fg-subtle" />}
           </div>
-          {meta && <div className="truncate text-[12px] text-fg-muted">{meta}</div>}
+          {(holds || lesson.room || lesson.teachers.length > 0) && (
+            <div className="truncate text-[12px] text-fg-muted">
+              {[
+                holds && <Fragment key="h">{holds}</Fragment>,
+                lesson.room && <Rooms key="r" rooms={lesson.room} day={t?.start} />,
+                lesson.teachers.length > 0 && <People key="t" names={lesson.teachers} kind="laerer" />,
+              ]
+                .filter(Boolean)
+                .map((part, i) => (
+                  <Fragment key={i}>
+                    {i > 0 && ' · '}
+                    {part}
+                  </Fragment>
+                ))}
+            </div>
+          )}
           {(live || lesson.status !== 'normal') && (
             <div className="mt-1 flex gap-1">
               {live && <Badge tone="accent">Nu</Badge>}
