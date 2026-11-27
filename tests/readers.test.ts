@@ -39,3 +39,22 @@ describe('readers on fetched (DOMParser) documents', () => {
     expect(postbackTarget(doc.querySelector('a'))).toEqual({ target: 's$m$Content$x', argument: 'DEL$1' });
   });
 });
+
+describe('readGrades diploma', () => {
+  it('ignores the mobile-only cell Lectio nests in each diploma row', () => {
+    const mobile = '<td class="OnlyMobile" colspan="7"><table><tbody><tr><th colspan="2">Årskarakter</th></tr><tr><td>Karakter:</td><td>7</td></tr></tbody></table></td>';
+    const cells = (vals: string[]) => vals.map((v, i) => `<td class="OnlyDesktop${i ? '' : ' noWrap'}">${v}</td>`).join('');
+    const html = `<form><table id="x_karakterView_KarakterGV"><tbody><tr><th>Hold</th><th>Fag</th></tr></tbody></table>
+      <section><span class="islandHeader">Bevistype: HTX v4</span><div id="x_DiplomaGradesIsland_pa"><div id="x_printareaDiplomaLines"><table><tbody>
+      <tr class="OnlyDesktop"><th rowspan="2">Fag</th><th colspan="3">Årskarakter</th><th colspan="3">Eksamenskarakter</th></tr>
+      <tr class="OnlyDesktop"><th>Vægt</th><th>Karakter</th><th>ECTS</th><th>Vægt</th><th>Karakter</th><th>ECTS</th></tr>
+      <tr>${cells(['Kemi B, mdt.', '0,75', '12', 'A', '1,5', '4', 'D'])}${mobile}</tr>
+      <tr>${cells(['Biologi C', '1', '7', 'C', '-', '-', '-'])}${mobile}</tr>
+      </tbody></table></div></div></section></form>`;
+    const diploma = readGrades(parseDocument(html, 'https://www.lectio.dk/lectio/1/grades/grade_report.aspx')).diplomas[0] as any;
+    expect(diploma.title).toBe('HTX v4');
+    expect(diploma.lines.map((l: any) => l.subject)).toEqual(['Kemi B, mdt.', 'Biologi C']);
+    expect(diploma.lines[0].results[1].fields).toEqual({ Vægt: '1,5', Karakter: '4', ECTS: 'D' });
+    expect(diploma.lines[1].results[1].empty).toBe(true);
+  });
+});

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Award, ChevronDown, ExternalLink, GraduationCap, Info, ScrollText, TrendingDown, TrendingUp } from 'lucide-react';
+import { useMemo, type ReactNode } from 'react';
+import { ChevronDown, ExternalLink, GraduationCap, Info, ScrollText } from 'lucide-react';
 import { readGrades } from '@/lib/lectio/readers/grades.js';
 import { useLectioPage, useSchoolId } from '@/lib/lectio/query';
 import { pageUrl, PATHS } from '@/lib/lectio/paths';
@@ -56,36 +56,31 @@ function GradesContent({ grades, href }: { grades: GradesData; href: string }) {
       ))}
 
       {(official || summary.count > 0) && (
-        <section aria-label="Gennemsnit" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {official?.averages.map((a, i) => (
-            <StatTile
-              key={a.label}
-              label={a.label.replace(/^Eksamensresultat\s*/i, 'Eksamensresultat ')}
-              value={a.value}
-              hint={i === 0 ? (a.note ? cap(a.note) : `Bevistype ${official.title}`) : `Bevistype ${official.title}`}
-              accent={i === 0}
-            />
-          ))}
-          {summary.count > 0 && (
-            <StatTile
-              label="Vægtet snit"
-              value={summary.weighted != null ? fmtNumber(summary.weighted) : '–'}
-              hint={`Beregnet · uvægtet ${summary.unweighted != null ? fmtNumber(summary.unweighted) : '–'}`}
-            />
+        <section aria-label="Gennemsnit" className="grid gap-3 lg:grid-cols-2">
+          {official && (
+            <TileGroup title="Eksamensbevis" note={`Fra Lectio · ${official.averages[0]?.note ?? official.title}`}>
+              {official.averages.slice(0, 2).map((a, i) => (
+                <StatTile key={a.label} label={averageLabel(a.label)} value={a.value} hint={averageHint(a.label, a.note)} accent={i === 0} />
+              ))}
+            </TileGroup>
           )}
-          {summary.count > 0 && <DistributionTile distribution={summary.distribution} count={summary.count} wide={((official?.averages.length ?? 0) + 1) % 2 === 0} />}
+          {summary.count > 0 && (
+            <TileGroup title={grades.term ? `Skoleåret ${grades.term}` : 'Skoleåret'} note={`Beregnet ud fra ${summary.count} standpunkter · tæller ikke på beviset`}>
+              <StatTile
+                label="Standpunktssnit"
+                value={summary.weighted != null ? fmtNumber(summary.weighted) : '–'}
+                hint={`Vægtet · uvægtet ${summary.unweighted != null ? fmtNumber(summary.unweighted) : '–'}`}
+              />
+              <DistributionTile distribution={summary.distribution} count={summary.count} />
+            </TileGroup>
+          )}
         </section>
       )}
 
       <section aria-labelledby="grades-current">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 id="grades-current" className="text-[15px] font-semibold tracking-[-0.01em] text-fg">Fag{grades.term ? ` i ${grades.term}` : ''}</h2>
-          {grades.current.subjects.length > 0 && <Legend />}
-        </div>
+        <SectionTitle id="grades-current" title={`Karakterer${grades.term ? ` i ${grades.term}` : ''}`} note="Standpunkter og prøver på dine hold" />
         {grades.current.subjects.length ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {grades.current.subjects.map((s) => <SubjectCard key={s.subject + s.hold} subject={s} />)}
-          </div>
+          <CurrentGrades types={grades.current.types} subjects={grades.current.subjects} />
         ) : (
           <Card>
             <EmptyState icon={<GraduationCap />} title="Ingen karakterer endnu" description={grades.current.empty || `Der er ikke givet karakterer${grades.term ? ` i ${grades.term}` : ''} endnu. Tidligere skoleår kan vælges i Lectio.`} />
@@ -104,9 +99,46 @@ function GradesContent({ grades, href }: { grades: GradesData; href: string }) {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/** "Eksamensresultat inkl. evt. bonus" → "Med evt. bonus" */
+function averageLabel(label: string) {
+  if (/inkl/i.test(label)) return 'Eksamenssnit med bonus';
+  if (/ekskl/i.test(label)) return 'Eksamenssnit';
+  return cap(label.replace(/^Eksamensresultat\s*/i, '')) || label;
+}
+
+function averageHint(label: string, note: string | null) {
+  if (/inkl/i.test(label)) return 'Inkl. evt. bonus, fx for ekstra A-niveauer';
+  if (/ekskl/i.test(label)) return 'Uden bonus';
+  return note ? cap(note) : '';
+}
+
+function SectionTitle({ id, title, note, action }: { id?: string; title: string; note?: string; action?: ReactNode }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <h2 id={id} className="text-[15px] font-semibold tracking-[-0.01em] text-fg">{title}</h2>
+        {note && <p className="text-[12.5px] text-fg-subtle">{note}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function TileGroup({ title, note, children }: { title: string; note: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface-2/60 p-2">
+      <div className="flex flex-wrap items-baseline gap-x-2 px-2 pt-1 pb-2">
+        <h2 className="text-[13px] font-semibold text-fg">{title}</h2>
+        <p className="text-[12px] text-fg-subtle">{note}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">{children}</div>
+    </div>
+  );
+}
+
 function StatTile({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
   return (
-    <Card className="flex flex-col justify-between gap-3 p-4">
+    <Card className="flex flex-col gap-3 p-4">
       <p className="text-[12.5px] font-medium text-fg-muted">{label}</p>
       <div>
         <p className={cn('text-[28px] leading-none font-semibold tracking-[-0.03em] tabular-nums', accent ? 'text-accent' : 'text-fg')}>{value}</p>
@@ -116,10 +148,10 @@ function StatTile({ label, value, hint, accent }: { label: string; value: string
   );
 }
 
-function DistributionTile({ distribution, count, wide }: { distribution: Record<string, number>; count: number; wide: boolean }) {
+function DistributionTile({ distribution, count }: { distribution: Record<string, number>; count: number }) {
   const max = Math.max(1, ...Object.values(distribution));
   return (
-    <Card className={cn('flex flex-col gap-3 p-4 lg:col-span-1', wide && 'col-span-2')}>
+    <Card className="flex flex-col gap-3 p-4">
       <p className="flex items-center justify-between text-[12.5px] font-medium text-fg-muted">
         Fordeling <span className="text-fg-subtle tabular-nums">{count} stk.</span>
       </p>
@@ -140,136 +172,194 @@ function DistributionTile({ distribution, count, wide }: { distribution: Record<
   );
 }
 
-function Legend() {
-  return (
-    <p className="hidden items-center gap-1.5 text-[12px] text-fg-subtle sm:flex">
-      <span className="inline-block size-3 rounded-[4px] bg-surface-3 ring-2 ring-fg/15 ring-offset-1 ring-offset-bg" /> Afsluttende karakter
-    </p>
-  );
-}
+const TH = 'px-3 py-2 text-[12px] font-medium whitespace-nowrap text-fg-subtle';
 
-function SubjectCard({ subject }: { subject: SubjectGrades }) {
-  const color = subjectColor(subject.hold || subject.subject);
-  const { name, level } = splitLevel(subject.subject);
+/** One row per subject form, one column per grade type — the same matrix Lectio shows, minus the noise. */
+function CurrentGrades({ types, subjects }: { types: string[]; subjects: SubjectGrades[] }) {
+  const used = types.filter((t) => subjects.some((s) => s.forms.some((f) => f.grades.some((g) => g.type === t))));
+  const anyFinal = subjects.some((s) => s.forms.some((f) => f.grades.some((g) => g.final)));
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
-        <span aria-hidden className="h-8 w-1 shrink-0 rounded-full" style={{ background: color.bar }} />
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[14px] font-semibold text-fg" title={subject.subject}>{name}</h3>
-          {subject.hold && <p className="text-[12px] text-fg-subtle">{subject.hold}</p>}
-        </div>
-        {level && <Badge tone="outline" title={`Niveau ${level}`}>{level}-niveau</Badge>}
-      </div>
-      <div className="divide-y divide-border border-t border-border">
-        {subject.forms.map((f, i) => <FormRow key={f.form + i} form={f.form} grades={f.grades} />)}
-      </div>
-    </Card>
-  );
-}
-
-function FormRow({ form, grades }: { form: string; grades: Grade[] }) {
-  const latest = latestGrade(grades);
-  const first = grades.find((g) => gradeNumber(g.value) !== null);
-  const a = gradeNumber(first?.value);
-  const b = gradeNumber(latest?.value);
-  const trend = a !== null && b !== null && first !== latest ? Math.sign(b - a) : 0;
-  return (
-    <div className="px-4 py-3">
-      <div className="mb-2 flex items-center gap-2 text-[12.5px]">
-        <span className="font-medium text-fg-muted">{form || 'Samlet'}</span>
-        {latest?.weight && <span className="text-fg-subtle tabular-nums">· vægt {latest.weight}</span>}
-        {trend !== 0 && (
-          <span className={cn('ml-auto inline-flex items-center gap-1 text-[12px]', trend > 0 ? 'text-success-soft-fg' : 'text-warning-soft-fg')} title={`Fra ${first?.value} til ${latest?.value}`}>
-            {trend > 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
-            {first?.value} → {latest?.value}
-          </span>
-        )}
-      </div>
-      {grades.length ? (
-        <ol className="-mx-1 flex items-start overflow-x-auto px-1 pt-0.5 pb-1">
-          {grades.map((g, i) => (
-            <li key={g.type} className="flex items-start">
-              {i > 0 && <span aria-hidden className="mx-1 mt-[39px] h-px w-3 shrink-0 bg-border-strong sm:w-5" />}
-              <div className="flex min-w-12 flex-col items-center gap-1.5">
-                <span className="text-[11px] whitespace-nowrap text-fg-subtle">{typeShort(g.type)}</span>
-                <GradeChip value={g.value} final={g.final} title={[typeName(g.type), g.source && `Kilde: ${g.source}`, g.weight && `Vægt: ${g.weight}`, ...g.extra].filter(Boolean).join(' · ')} />
-                {g.extra.length > 0 && <span className="text-[10.5px] whitespace-nowrap text-fg-subtle">{g.extra.join(' · ')}</span>}
-              </div>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="text-[13px] text-fg-subtle">Ingen karakterer endnu</p>
-      )}
-    </div>
-  );
-}
-
-function DiplomaCard({ diploma }: { diploma: Diploma }) {
-  return (
-    <Card>
-      <CardHeader icon={<Award />} title="Eksamensbevis" description={`Bevistype ${diploma.title}`} />
-      {/* Desktop: table */}
-      <div className="hidden overflow-x-auto px-2 pb-3 sm:block">
+      {/* Desktop: matrix */}
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-[13.5px]">
           <thead>
-            <tr className="text-left text-[12px] text-fg-subtle">
-              <th scope="col" className="px-3 py-2 font-medium">Fag</th>
-              {diploma.groups.map((g) => <th key={g} scope="col" className="px-3 py-2 font-medium">{g}</th>)}
+            <tr className="border-b border-border text-left">
+              <th scope="col" className={cn(TH, 'pl-5')}>Fag</th>
+              <th scope="col" className={TH}>Form</th>
+              <th scope="col" className={cn(TH, 'text-right')}>Vægt</th>
+              {used.map((t) => <th key={t} scope="col" className={cn(TH, 'text-center')} title={typeName(t)}>{typeShort(t)}</th>)}
+              <th aria-hidden className="w-full" />
             </tr>
           </thead>
-          <tbody>
-            {diploma.lines.map((line) => (
-              <tr key={line.subject} className="border-t border-border">
-                <th scope="row" className="px-3 py-2.5 text-left font-medium text-fg">{line.subject}</th>
-                {line.results.map((r) => (
-                  <td key={r.label} className="px-3 py-2.5">
-                    <DiplomaResult result={r} />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
+          {subjects.map((s) => {
+            const color = subjectColor(s.hold || s.subject);
+            return (
+              <tbody key={s.subject + s.hold} className="border-b border-border last:border-b-0">
+                {s.forms.map((f, i) => {
+                  const latest = latestGrade(f.grades);
+                  return (
+                    <tr key={f.form + i} className="hover:bg-surface-2/60">
+                      {i === 0 && (
+                        <th scope="rowgroup" rowSpan={s.forms.length} className="min-w-64 py-2.5 pr-6 pl-5 text-left align-top font-normal">
+                          <SubjectName subject={s.subject} hold={s.hold} color={color.bar} />
+                        </th>
+                      )}
+                      <td className="px-3 py-2.5 whitespace-nowrap text-fg-muted">{f.form || 'Samlet'}</td>
+                      <td className="px-3 py-2.5 text-right text-fg-subtle tabular-nums">{latest?.weight ?? ''}</td>
+                      {used.map((t) => {
+                        const g = f.grades.find((x) => x.type === t);
+                        return (
+                          <td key={t} className="px-3 py-2 text-center">
+                            {g ? <GradeChip value={g.value} final={g.final} size="sm" title={gradeTitle(g)} /> : <span className="text-fg-subtle/60">·</span>}
+                          </td>
+                        );
+                      })}
+                      <td aria-hidden />
+                    </tr>
+                  );
+                })}
+              </tbody>
+            );
+          })}
         </table>
       </div>
-      {/* Mobile: stacked rows */}
-      <ul className="divide-y divide-border border-t border-border sm:hidden">
-        {diploma.lines.map((line) => (
-          <li key={line.subject} className="px-4 py-3">
-            <p className="mb-2 text-[13.5px] font-medium text-fg">{line.subject}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {line.results.map((r) => (
-                <div key={r.label}>
-                  <p className="mb-1 text-[11px] text-fg-subtle">{r.label}</p>
-                  <DiplomaResult result={r} />
+      {/* Mobile: one block per subject */}
+      <ul className="divide-y divide-border sm:hidden">
+        {subjects.map((s) => (
+          <li key={s.subject + s.hold} className="px-4 py-3">
+            <SubjectName subject={s.subject} hold={s.hold} color={subjectColor(s.hold || s.subject).bar} />
+            <div className="mt-2 space-y-2">
+              {s.forms.map((f, i) => (
+                <div key={f.form + i} className="flex items-center gap-2">
+                  <span className="w-20 shrink-0 text-[12.5px] text-fg-muted">{f.form || 'Samlet'}</span>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2 py-1">
+                    {f.grades.map((g) => (
+                      <span key={g.type} className="inline-flex items-center gap-2">
+                        <span className="text-[11px] text-fg-subtle">{typeShort(g.type)}</span>
+                        <GradeChip value={g.value} final={g.final} size="sm" title={gradeTitle(g)} />
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           </li>
         ))}
       </ul>
-      {diploma.averages.length > 0 && (
-        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border px-4 py-3 text-[13px] sm:px-5">
-          {diploma.averages.map((a) => (
-            <span key={a.label} className="text-fg-muted">
-              {a.label}: <strong className="font-semibold text-fg tabular-nums">{a.value}</strong>
-            </span>
-          ))}
-        </div>
+      {anyFinal && (
+        <p className="flex items-center gap-1.5 border-t border-border px-5 py-2.5 text-[12px] text-fg-subtle">
+          <span className="inline-block size-3 rounded-[4px] bg-surface-3 ring-2 ring-fg/15 ring-offset-1 ring-offset-surface" /> Afsluttende karakter
+        </p>
       )}
     </Card>
   );
 }
 
-function DiplomaResult({ result }: { result: Diploma['lines'][number]['results'][number] }) {
-  if (result.empty) return <span className="text-fg-subtle" aria-label="Ingen karakter">–</span>;
-  const meta = [result.fields['Vægt'] && `vægt ${result.fields['Vægt']}`, result.fields.ECTS && `ECTS ${result.fields.ECTS}`].filter(Boolean).join(' · ');
+const gradeTitle = (g: Grade) => [typeName(g.type), g.source && `Kilde: ${g.source}`, g.weight && `Vægt: ${g.weight}`, ...g.extra].filter(Boolean).join(' · ');
+
+function SubjectName({ subject, hold, color }: { subject: string; hold?: string; color: string }) {
+  const { name, level } = splitLevel(subject);
   return (
-    <span className="inline-flex items-center gap-2">
-      <GradeChip value={result.fields.Karakter} size="sm" />
-      {meta && <span className="text-[12px] text-fg-subtle tabular-nums">{meta}</span>}
+    <span className="flex items-center gap-2.5">
+      <span aria-hidden className="h-7 w-1 shrink-0 rounded-full" style={{ background: color }} />
+      <span className="min-w-0">
+        <span className="block truncate font-medium text-fg" title={subject}>
+          {name}{level && <span className="ml-1.5 text-[12px] font-normal text-fg-subtle">{level}</span>}
+        </span>
+        {hold && <span className="block truncate text-[12px] text-fg-subtle">{hold}</span>}
+      </span>
     </span>
+  );
+}
+
+/** "Engelsk B, mdt." → { name: "Engelsk B", form: "Mundtlig" } */
+function diplomaSubject(label: string) {
+  const m = label.match(/^(.*?),\s*(mdt|skr|mundtlig|skriftlig)\.?$/i);
+  if (!m) return { name: label, form: '' };
+  return { name: m[1], form: /^m/i.test(m[2]) ? 'Mundtlig' : 'Skriftlig' };
+}
+
+/** Lectio's "Linjer på bevis": one row per line, årskarakter and eksamen side by side. */
+function DiplomaCard({ diploma }: { diploma: Diploma }) {
+  const examGroup = diploma.groups.findIndex((g) => /eksamen/i.test(g));
+  const taken = examGroup < 0 ? 0 : diploma.lines.filter((l) => !l.results[examGroup]?.empty).length;
+  return (
+    <section aria-labelledby="grades-diploma">
+      <SectionTitle
+        id="grades-diploma"
+        title="Eksamensbevis"
+        note={`${diploma.title} · de fag, der står på dit bevis${examGroup >= 0 ? ` · ${taken} af ${diploma.lines.length} med eksamen` : ''}`}
+      />
+      <Card className="overflow-hidden">
+        {/* Desktop: table with grouped headings like Lectio */}
+        <div className="hidden overflow-x-auto sm:block">
+          <table className="w-full text-[13.5px]">
+            <thead>
+              <tr className="text-left">
+                <th scope="col" rowSpan={2} className={cn(TH, 'border-b border-border pl-5 align-bottom')}>Fag</th>
+                <th scope="col" rowSpan={2} className={cn(TH, 'border-b border-border align-bottom')}>Form</th>
+                {diploma.groups.map((g) => (
+                  <th key={g} scope="colgroup" colSpan={2} className="border-l border-border px-3 pt-2.5 pb-0.5 text-center text-[12.5px] font-semibold text-fg">{g}</th>
+                ))}
+              </tr>
+              <tr className="border-b border-border">
+                {diploma.groups.map((g) => [
+                  <th key={g + 'k'} scope="col" className={cn(TH, 'border-l border-border pt-0.5 text-center')}>Karakter</th>,
+                  <th key={g + 'v'} scope="col" className={cn(TH, 'pt-0.5 text-center')}>Vægt</th>,
+                ])}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {diploma.lines.map((line) => {
+                const { name, form } = diplomaSubject(line.subject);
+                return (
+                  <tr key={line.subject} className="hover:bg-surface-2/60">
+                    <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-medium text-fg">{name}</th>
+                    <td className="px-3 py-2.5 text-fg-muted">{form}</td>
+                    {line.results.map((r) => [
+                      <td key={r.label + 'k'} className="border-l border-border px-3 py-2 text-center">
+                        {r.empty ? <span className="text-fg-subtle/60" aria-label="Ingen karakter">·</span> : <GradeChip value={r.fields.Karakter} size="sm" title={r.fields.ECTS ? `ECTS ${r.fields.ECTS}` : undefined} />}
+                      </td>,
+                      <td key={r.label + 'v'} className="px-3 py-2.5 text-center text-fg-subtle tabular-nums">{r.empty ? '' : r.fields['Vægt'] ?? ''}</td>,
+                    ])}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Mobile: one row per line, grades on the right */}
+        <ul className="divide-y divide-border sm:hidden">
+          {diploma.lines.map((line) => {
+            const { name, form } = diplomaSubject(line.subject);
+            return (
+              <li key={line.subject} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13.5px] font-medium text-fg">{name}</p>
+                  {form && <p className="text-[12px] text-fg-subtle">{form}</p>}
+                </div>
+                {line.results.map((r) => (
+                  <div key={r.label} className="flex w-14 flex-col items-center gap-1">
+                    <span className="text-[10.5px] text-fg-subtle">{/eksamen/i.test(r.label) ? 'Eksamen' : /år/i.test(r.label) ? 'Års' : r.label}</span>
+                    {r.empty ? <span className="text-fg-subtle/60">·</span> : <GradeChip value={r.fields.Karakter} size="sm" />}
+                  </div>
+                ))}
+              </li>
+            );
+          })}
+        </ul>
+        {diploma.averages.length > 0 && (
+          <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border bg-surface-2/60 px-5 py-3 text-[13px]">
+            {diploma.averages.map((a) => (
+              <span key={a.label} className="text-fg-muted">
+                {averageLabel(a.label)}: <strong className="font-semibold text-fg tabular-nums">{a.value}</strong>
+              </span>
+            ))}
+          </div>
+        )}
+      </Card>
+    </section>
   );
 }
 

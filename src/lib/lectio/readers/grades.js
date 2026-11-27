@@ -81,8 +81,9 @@ export function readDiploma(island) {
   const table = island.querySelector('[id$="printareaDiplomaLines"] table') || island.querySelector('table');
   if (!table) throw new ReaderError('Beviset mangler sin tabel');
   const rows = Array.from(table.rows);
+  const isHeading = row => Array.from(row.cells).some(cell => cell.tagName === 'TH');
   const top = rows[0] ? Array.from(rows[0].cells) : [];
-  const bottom = rows[1]?.querySelector('th') ? Array.from(rows[1].cells) : [];
+  const bottom = rows[1] && isHeading(rows[1]) ? Array.from(rows[1].cells) : [];
   if (!bottom.length) throw new ReaderError('Beviset har ikke de forventede kolonnegrupper');
   // Two heading rows: "Fag" spans both; each group spans its sub-columns.
   const labels = [];
@@ -95,8 +96,9 @@ export function readDiploma(island) {
   const subjectIndex = labels.findIndex(([group, field]) => !field && SUBJECT.test(group));
   if (subjectIndex < 0) throw new ReaderError('Beviset mangler kolonnen "Fag"');
   const groups = [...new Set(labels.filter(([, field]) => field).map(([group]) => group))];
-  const lines = rows.filter(row => !row.querySelector('th')).map(row => {
-    const cells = Array.from(row.cells).map(cell => text(cell));
+  // Newer Lectio adds an OnlyMobile cell with a nested table (and its own <th>s) to each row.
+  const lines = rows.filter(row => !isHeading(row)).map(row => {
+    const cells = nativeCells(row).map(cell => text(cell));
     const results = groups.map(group => {
       const fields = Object.fromEntries(labels.map(([g, field], i) => g === group && field ? [field, cells[i] === '-' ? null : cells[i]] : null).filter(Boolean));
       return { label: group, fields, empty: Object.values(fields).every(v => !v) };
