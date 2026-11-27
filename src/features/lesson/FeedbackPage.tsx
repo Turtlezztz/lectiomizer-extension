@@ -146,7 +146,7 @@ function OwnPaper({ id, data }: { id: string; data: FeedbackData }) {
             ) : (
               paper!.items.map((item) => (
                 <article key={item.id} className="px-5 py-3 [&_.prose-lectio>h1:first-child]:mt-1 [&_.prose-lectio>h1:first-child]:text-[15px]">
-                  <RichText node={item.node} />
+                  <RichText node={item.node} embeds />
                 </article>
               ))
             )}
@@ -181,7 +181,7 @@ function PaperCard({ paper, highlight }: { paper: FeedbackPaper; highlight?: boo
       <div className="divide-y divide-border">
         {paper.items.map((item) => (
           <article key={item.id} className="px-5 py-3 [&_.prose-lectio>h1:first-child]:mt-1 [&_.prose-lectio>h1:first-child]:text-[15px]">
-            <RichText node={item.node} />
+            <RichText node={item.node} embeds />
           </article>
         ))}
       </div>

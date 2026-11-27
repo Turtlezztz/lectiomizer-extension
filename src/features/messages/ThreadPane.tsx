@@ -28,6 +28,8 @@ import { groupThread, hasPhoto, listNames, ownTitle, timeOf } from './model';
 import { InlineError, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, PersonAvatar, errorText, touchScreen, useAutoGrow } from './parts';
 import type { Person, RecipientGroup, Thread, ThreadMessage } from './types';
 import { AttachmentView } from './AttachmentView';
+import { embedsIn } from '@/components/embeds';
+import { EmbedView } from '@/components/LinkEmbeds';
 import { Person as PersonLink } from '@/features/people/PersonPopover';
 
 const MENU_ICONS: Record<string, typeof Pencil> = {
@@ -66,6 +68,8 @@ function Bubble({ message, subject, own, first }: { message: ThreadMessage; subj
   const title = ownTitle(message.title, subject);
   const hasText = !!message.content && (!!message.content.textContent?.trim() || !!message.content.querySelector('img'));
   const when = message.date ? `${fmtLongDate(message.date)} kl. ${fmtTime(message.date)}` : message.stamp;
+  // Videos, pictures and Lectio files the text links to, shown like attachments.
+  const embeds = useMemo(() => embedsIn(message.content, { skip: message.attachments.map((f) => f.href) }), [message]);
   return (
     <div className={cn('flex max-w-full flex-col gap-1', own ? 'items-end' : 'items-start')}>
       {(hasText || title) && (
@@ -90,10 +94,13 @@ function Bubble({ message, subject, own, first }: { message: ThreadMessage; subj
           )}
         </div>
       )}
-      {message.attachments.length > 0 && (
+      {(message.attachments.length > 0 || embeds.length > 0) && (
         <div className={cn('flex w-full max-w-full flex-col gap-1.5', own ? 'items-end' : 'items-start')}>
           {message.attachments.map((file) => (
             <AttachmentView key={file.href} file={file} />
+          ))}
+          {embeds.map((embed) => (
+            <EmbedView key={embed.href} embed={embed} />
           ))}
         </div>
       )}

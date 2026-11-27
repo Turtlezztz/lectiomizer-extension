@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { appRoute } from '@/lib/lectio/paths';
+import { embedsIn } from './embeds';
+import { LinkEmbeds } from './LinkEmbeds';
 
 const ALLOWED = new Set(['A', 'B', 'STRONG', 'I', 'EM', 'U', 'P', 'BR', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH', 'BLOCKQUOTE', 'SPAN', 'DIV', 'IMG', 'PRE', 'CODE', 'HR', 'SUB', 'SUP', 'S', 'STRIKE', 'DEL', 'U']);
 
@@ -58,11 +60,20 @@ export function sanitize(node: Element | null | undefined): string {
   return out.innerHTML;
 }
 
-export function RichText({ node, html, className }: { node?: Element | null; html?: string; className?: string }) {
+/** `embeds` also shows the files, videos and pictures the text links to, under it. */
+export function RichText({ node, html, className, embeds }: { node?: Element | null; html?: string; className?: string; embeds?: boolean }) {
   const markup = useMemo(() => {
     if (node) return sanitize(node);
     if (html) return sanitize(new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html').body.firstElementChild);
     return '';
   }, [node, html]);
-  return <div className={`prose-lectio ${className ?? ''}`} dangerouslySetInnerHTML={{ __html: markup }} />;
+  const linked = useMemo(() => (embeds ? embedsIn(node) : []), [embeds, node]);
+  const text = <div className={`prose-lectio ${className ?? ''}`} dangerouslySetInnerHTML={{ __html: markup }} />;
+  if (!linked.length) return text;
+  return (
+    <>
+      {text}
+      <LinkEmbeds embeds={linked} className="mt-2.5" />
+    </>
+  );
 }

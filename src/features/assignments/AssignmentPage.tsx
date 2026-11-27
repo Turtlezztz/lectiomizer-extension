@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { RichText } from '@/components/RichText';
+import { embedFor } from '@/components/embeds';
+import { EmbedView } from '@/components/LinkEmbeds';
 import { useAccount, useLectioAction, useLectioPage, useSchoolId, type Loaded } from '@/lib/lectio/query';
 import { useBack } from '@/lib/nav';
 import { assignmentPath, pageUrl, PATHS } from '@/lib/lectio/paths';
@@ -16,7 +18,7 @@ import { readAssignment } from '@/lib/lectio/readers/assignment.js';
 import { dayDiff, fmtDate, fmtLongDate, fmtTime, untilText, urgency } from '@/lib/format';
 import { subjectColor } from '@/lib/subjects';
 import { cn } from '@/lib/cn';
-import { hoursLabel, kindOfStatus, splitStudentStatus, type AssignmentData } from './model';
+import { documentLabel, hoursLabel, kindOfStatus, splitStudentStatus, type AssignmentData } from './model';
 import { FileLink, StatusBadge, SubjectDot } from './parts';
 import { HandInCard, HandInClosed } from './HandInCard';
 import { GroupCard } from './GroupCard';
@@ -93,9 +95,7 @@ function AssignmentDetail({ loaded, lectioUrl }: { loaded: Loaded<AssignmentData
               <CardHeader icon={<FileText />} title="Opgavebeskrivelse" />
               <CardBody className="space-y-3">
                 {description && description.links.length > 0 && (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {description.links.map((d) => <FileLink key={d.href} label={d.label} href={d.href} />)}
-                  </div>
+                  <DescriptionFiles links={description.links} />
                 )}
                 {description && !description.links.length && description.text && <p className="text-[14px] leading-relaxed whitespace-pre-line text-fg">{description.text}</p>}
                 {note && (
@@ -210,7 +210,7 @@ function Timeline({ entries }: { entries: AssignmentData['entries'] }) {
                     </div>
                     {hasComment && (
                       <div className="mt-1.5 rounded-lg rounded-tl-sm bg-surface-2 px-3 py-2">
-                        <RichText node={entry.comment} className="!text-[13.5px] [&>p:first-child]:mt-0 [&>p:last-child]:mb-0" />
+                        <RichText node={entry.comment} embeds className="!text-[13.5px] [&>p:first-child]:mt-0 [&>p:last-child]:mb-0" />
                       </div>
                     )}
                     {entry.documents.length > 0 && (
@@ -299,5 +299,21 @@ function DetailSkeleton() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** The assignment's files: those that can be shown are shown, the rest are links. */
+function DescriptionFiles({ links }: { links: Array<{ label: string; href: string }> }) {
+  const items = links.map((d) => ({ ...d, embed: embedFor(d.href, documentLabel(d.label).name) }));
+  const plain = items.filter((d) => !d.embed);
+  return (
+    <>
+      {items.map((d) => d.embed && <EmbedView key={d.href} embed={d.embed} />)}
+      {plain.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {plain.map((d) => <FileLink key={d.href} label={d.label} href={d.href} />)}
+        </div>
+      )}
+    </>
   );
 }

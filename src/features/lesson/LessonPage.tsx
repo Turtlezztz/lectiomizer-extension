@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { RichText } from '@/components/RichText';
+import { embedFor, type Embed } from '@/components/embeds';
+import { EmbedView } from '@/components/LinkEmbeds';
 import { absidOf, activityPath, asAttachment, hasFeedbackTab, isActionable, type ActivityData, type ActivityItem, type Attachment, type NavLinkData } from './lesson-utils';
 import { LessonTabs } from './LessonTabs';
 import { People } from '@/features/people/PersonPopover';
@@ -91,11 +93,11 @@ function LessonContent({ loaded, href }: { loaded: Loaded<ActivityData>; href: s
   const sections = useMemo(
     () =>
       data.sections.map((s) => {
-        const files: Array<Attachment & { id: string }> = [];
+        const files: Array<Attachment & { id: string; embed: Embed | null }> = [];
         const blocks: ActivityItem[] = [];
         for (const item of s.items) {
           const file = asAttachment(item.node);
-          if (file) files.push({ ...file, id: item.id });
+          if (file) files.push({ ...file, id: item.id, embed: embedFor(file.href, file.label) });
           else blocks.push(item);
         }
         return { title: s.title, files, blocks };
@@ -193,14 +195,18 @@ function LessonContent({ loaded, href }: { loaded: Loaded<ActivityData>; href: s
             <div className="divide-y divide-border">
               {s.blocks.map((item) => (
                 <article key={item.id} id={`item-${item.id}`} className="px-5 py-3 [&_.prose-lectio>h1:first-child]:mt-1 [&_.prose-lectio>h1:first-child]:text-[15px]">
-                  <RichText node={item.node} />
+                  <RichText node={item.node} embeds />
                 </article>
               ))}
             </div>
             {s.files.length > 0 && (
               <div className={cn('px-5 pt-2 pb-4', s.blocks.length > 0 && 'border-t border-border pt-3')}>
                 <p className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-fg-subtle"><Paperclip className="size-3.5" /> Materialer</p>
-                <div className="flex flex-wrap gap-2">{s.files.map((f) => <AttachmentChip key={f.id} file={f} />)}</div>
+                {/* What can be shown is shown; the rest stay links. */}
+                {s.files.some((f) => f.embed) && (
+                  <div className="mb-2 flex flex-col gap-2">{s.files.map((f) => f.embed && <EmbedView key={f.id} embed={f.embed} />)}</div>
+                )}
+                <div className="flex flex-wrap gap-2">{s.files.map((f) => !f.embed && <AttachmentChip key={f.id} file={f} />)}</div>
               </div>
             )}
             {!s.files.length && <div className="h-2" />}
