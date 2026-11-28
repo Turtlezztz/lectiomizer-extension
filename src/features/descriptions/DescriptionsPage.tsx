@@ -114,6 +114,11 @@ export default function DescriptionsPage() {
           <EmptyState icon={<FileText />} title="Ingen undervisningsbeskrivelse" description={data?.empty || 'Der er ingen undervisningsbeskrivelse for faget endnu.'} />
         </Card>
       )}
+      {data && !error && (
+        <p className="mt-8 px-1 text-center text-[12.5px] text-fg-subtle">
+          Ser det ud som om, der mangler noget? Kontakt din lærer, og bed dem opdatere undervisningsbeskrivelsen i Lectio.
+        </p>
+      )}
     </Page>
   );
 }
