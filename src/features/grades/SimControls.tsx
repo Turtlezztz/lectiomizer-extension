@@ -1,17 +1,49 @@
+import { useState } from 'react';
 import { FlaskConical, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GradeChip } from './GradeChip';
-import { SCALE, fmtNumber, scaleLabel, typeName, type Trend } from './grade-utils';
-import { neededForTarget, parseTarget, simulate, targetText, type Overrides, type SimItem, type SimSource, type SimValue } from './simulator';
+import { SCALE, fmtNumber, parseWeight, scaleLabel, typeName, type Trend } from './grade-utils';
+import { neededForTarget, parseTarget, simulate, targetText, type CustomLine, type LineSuggestion, type Overrides, type SimItem, type SimSource, type SimValue } from './simulator';
 
 /** What a table needs to render editable grades while "Hvad nu hvis" is on. */
 export interface SimCtx {
   items: Map<string, SimItem>;
   overrides: Overrides;
   setGrade: (id: string, value: SimValue | null) => void;
+  /** Adding and leaving out lines (diploma only). */
+  lines?: {
+    added: CustomLine[];
+    removed: Set<string>;
+    suggestions: LineSuggestion[];
+    add: (lines: Array<Pick<LineSuggestion, 'subject' | 'weight'> & Partial<LineSuggestion>>) => void;
+    update: (id: string, patch: Partial<Omit<CustomLine, 'id'>>) => void;
+    remove: (id: string) => void;
+    toggle: (subject: string) => void;
+  };
 }
+
+/** A weight field that keeps what is typed and only reports valid weights ("1,5"). */
+export function WeightInput({ value, label, onChange }: { value: number; label: string; onChange: (weight: number) => void }) {
+  const [text, setText] = useState(() => fmtWeight(value));
+  return (
+    <Input
+      aria-label={label}
+      title="Vægt – A-fag 2, B-fag 1,5, C-fag 1 (delt, hvis faget har både skr. og mdt.)"
+      value={text}
+      inputMode="decimal"
+      onChange={(e) => {
+        setText(e.target.value);
+        const w = parseWeight(e.target.value);
+        if (w != null && w <= 10) onChange(w);
+      }}
+      onBlur={() => setText(fmtWeight(value))}
+      className="h-7 w-14 px-1.5 text-center text-[13px] tabular-nums"
+    />
+  );
+}
+const fmtWeight = (w: number) => String(w).replace('.', ',');
 
 const OPTIONS = [...SCALE].reverse();
 
@@ -57,8 +89,12 @@ export function SimGrade({ label, original, final, override, onChange }: {
 }
 
 /** The mode's toolbar: simulated averages, Mål-snit and Nulstil. Sticks to the bottom while on. */
-export function SimBar({ source, overrides, target, onTarget, onReset, onClose }: {
+export function SimBar({ source, items = source.items, lineChanges = 0, overrides, target, onTarget, onReset, onClose }: {
   source: SimSource;
+  /** The simulated lines when the user has added or removed some; Lectio's own otherwise. */
+  items?: SimItem[];
+  /** Lines added or left out. */
+  lineChanges?: number;
   overrides: Overrides;
   target: string;
   onTarget: (value: string) => void;
@@ -66,9 +102,10 @@ export function SimBar({ source, overrides, target, onTarget, onReset, onClose }
   onClose: () => void;
 }) {
   const now = simulate(source.items, {}, source.bonus);
-  const sim = simulate(source.items, overrides, source.bonus);
+  const sim = simulate(items, overrides, source.bonus);
+  const changed = sim.changed + lineChanges;
   const goal = parseTarget(target);
-  const text = targetText(target, goal === null ? null : neededForTarget(source.items, overrides, goal, source.bonus));
+  const text = targetText(target, goal === null ? null : neededForTarget(items, overrides, goal, source.bonus));
   const label = source.kind === 'diploma' ? 'Eksamenssnit' : 'Standpunktssnit';
 
   return (
@@ -96,13 +133,13 @@ export function SimBar({ source, overrides, target, onTarget, onReset, onClose }
           {text && <p aria-live="polite" className="min-w-0 text-[12.5px] leading-snug text-fg">{text}</p>}
         </div>
         <div className="ml-auto flex items-center gap-1">
-          <Button size="sm" variant="ghost" disabled={!sim.changed} onClick={onReset}><RotateCcw /> Nulstil</Button>
+          <Button size="sm" variant="ghost" disabled={!changed} onClick={onReset}><RotateCcw /> Nulstil</Button>
           <Button size="icon-sm" variant="ghost" aria-label="Luk Hvad nu hvis" title="Luk" onClick={onClose}><X /></Button>
         </div>
       </div>
-      {!sim.changed && (
+      {!changed && (
         <p className="mt-2 text-[12px] text-fg-subtle">
-          Klik på en karakter i {source.kind === 'diploma' ? 'beviset' : 'tabellen'} for at ændre eller udfylde den. Gemmes kun på denne enhed.
+          Klik på en karakter i {source.kind === 'diploma' ? 'beviset' : 'tabellen'} for at ændre eller udfylde den{source.kind === 'diploma' ? ', og tilføj de fag, der mangler, under beviset' : ''}. Gemmes kun på denne enhed.
         </p>
       )}
     </section>

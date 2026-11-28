@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, ExternalLink, FlaskConical, GraduationCap, Info, ScrollText } from 'lucide-react';
+import { ChevronDown, ExternalLink, FlaskConical, GraduationCap, Info, Plus, ScrollText, Trash2, Undo2, X } from 'lucide-react';
 import { readGrades } from '@/lib/lectio/readers/grades.js';
 import { useAccount, useLectioPage, useSchoolId } from '@/lib/lectio/query';
 import { pageUrl, PATHS } from '@/lib/lectio/paths';
@@ -9,6 +9,7 @@ import { Page, PageHeader } from '@/components/ui/page';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { BAR_TONE, GradeChip } from './GradeChip';
@@ -16,8 +17,8 @@ import {
   SCALE, fmtNumber, gradeTone, gradeTrend, groupByTerm, isError, latestGrade, splitLevel, summarize, typeName, typeShort, xprsName,
   type Diploma, type Grade, type GradesData, type RecordTable, type SectionError, type SubjectGrades,
 } from './grade-utils';
-import { diplomaItemId, simSource, standpunktItemId, type SimSource } from './simulator';
-import { SimBar, SimGrade, TrendMark, type SimCtx } from './SimControls';
+import { customItemId, diplomaItemId, editedItems, simSource, standpunktItemId, suggestLines, type SimSource } from './simulator';
+import { SimBar, SimGrade, TrendMark, WeightInput, type SimCtx } from './SimControls';
 import { useGradeSim } from './useGradeSim';
 
 export default function GradesPage() {
@@ -67,11 +68,28 @@ function GradesContent({ grades, href, sim }: { grades: GradesData; href: string
   const diplomas = grades.diplomas.filter((d): d is Diploma => !isError(d));
   const official = diplomas.find((d) => d.averages.length);
   const state = useGradeSim(useSimKey());
-  const ctx = useMemo<SimCtx | null>(
-    () => (sim ? { items: new Map(sim.source.items.map((i) => [i.id, i])), overrides: state.overrides, setGrade: state.setGrade } : null),
-    [sim, state.overrides, state.setGrade],
-  );
   const simDiploma = sim?.source.kind === 'diploma' ? sim.source.diploma : null;
+  const { added, removed, addLines, updateLine, deleteLine, toggleRemoved } = state;
+  // With a diploma the simulated lines are Lectio's minus the left-out ones, plus the added.
+  const items = useMemo(() => (!sim ? [] : simDiploma ? editedItems(simDiploma, { added, removed }) : sim.source.items), [sim, simDiploma, added, removed]);
+  const ctx = useMemo<SimCtx | null>(() => {
+    if (!sim) return null;
+    const base = { items: new Map(items.map((i) => [i.id, i])), overrides: state.overrides, setGrade: state.setGrade };
+    if (!simDiploma) return base;
+    const yearGroup = simDiploma.groups.find((g) => /^år/i.test(g)) ?? simDiploma.groups[0];
+    return {
+      ...base,
+      lines: {
+        added,
+        removed: new Set(removed),
+        suggestions: suggestLines(grades.current.subjects, simDiploma, added),
+        add: (lines) => addLines(lines, yearGroup),
+        update: updateLine,
+        remove: deleteLine,
+        toggle: toggleRemoved,
+      },
+    };
+  }, [sim, simDiploma, items, grades, state.overrides, state.setGrade, added, removed, addLines, updateLine, deleteLine, toggleRemoved]);
 
   return (
     <div className="space-y-6">
@@ -122,7 +140,7 @@ function GradesContent({ grades, href, sim }: { grades: GradesData; href: string
       <Supplementary notes={grades.notes} remarks={grades.remarks} href={href} />
 
       {sim && (
-        <SimBar source={sim.source} overrides={state.overrides} target={state.target} onTarget={state.setTarget} onReset={state.reset} onClose={sim.close} />
+        <SimBar source={sim.source} items={items} lineChanges={simDiploma ? added.length + removed.filter((r) => simDiploma.lines.some((l) => l.subject === r)).length : 0} overrides={state.overrides} target={state.target} onTarget={state.setTarget} onReset={state.reset} onClose={sim.close} />
       )}
     </div>
   );
@@ -331,6 +349,7 @@ function diplomaSubject(label: string) {
 function DiplomaCard({ diploma, sim }: { diploma: Diploma; sim: SimCtx | null }) {
   const examGroup = diploma.groups.findIndex((g) => /eksamen/i.test(g));
   const taken = examGroup < 0 ? 0 : diploma.lines.filter((l) => !l.results[examGroup]?.empty).length;
+  const edit = sim?.lines;
   return (
     <section aria-labelledby="grades-diploma">
       <SectionTitle
@@ -349,6 +368,7 @@ function DiplomaCard({ diploma, sim }: { diploma: Diploma; sim: SimCtx | null })
                 {diploma.groups.map((g) => (
                   <th key={g} scope="colgroup" colSpan={2} className="border-l border-border px-3 pt-2.5 pb-0.5 text-center text-[12.5px] font-semibold text-fg">{g}</th>
                 ))}
+                {edit && <th scope="col" rowSpan={2} className="w-10 border-b border-border"><span className="sr-only">Fjern</span></th>}
               </tr>
               <tr className="border-b border-border">
                 {diploma.groups.map((g) => [
@@ -360,17 +380,18 @@ function DiplomaCard({ diploma, sim }: { diploma: Diploma; sim: SimCtx | null })
             <tbody className="divide-y divide-border">
               {diploma.lines.map((line) => {
                 const { name, form } = diplomaSubject(line.subject);
+                const out = !!edit?.removed.has(line.subject);
                 return (
-                  <tr key={line.subject} className="hover:bg-surface-2/60">
-                    <th scope="row" className="py-2.5 pr-3 pl-5 text-left font-medium text-fg">{name}</th>
-                    <td className="px-3 py-2.5 text-fg-muted">{form}</td>
+                  <tr key={line.subject} className={cn('hover:bg-surface-2/60', out && 'text-fg-subtle')}>
+                    <th scope="row" className={cn('py-2.5 pr-3 pl-5 text-left font-medium', out ? 'text-fg-subtle line-through' : 'text-fg')}>{name}</th>
+                    <td className="px-3 py-2.5 text-fg-muted">{out ? 'Tæller ikke med' : form}</td>
                     {line.results.map((r) => {
                       const id = diplomaItemId(line.subject, r.label);
                       const item = sim?.items.get(id);
                       const guessed = item?.assumedWeight && sim?.overrides[id];
                       return [
                         <td key={r.label + 'k'} className="border-l border-border px-3 py-2 text-center">
-                          {item && sim ? (
+                          {out ? (r.empty ? null : <GradeChip value={r.fields.Karakter} size="sm" className="opacity-40" />) : item && sim ? (
                             <SimGrade label={`${line.subject}, ${r.label}`} original={r.empty ? null : r.fields.Karakter} override={sim.overrides[id]} onChange={(v) => sim.setGrade(id, v)} />
                           ) : r.empty ? <span className="text-fg-subtle/60" aria-label="Ingen karakter">·</span> : <GradeChip value={r.fields.Karakter} size="sm" title={r.fields.ECTS ? `ECTS ${r.fields.ECTS}` : undefined} />}
                         </td>,
@@ -379,9 +400,37 @@ function DiplomaCard({ diploma, sim }: { diploma: Diploma; sim: SimCtx | null })
                         </td>,
                       ];
                     })}
+                    {edit && (
+                      <td className="pr-2 text-center">
+                        <Button size="icon-sm" variant="ghost" aria-label={out ? `Tæl ${line.subject} med igen` : `Fjern ${line.subject} fra beregningen`} title={out ? 'Tæl med igen' : 'Fjern fra beregningen (fx et fag, du har løftet til et højere niveau)'} onClick={() => edit.toggle(line.subject)}>
+                          {out ? <Undo2 /> : <X />}
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
+              {edit?.added.map((l) => (
+                <tr key={l.id} className="bg-accent-soft/30">
+                  <th scope="row" colSpan={2} className="py-2 pr-3 pl-5 text-left font-normal">
+                    <Input aria-label="Fag" value={l.subject} placeholder="Fag, fx Dansk A, skr." onChange={(e) => edit.update(l.id, { subject: e.target.value })} className="h-7 w-full max-w-64 px-2 text-[13.5px]" />
+                  </th>
+                  {diploma.groups.map((g, gi) => {
+                    const id = customItemId(l.id, g);
+                    return [
+                      <td key={g + 'k'} className="border-l border-border px-3 py-2 text-center">
+                        <SimGrade label={`${l.subject || 'Nyt fag'}, ${g}`} original={null} override={sim!.overrides[id]} onChange={(v) => sim!.setGrade(id, v)} />
+                      </td>,
+                      <td key={g + 'v'} className="px-3 py-2 text-center text-fg-subtle tabular-nums">
+                        {gi === 0 ? <WeightInput value={l.weight} label={`Vægt for ${l.subject || 'nyt fag'}`} onChange={(weight) => edit.update(l.id, { weight })} /> : <span className="italic">{fmtNumber(l.weight, 2)}</span>}
+                      </td>,
+                    ];
+                  })}
+                  <td className="pr-2 text-center">
+                    <Button size="icon-sm" variant="ghost" aria-label={`Slet ${l.subject || 'linjen'}`} title="Slet linjen" onClick={() => edit.remove(l.id)}><Trash2 /></Button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -389,27 +438,67 @@ function DiplomaCard({ diploma, sim }: { diploma: Diploma; sim: SimCtx | null })
         <ul className="divide-y divide-border sm:hidden">
           {diploma.lines.map((line) => {
             const { name, form } = diplomaSubject(line.subject);
+            const out = !!edit?.removed.has(line.subject);
             return (
               <li key={line.subject} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13.5px] font-medium text-fg">{name}</p>
-                  {form && <p className="text-[12px] text-fg-subtle">{form}</p>}
+                  <p className={cn('truncate text-[13.5px] font-medium', out ? 'text-fg-subtle line-through' : 'text-fg')}>{name}</p>
+                  {(out || form) && <p className="text-[12px] text-fg-subtle">{out ? 'Tæller ikke med' : form}</p>}
                 </div>
                 {line.results.map((r) => {
                   const id = diplomaItemId(line.subject, r.label);
                   return (
                     <div key={r.label} className="flex w-14 flex-col items-center gap-1">
                       <span className="text-[10.5px] text-fg-subtle">{/eksamen/i.test(r.label) ? 'Eksamen' : /år/i.test(r.label) ? 'Års' : r.label}</span>
-                      {sim?.items.has(id) ? (
+                      {out ? (r.empty ? <span className="text-fg-subtle/60">·</span> : <GradeChip value={r.fields.Karakter} size="sm" className="opacity-40" />) : sim?.items.has(id) ? (
                         <SimGrade label={`${line.subject}, ${r.label}`} original={r.empty ? null : r.fields.Karakter} override={sim.overrides[id]} onChange={(v) => sim.setGrade(id, v)} />
                       ) : r.empty ? <span className="text-fg-subtle/60">·</span> : <GradeChip value={r.fields.Karakter} size="sm" />}
                     </div>
                   );
                 })}
+                {edit && (
+                  <Button size="icon-sm" variant="ghost" aria-label={out ? `Tæl ${line.subject} med igen` : `Fjern ${line.subject} fra beregningen`} onClick={() => edit.toggle(line.subject)}>
+                    {out ? <Undo2 /> : <X />}
+                  </Button>
+                )}
               </li>
             );
           })}
+          {edit?.added.map((l) => (
+            <li key={l.id} className="space-y-2 bg-accent-soft/30 px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <Input aria-label="Fag" value={l.subject} placeholder="Fag, fx Dansk A, skr." onChange={(e) => edit.update(l.id, { subject: e.target.value })} className="h-7 min-w-0 flex-1 px-2 text-[13.5px]" />
+                <Button size="icon-sm" variant="ghost" aria-label={`Slet ${l.subject || 'linjen'}`} onClick={() => edit.remove(l.id)}><Trash2 /></Button>
+              </div>
+              <div className="flex items-end gap-3">
+                <label className="flex flex-col gap-1 text-[10.5px] text-fg-subtle">Vægt<WeightInput value={l.weight} label={`Vægt for ${l.subject || 'nyt fag'}`} onChange={(weight) => edit.update(l.id, { weight })} /></label>
+                {diploma.groups.map((g) => {
+                  const id = customItemId(l.id, g);
+                  return (
+                    <div key={g} className="flex w-14 flex-col items-center gap-1">
+                      <span className="text-[10.5px] text-fg-subtle">{/eksamen/i.test(g) ? 'Eksamen' : /år/i.test(g) ? 'Års' : g}</span>
+                      <SimGrade label={`${l.subject || 'Nyt fag'}, ${g}`} original={null} override={sim!.overrides[id]} onChange={(v) => sim!.setGrade(id, v)} />
+                    </div>
+                  );
+                })}
+              </div>
+            </li>
+          ))}
         </ul>
+        {edit && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border px-5 py-3">
+            {edit.suggestions.length > 0 && (
+              <Button size="sm" variant="soft" onClick={() => edit.add(edit.suggestions)} title={edit.suggestions.map((l) => l.subject).join(' · ')}>
+                <Plus /> Tilføj årets fag ({edit.suggestions.length})
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => edit.add([{ subject: '', weight: 1 }])}><Plus /> Tilføj linje</Button>
+            <p className="min-w-0 flex-1 basis-64 text-[12px] leading-snug text-fg-subtle">
+              Fag står først på beviset, når de er afsluttet. Tilføj dem, du mangler (også SOP/SRP), og fjern linjer, der ikke kommer med.
+              {edit.suggestions.length > 0 && ' Årets fag får dit seneste standpunkt som gæt på årskarakteren.'}
+            </p>
+          </div>
+        )}
         {diploma.averages.length > 0 && (
           <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border bg-surface-2/60 px-5 py-3 text-[13px]">
             {diploma.averages.map((a) => (

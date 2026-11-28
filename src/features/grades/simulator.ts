@@ -43,6 +43,97 @@ export function diplomaItems(diploma: Diploma): SimItem[] {
   return items;
 }
 
+/** A line the user added to the diploma: a subject that isn't on it yet (fx this year's Dansk A). */
+export interface CustomLine {
+  id: string;
+  subject: string;
+  /** Counts for both the årskarakter and the eksamenskarakter. */
+  weight: number;
+}
+
+/** The user's changes to which lines are on the diploma. */
+export interface LineEdits {
+  added: CustomLine[];
+  /** `subject` of Lectio's lines that are left out (fx a C level replaced by B). */
+  removed: string[];
+}
+
+export const customItemId = (lineId: string, group: string) => `egen:${lineId}|${group}`;
+
+/** One empty cell per result column for every added line; the grades live in the overrides. */
+export function customItems(lines: CustomLine[], groups: string[]): SimItem[] {
+  return lines.flatMap((l) => groups.map((g) => ({ id: customItemId(l.id, g), value: null, weight: l.weight, assumedWeight: false })));
+}
+
+/** The diploma as simulated: Lectio's lines minus the removed ones, plus the added. */
+export function editedItems(diploma: Diploma, edits: LineEdits): SimItem[] {
+  const removed = new Set(edits.removed);
+  return [
+    ...diplomaItems({ ...diploma, lines: diploma.lines.filter((l) => !removed.has(l.subject)) }),
+    ...customItems(edits.added, diploma.groups),
+  ];
+}
+
+export interface LineSuggestion {
+  subject: string;
+  weight: number;
+  /** The latest standpunkt, as a first guess for the årskarakter. */
+  grade: SimValue | null;
+  /** Lines on the diploma this one takes the place of (same subject, lower level). */
+  replaces: string[];
+}
+
+const LEVELS = 'CBA';
+const formKey = (form: string) => (/^skr/i.test(form) ? 'skr' : /^m(dt|und)/i.test(form) ? 'mdt' : '');
+/** "Engelsk B, mdt." → { name: "engelsk", level: "B", form: "mdt" } */
+const subjectKey = (label: string) => {
+  const m = label.trim().match(/^(.*?),\s*(mdt|skr|mundtlig|skriftlig)\.?$/i);
+  const base = (m ? m[1] : label).trim();
+  // Typed lines may be lower case ("dansk a").
+  const lv = base.match(/^(.*?)\s+([abc])$/i);
+  return { name: (lv ? lv[1] : base).toLowerCase(), level: lv ? lv[2].toUpperCase() : '', form: m ? formKey(m[2]) : '' };
+};
+
+/**
+ * This year's subjects that aren't on the diploma yet, named like Lectio names diploma lines
+ * ("Dansk A, skr."), with the standpunkt's weight. A subject already there at a lower level is
+ * replaced: only the highest level counts on the final diploma.
+ */
+export function suggestLines(subjects: SubjectGrades[], diploma: Diploma, added: CustomLine[] = []): LineSuggestion[] {
+  const taken = [...diploma.lines, ...added].map((l) => subjectKey(l.subject));
+  const out: LineSuggestion[] = [];
+  for (const s of subjects) {
+    const key = subjectKey(s.subject);
+    const replaces = diploma.lines
+      .filter((l) => {
+        const k = subjectKey(l.subject);
+        return k.name === key.name && !!k.level && !!key.level && LEVELS.indexOf(k.level) < LEVELS.indexOf(key.level);
+      })
+      .map((l) => l.subject);
+    for (const f of s.forms) {
+      const form = formKey(f.form);
+      // Same subject and level, same form – or one side doesn't name a form ("Matematik A").
+      if (taken.some((t) => t.name === key.name && t.level === key.level && (!t.form || !form || t.form === form))) continue;
+      const g = latestGrade(f.grades);
+      const label = g ? scaleLabel(g.value) : null;
+      // Bestået/ikke bestået-fag never count toward the average.
+      if (g && !label) continue;
+      const suffix = s.forms.length > 1 ? (form ? `, ${form}.` : f.form ? `, ${f.form}` : '') : '';
+      out.push({ subject: `${s.subject}${suffix}`, weight: parseWeight(g?.weight) ?? 1, grade: (label as SimValue | null) ?? null, replaces });
+    }
+  }
+  return out;
+}
+
+/** Drop malformed lines (old or tampered storage). */
+export function cleanLines(raw: unknown): LineEdits {
+  const r = (raw ?? {}) as { added?: unknown; removed?: unknown };
+  const added = (Array.isArray(r.added) ? r.added : []).filter(
+    (l): l is CustomLine => !!l && typeof l.id === 'string' && typeof l.subject === 'string' && typeof l.weight === 'number' && l.weight > 0 && Number.isFinite(l.weight),
+  );
+  return { added, removed: (Array.isArray(r.removed) ? r.removed : []).filter((x): x is string => typeof x === 'string') };
+}
+
 /** The latest grade of each subject form – exactly what summarize() averages. */
 export function standpunktItems(subjects: SubjectGrades[]): SimItem[] {
   const items: SimItem[] = [];

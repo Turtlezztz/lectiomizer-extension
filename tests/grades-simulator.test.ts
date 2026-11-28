@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { SimBar, SimGrade, TrendMark } from '@/features/grades/SimControls';
 import { gradeTrend, summarize, weightedMean, type Diploma, type Grade } from '@/features/grades/grade-utils';
 import {
-  bonusFactor, cleanOverrides, simSource, targetText, diplomaItemId, diplomaItems, neededForTarget, parseTarget, simulate, standpunktItemId, standpunktItems, type SimItem,
+  bonusFactor, cleanLines, cleanOverrides, customItemId, editedItems, suggestLines, simSource, targetText, diplomaItemId, diplomaItems, neededForTarget, parseTarget, simulate, standpunktItemId, standpunktItems, type SimItem,
 } from '@/features/grades/simulator';
 
 const g = (value: string, type: string, extra: Partial<Grade> = {}): Grade => ({ type, value, final: false, extra: [], xprs: null, source: null, weight: '1', ...extra });
@@ -190,5 +190,75 @@ describe('simulator UI (static render)', () => {
     expect(bar).toMatch(/Ikke nået endnu|Nået/);
     const trend = renderToStaticMarkup(createElement(TrendMark, { trend: gradeTrend([g('7', '1.standpunkt'), g('10', '2.standpunkt')])! }));
     expect(trend).toContain('+3');
+  });
+});
+
+describe('adding and removing diploma lines', () => {
+  // The real shape: last year's subjects are on the diploma, this year's are not.
+  const bevis: Diploma = {
+    title: 'HTX v4',
+    groups: ['Årskarakter', 'Eksamenskarakter'],
+    lines: [
+      { subject: 'Engelsk B, skr.', results: [r('Årskarakter', '7', '0,75'), r('Eksamenskarakter', '7', '0,75')] },
+      { subject: 'Samfundsfag C', results: [r('Årskarakter', '10', '1'), r('Eksamenskarakter', null, null)] },
+    ],
+    averages: [],
+  };
+  const year = [
+    { subject: 'Dansk A', hold: 'L3d DA', forms: [{ form: 'Skriftlig', grades: [g('7', '1.standpunkt')] }, { form: 'Mundtlig', grades: [g('10', '1.standpunkt')] }] },
+    { subject: 'Samfundsfag B', hold: 'L3g Sa', forms: [{ form: 'Mundtlig', grades: [g('7', '1.standpunkt', { weight: '1,5' })] }] },
+    { subject: 'Engelsk B', hold: 'x', forms: [{ form: 'Skriftlig', grades: [g('12', '1.standpunkt')] }] },
+    { subject: 'Idræt C', hold: 'x', forms: [{ form: '', grades: [g('Bestået', '1.standpunkt')] }] },
+  ];
+
+  it('suggests this year\'s subjects, named like diploma lines, replacing lower levels', () => {
+    const s = suggestLines(year, bevis);
+    expect(s.map((l) => [l.subject, l.weight, l.grade])).toEqual([
+      ['Dansk A, skr.', 1, '7'],
+      ['Dansk A, mdt.', 1, '10'],
+      ['Samfundsfag B', 1.5, '7'],
+    ]);
+    expect(s[2].replaces).toEqual(['Samfundsfag C']);
+    expect(s[0].replaces).toEqual([]);
+  });
+
+  it('skips subjects already on the diploma or already added', () => {
+    const s = suggestLines(year, bevis, [{ id: 'a', subject: 'dansk a, skr.', weight: 1 }]);
+    expect(s.map((l) => l.subject)).not.toContain('Dansk A, skr.');
+  });
+
+  it('simulates with added lines and without removed ones', () => {
+    const added = [{ id: 'a', subject: 'Samfundsfag B', weight: 1.5 }];
+    const items = editedItems(bevis, { added, removed: ['Samfundsfag C'] });
+    expect(items.map((i) => i.id)).toEqual([
+      diplomaItemId('Engelsk B, skr.', 'Årskarakter'), diplomaItemId('Engelsk B, skr.', 'Eksamenskarakter'),
+      customItemId('a', 'Årskarakter'), customItemId('a', 'Eksamenskarakter'),
+    ]);
+    // An added line counts only once it has a grade.
+    expect(simulate(items, {}).average).toBeCloseTo(7);
+    const res = simulate(items, { [customItemId('a', 'Årskarakter')]: '12' });
+    expect(res.average).toBeCloseTo((7 * 0.75 * 2 + 12 * 1.5) / 3);
+    expect(res.count).toBe(3);
+  });
+
+  it('matches Lectio on a real diploma (weighted mean of every grade)', () => {
+    const line = (subject: string, y: [string, string], e?: [string, string]) => ({ subject, results: [r('Årskarakter', y[1], y[0]), e ? r('Eksamenskarakter', e[1], e[0]) : r('Eksamenskarakter', null, null)] });
+    const real: Diploma = {
+      ...bevis,
+      lines: [
+        line('Engelsk B, mdt.', ['0,75', '7']), line('Engelsk B, skr.', ['0,75', '7'], ['0,75', '7']),
+        line('Fysik B, mdt.', ['0,75', '12']), line('Fysik B, skr.', ['0,75', '10']),
+        line('Kemi B, mdt.', ['0,75', '12'], ['1,5', '4']), line('Kemi B, skr.', ['0,75', '12']),
+        line('Teknologi B', ['1,5', '12']), line('Biologi C', ['1', '7'], ['1', '4']),
+        line('Kommunikation og it C', ['1', '10']), line('Samfundsfag C', ['1', '10']),
+        line('Naturvidenskabeligt grundforløb', ['0,25', '10']), line('Produktudvikling', ['0,25', '10']),
+      ],
+    };
+    expect(simulate(diplomaItems(real), {}).average!.toFixed(1)).toBe('8.6');
+  });
+
+  it('drops malformed stored lines', () => {
+    expect(cleanLines({ added: [{ id: 'a', subject: 'X', weight: 1 }, { id: 1 }, { id: 'b', subject: 'Y', weight: 0 }], removed: ['A', 3] })).toEqual({ added: [{ id: 'a', subject: 'X', weight: 1 }], removed: ['A'] });
+    expect(cleanLines(null)).toEqual({ added: [], removed: [] });
   });
 });
